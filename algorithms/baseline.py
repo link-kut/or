@@ -1,14 +1,13 @@
 import numpy as np
 import networkx as nx
 
+
 # Baseline Agent
 class BaselineVNEAgent():
     def __init__(self):
-        self.TOTAL_TIME_STEPS = 56000
         self.SUBSTRATE_NET = None
         self.VNR_ARRIVALS = None
         self.VNR_DICT = None
-        self.step_idx = None
 
     def find_substrate_node(self, substrate, request):
         candidate_nodes = {}

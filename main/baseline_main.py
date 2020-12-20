@@ -1,4 +1,4 @@
-from environments.baseline_env import VNETestEnvironment
+from environments.vne_env import VNETestEnvironment
 from algorithms.baseline import BaselineVNEAgent
 
 import matplotlib.pyplot as plt
