@@ -9,7 +9,7 @@ GLOBAL_MAX_STEP = 5600
 
 class VNETestEnvironment(gym.Env):
     def __init__(self):
-        self.TOTAL_TIME_STEPS = 5600
+        self.TOTAL_TIME_STEPS = GLOBAL_MAX_STEP
         self.TIME_WINDOW = 50
         self.SUBSTRATE_NET = None
         self.VNR_ARRIVALS = None
