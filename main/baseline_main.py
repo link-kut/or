@@ -79,6 +79,6 @@ ax_2.set_title("Baseline Agent Acceptance Ratio")
 ax_2.grid(True)
 
 fig.tight_layout()
-fig.savefig(graph_save_path + "results.png")
+fig.savefig(os.path.join(graph_save_path, "results.png"))
 
 print(episode_reward)
