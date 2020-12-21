@@ -92,17 +92,17 @@ class BaselineVNEAgent():
                     True if copied_substrate_net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
             )
 
-            all_simple_paths = nx.all_simple_paths(subnet, src_s_node, dst_s_node)
+            # all_simple_paths = nx.all_simple_paths(subnet, src_s_node, dst_s_node)
 
-            if len(subnet.edges) == 0 or len(list(all_simple_paths)) == 0:
+            if len(subnet.edges) == 0:
                 return None
 
-            MAX_K = len(all_simple_paths)
+            MAX_K = 10
 
             shortest_s_paths = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)
 
             s_links_in_path = []
-            for s_path in shortest_s_paths[0]:
+            for s_path in shortest_s_paths:
                 for node_idx in range(len(s_path) - 1):
                     s_links_in_path.append((s_path[node_idx], s_path[node_idx + 1]))
 
