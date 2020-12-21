@@ -82,8 +82,8 @@ class BaselineVNEAgent():
 
         # mapping the virtual nodes and substrate_net nodes
         for v_link, v_bandwidth_demand in sorted_virtual_links:
-            src_s_node = embedding_s_nodes[v_link[0]]
-            dst_s_node = embedding_s_nodes[v_link[1]]
+            src_s_node = embedding_s_nodes[v_link[0]][0]
+            dst_s_node = embedding_s_nodes[v_link[1]][0]
 
             subnet = nx.subgraph_view(
                 copied_substrate_net,
