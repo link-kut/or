@@ -4,15 +4,15 @@ from itertools import islice
 
 def get_revenue_VNR(vnr):
     revenue_cpu = 0.0
-    for node_id in vnr.nodes:
-        revenue_cpu += vnr.nodes[node_id]['CPU']
 
-    revenue_bandwidth = 0.0
-    for edge_id in vnr.edges:
-        revenue_bandwidth += vnr.edges[edge_id]['bandwidth']
+    for _, v_cpu_demand in vnr["graph"].nodes(data=True):
+        revenue_cpu += v_cpu_demand['CPU']
+
+    revenue_bandwidth = 0
+    for _, _, v_bandwidth_demand in vnr["graph"].edges(data=True):
+        revenue_bandwidth += v_bandwidth_demand['bandwidth']
 
     alpha = 0.8
-
     revenue = revenue_cpu + alpha * revenue_bandwidth
 
     return revenue
