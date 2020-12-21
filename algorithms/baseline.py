@@ -94,7 +94,7 @@ class BaselineVNEAgent():
 
             all_simple_paths = nx.all_simple_paths(subnet, src_s_node, dst_s_node)
 
-            if len(subnet.edges) == 0 or len(all_simple_paths) == 0:
+            if len(subnet.edges) == 0 or len(list(all_simple_paths)) == 0:
                 return None
 
             MAX_K = len(all_simple_paths)
