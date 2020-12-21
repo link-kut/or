@@ -34,8 +34,6 @@ def main():
 
     next_embedding_epoch = TIME_WINDOW_SIZE
 
-    print(state)
-
     while not done:
         time_step += 1
 
@@ -47,7 +45,9 @@ def main():
 
         next_state, reward, done, info = env.step(action)
 
-        print(next_state)
+        print("[STEP: {0}] state: {1}, action: {2}, reward: {3}, next_state: {4}, done: {5}".format(
+            time_step, state, action, reward, next_state, done
+        ))
 
         episode_reward += reward
         state = next_state
