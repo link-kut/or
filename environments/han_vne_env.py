@@ -107,7 +107,7 @@ class VNEEnvironment(gym.Env):
         # processing of leave_from_queue
         vnrs_leave_from_queue = []
         for vnr in self.VNRs_INFO.values():
-            if vnr["time_step_leave_from_queue"] >= self.step_idx:
+            if vnr["time_step_leave_from_queue"] <= self.step_idx:
                 vnrs_leave_from_queue.append(vnr)
 
         for vnr_left in vnrs_leave_from_queue:
@@ -116,7 +116,7 @@ class VNEEnvironment(gym.Env):
         # processing of serving_completed
         vnrs_serving_completed = []
         for vnr in self.VNRs_INFO.values():
-            if vnr["time_step_serving_completed"] and vnr["time_step_serving_completed"] >= self.step_idx:
+            if vnr["time_step_serving_completed"] and vnr["time_step_serving_completed"] <= self.step_idx:
                 vnrs_serving_completed.append(vnr)
                 
                 _, embedding_s_nodes, embedding_s_paths = self.VNRs_SERVING[vnr["id"]]
