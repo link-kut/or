@@ -6,8 +6,10 @@ import os
 import glob
 
 PROJECT_HOME = os.getcwd()[:-5]
-graph_save_path = PROJECT_HOME + "/graphs/"
+graph_save_path = os.path.join(PROJECT_HOME, "graphs")
 
+if not os.path.exists(graph_save_path):
+    os.makedirs(graph_save_path)
 
 TIME_STEP_SCALE = 1 / 10
 
@@ -21,20 +23,12 @@ def main():
     bl_agent = BaselineVNEAgent()
 
     state = env.reset()
-    next_state = []
     done = False
 
     episode_reward = 0.0
 
-    # extract the arrival time
-    arrival_idx = []
-    for idx in state[1]:
-        arrival_idx.append(idx)
-
     step_rewards = []
     time_step = 0
-    action_time_step = 0
-    time_steps = []
     acceptance_ratios = []
 
     next_embedding_epoch = TIME_WINDOW_SIZE
@@ -53,7 +47,6 @@ def main():
         episode_reward += reward
         state = next_state
 
-        time_steps.append(time_step)
         step_rewards.append(reward)
         acceptance_ratios.append(info['acceptance_ratio'])
 
@@ -65,14 +58,14 @@ def main():
     fig = plt.figure(figsize=(20, 8))
 
     ax_1 = fig.add_subplot(2, 1, 1)
-    ax_1.plot(time_steps, step_rewards)
+    ax_1.plot(range(len(step_rewards)), step_rewards)
     ax_1.set_ylabel("Revenue")
     ax_1.set_xlabel("Time unit")
     ax_1.set_title("Baseline Agent Revenue")
     ax_1.grid(True)
 
     ax_2 = fig.add_subplot(2, 1, 2)
-    ax_2.plot(time_steps, acceptance_ratios)
+    ax_2.plot(range(len(acceptance_ratios)), acceptance_ratios)
     ax_2.set_ylabel("Acceptance Ratio")
     ax_2.set_xlabel("Time unit")
     ax_2.set_title("Baseline Agent Acceptance Ratio")
