@@ -3,6 +3,8 @@ import networkx as nx
 import numpy as np
 from random import randint, expovariate
 
+from common import utils
+
 
 class VNETestEnvironment(gym.Env):
     def __init__(self, global_max_step):
@@ -39,6 +41,7 @@ class VNETestEnvironment(gym.Env):
 
         time_step = 0
         vnr_id = 0
+
         while True:
             # The arrival of VNRs follows a Poisson process with an average arrival rate of 5 VNs per 100 time units.
             # inter-arrival time mean: 0.05
@@ -75,6 +78,49 @@ class VNETestEnvironment(gym.Env):
         initial_state["vnrs_collected"] = self.VNRs_COLLECTED
 
         return initial_state
+
+    def step(self, action: dict):
+        self.step_idx += 1
+
+        if action:
+            vnrs_postponement = action["vnrs_postponement"]
+            vnrs_embedding = action["vnrs_embedding"]
+
+            for vnr, embedding_s_nodes, embedding_s_paths in vnrs_embedding:
+                for s_node_id, v_cpu_demand in embedding_s_nodes.values():
+                    self.SUBSTRATE_NET.nodes[s_node_id]['CPU'] -= v_cpu_demand
+
+                for s_links_in_path, v_bandwidth_demand in embedding_s_paths.values():
+                    for s_link in s_links_in_path:
+                        self.SUBSTRATE_NET.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+
+                self.VNRs_COLLECTED.remove(vnr)
+
+            assert len(self.VNRs_COLLECTED) == len(vnrs_postponement)
+
+            self.VNRs_COLLECTED.clear()
+
+            for vnr in vnrs_postponement:
+                self.VNRs_COLLECTED.append(vnr)
+        else:
+            self.collect_vnr_for_time_step(self.step_idx)
+
+        reward = 0.0
+
+        if self.step_idx >= self.GLOBAL_MAX_STEPS:
+            done = True
+        else:
+            done = False
+
+        next_state = {}
+        next_state["substrate_net"] = self.SUBSTRATE_NET
+        next_state["vnrs_collected"] = self.VNRs_COLLECTED
+
+        info = {
+            "acceptance_ratio": 0.0
+        }
+
+        return next_state, reward, done, info
 
     def collect_vnr_for_time_step(self, time_step):
         if time_step in self.VNRs_INFO:
@@ -116,6 +162,21 @@ class VNETestEnvironment(gym.Env):
                 for node_id in range(len(s_link_id) - 1):
                     self.SUBSTRATE_NET.edges[s_link_id[node_id], s_link_id[node_id + 1]]['bandwidth'] -= v_bandwidth_demand
 
+
+    def set_substrate_network(self, embedded_nodes, embedded_links):
+        # set the substrate_net nodes
+        for v_node_id in embedded_nodes:
+            for e_node_id, cpu_demand in [embedded_nodes[v_node_id]]:
+                self.SUBSTRATE_NET.nodes[e_node_id]['CPU'] -= cpu_demand
+
+        # set the substrate_net links
+        for v_link_id in embedded_links:
+            for e_link_id, v_bandwidth_demand in [embedded_links[v_link_id]]:
+                for node_id in range(len(e_link_id) - 1):
+                    self.SUBSTRATE_NET.edges[e_link_id[node_id], e_link_id[node_id + 1]][
+                        'bandwidth'] -= v_bandwidth_demand
+
+
     def _check_served_vnr(self):
         served_total_revenue = 0
         for served_vnr, embedded_nodes, embedded_links in self.VNRs_SERVED:
@@ -131,7 +192,7 @@ class VNETestEnvironment(gym.Env):
                 self.VNRs_SERVED.remove([served_vnr, embedded_nodes, embedded_links])
 
         for served_vnr, embedded_nodes, embedded_links in self.VNRs_SERVED:
-            served_total_revenue += self._revenue_VNR(served_vnr['graph'])
+            served_total_revenue += utils._revenue_VNR(served_vnr['graph'])
 
         return served_total_revenue
 
@@ -140,45 +201,5 @@ class VNETestEnvironment(gym.Env):
             if waiting_vnr['delay'] <= 0:
                 self.VNRs_INFO[self.vnr_arrival_time_steps[self.action_step_idx + 1]].remove(waiting_vnr)
 
-    @staticmethod
-    def _revenue_VNR(vnr):
-        revenue_cpu = 0.0
-        for node_id in vnr.nodes:
-            revenue_cpu += vnr.nodes[node_id]['CPU']
 
-        revenue_bandwidth = 0.0
-        for edge_id in vnr.edges:
-            revenue_bandwidth += vnr.edges[edge_id]['bandwidth']
-
-        alpha = 0.8
-
-        revenue = revenue_cpu + alpha * revenue_bandwidth
-
-        return revenue
-
-    def step(self, action):
-        self.step_idx += 1
-
-        if action:
-            pass
-            self.VNRs_COLLECTED.clear()
-        else:
-            self.collect_vnr_for_time_step(self.step_idx)
-
-        reward = 0.0
-
-        if self.step_idx >= self.GLOBAL_MAX_STEPS:
-            done = True
-        else:
-            done = False
-
-        next_state = {}
-        next_state["substrate_net"] = self.SUBSTRATE_NET
-        next_state["vnrs_collected"] = self.VNRs_COLLECTED
-
-        info = {
-            "acceptance_ratio": 0.0
-        }
-
-        return next_state, reward, done, info
 
