@@ -63,7 +63,7 @@ class BaselineVNEAgent():
                     max_h_value = h_value
                     embedding_s_nodes[v_node_id] = (candidate_s_node_id, v_cpu_demand)
 
-            copied_substrate_net.nodes[embedding_s_nodes[v_node_id]]['CPU'] -= v_cpu_demand
+            copied_substrate_net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] -= v_cpu_demand
 
         return embedding_s_nodes
 
