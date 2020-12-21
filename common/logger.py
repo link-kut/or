@@ -1,8 +1,8 @@
 import logging, os, sys
 from logging.handlers import RotatingFileHandler
 
-idx = os.getcwd().index("link_rl")
-PROJECT_HOME = os.getcwd()[:idx] + "link_rl"
+idx = os.getcwd().index("or")
+PROJECT_HOME = os.getcwd()[:idx] + "or"
 if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
 

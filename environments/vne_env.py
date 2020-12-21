@@ -3,236 +3,217 @@ import networkx as nx
 import numpy as np
 from random import randint, expovariate
 
+from common import utils
 
-GLOBAL_MAX_STEP = 5600
 
-
-class VNETestEnvironment(gym.Env):
+class State:
     def __init__(self):
-        self.TOTAL_TIME_STEPS = GLOBAL_MAX_STEP
-        self.TIME_WINDOW = 50
+        self.substrate_net = None
+        self.vnrs_collected = None
+
+    def __str__(self):
+        state_str = "[SUBSTRATE_NET] nodes: {0}, edges: {1} ".format(len(self.substrate_net.nodes), len(self.substrate_net.edges))
+
+        vnr_ids_collected = ""
+        if len(self.vnrs_collected) > 0:
+            for vnr_collected in self.vnrs_collected[:-1]:
+                vnr_ids_collected += str(vnr_collected["id"]) + ", "
+            vnr_ids_collected += str(self.vnrs_collected[-1]["id"])
+        else:
+            vnr_ids_collected += "None"
+
+        state_str += "[VNRs_COLLECTED] vnr_ids: {0}".format(vnr_ids_collected)
+
+        return state_str
+
+
+class VNEEnvironment(gym.Env):
+    def __init__(self, global_max_step, vnr_inter_arrival_rate, vnr_duration_mean_rate, vnr_delay):
+        self.GLOBAL_MAX_STEPS = global_max_step
+        self.VNR_INTER_ARRIVAL_RATE = vnr_inter_arrival_rate
+        self.VNR_DURATION_MEAN_RATE = vnr_duration_mean_rate
+        self.VNR_DELAY = vnr_delay
+
         self.SUBSTRATE_NET = None
-        self.VNR_ARRIVALS = None
-        self.VNR_DICT = None
-        self.SERVED_VNR = None
+
+        self.VNRs_ARRIVED = None
+        self.VNRs_INFO = None
+        self.VNRs_SERVING = None
+        self.VNRs_COLLECTED_UNTIL_NEXT_EMBEDDING_EPOCH = None
+
         self.step_idx = None
-        self.action_step_idx = None
-        self.total_acceptance = None
-        self.accept_vnr_counts = None
-        self.arrival_idx = []
+
+        self.total_arrival_vnrs = None
+        self.successfully_mapped_vnrs = None
 
     def reset(self):
+        # Each substrate network is configured to have 100 nodes with over 500 links,
+        # which is about the scale of a medium-sized ISP.
         self.SUBSTRATE_NET = nx.gnm_random_graph(n=100, m=500)
 
+        # corresponding CPU and bandwidth resources of it are real numbers uniformly distributed from 50 to 100
         for node_id in self.SUBSTRATE_NET.nodes:
             self.SUBSTRATE_NET.nodes[node_id]['CPU'] = randint(50, 100)
+
         for edge_id in self.SUBSTRATE_NET.edges:
             self.SUBSTRATE_NET.edges[edge_id]['bandwidth'] = randint(50, 100)
 
-        self.vnr_arriavals = [int(expovariate(0.05)) for i in range(10)]
-        self.VNR_ARRIVALS = np.zeros(self.TOTAL_TIME_STEPS)
-        self.VNR_INFO = {}
-        self.COLLECT_VNR = {}
-        self.SERVED_VNR = []
+        self.VNRs_ARRIVED = np.zeros(self.GLOBAL_MAX_STEPS)
+        self.VNRs_INFO = {}
+        self.VNRs_SERVING = {}
+        self.VNRs_COLLECTED = []
 
         time_step = 0
+        vnr_id = 0
 
         while True:
-            next_arrival = int(expovariate(0.05))
-            # next_arrival = 10
+            next_arrival = int(expovariate(self.VNR_INTER_ARRIVAL_RATE))
+
             time_step += next_arrival
-            if time_step >= GLOBAL_MAX_STEP:
+            if time_step >= self.GLOBAL_MAX_STEPS:
                 break
-            self.VNR_ARRIVALS[time_step] += 1
 
-            new_vnr, duration, delay = self._get_new_vnr()
+            self.VNRs_ARRIVED[time_step] += 1
 
-            if time_step not in self.VNR_INFO:
-                self.VNR_INFO[time_step] = []
-
-            self.VNR_INFO[time_step].append({
-                "graph": new_vnr,
+            new_vnr_net, duration, delay = self.get_new_vnr()
+            vnr = {
+                "id": vnr_id,
+                "time_step_arrival": time_step,
+                "graph": new_vnr_net,
                 "duration": duration,
-                "delay": delay
-            })
+                "time_step_serving_completed": None,
+                "delay": delay,
+                "time_step_leave_from_queue": time_step + delay,
+            }
+            self.VNRs_INFO[vnr["id"]] = vnr
+            vnr_id += 1
 
         self.step_idx = 0
-        self.action_step_idx = 0
-        self.total_acceptance = 0
-        self.accept_vnr_counts = 0
 
+        self.total_arrival_vnrs = 0
+        self.successfully_mapped_vnrs = 0
 
-        time_window = 0
-        for idx in self.VNR_INFO:
-            self.arrival_idx.append(idx)
+        arrival_vnrs = self.get_vnrs_for_time_step(self.step_idx)
+        self.VNRs_COLLECTED.extend(arrival_vnrs)
+        self.total_arrival_vnrs += len(arrival_vnrs)
 
-        # Collect and rearrange the VNR using the time window
-        time_window += self.TIME_WINDOW
-        for time_step in self.arrival_idx:
-            if time_step - time_window <= 0:
-                if time_window not in self.COLLECT_VNR:
-                    self.COLLECT_VNR[time_window] = []
-                for idx in range(len(self.VNR_INFO[time_step])):
-                    self.COLLECT_VNR[time_window].append({
-                        "graph": self.VNR_INFO[time_step][idx]['graph'],
-                        "duration": self.VNR_INFO[time_step][idx]['duration'],
-                        "delay": self.VNR_INFO[time_step][idx]['delay']
-                    })
-            else:
-                while not time_step <= time_window:
-                    time_window += self.TIME_WINDOW
-                if time_step - time_window <= 0:
-                    if time_window not in self.COLLECT_VNR:
-                        self.COLLECT_VNR[time_window] = []
-                    for idx in range(len(self.VNR_INFO[time_step])):
-                        self.COLLECT_VNR[time_window].append({
-                            "graph": self.VNR_INFO[time_step][idx]['graph'],
-                            "duration": self.VNR_INFO[time_step][idx]['duration'],
-                            "delay": self.VNR_INFO[time_step][idx]['delay']
-                        })
-
-        self.VNR_INFO = self.COLLECT_VNR
-        self.arrival_idx = []
-        for idx in self.VNR_INFO:
-            self.arrival_idx.append(idx)
-
-            # state = substrate node, VNR_INFO
-        initial_state = []
-        initial_state.append(self.SUBSTRATE_NET)
-        initial_state.append(self.VNR_INFO)
+        initial_state = State()
+        initial_state.substrate_net = self.SUBSTRATE_NET
+        initial_state.vnrs_collected = self.VNRs_COLLECTED
 
         return initial_state
 
-    @staticmethod
-    def _get_new_vnr():
-        duration = int(expovariate(0.002))
-        # duration = 100
-        delay = 200
-        num_nodes = randint(5, 20)
-        new_vnr = nx.gnp_random_graph(n=num_nodes, p=0.5)
-        for node_id in new_vnr.nodes:
-            new_vnr.nodes[node_id]['CPU'] = randint(1, 50)
-        for edge_id in new_vnr.edges:
-            new_vnr.edges[edge_id]['bandwidth'] = randint(1, 50)
-
-        return new_vnr, duration, delay
-
-    def _set_substrate_network(self, embedded_nodes, embedded_links):
-        # set the substrate nodes
-        for v_node_id in embedded_nodes:
-            for e_node_id, cpu_demand in [embedded_nodes[v_node_id]]:
-                self.SUBSTRATE_NET.nodes[e_node_id]['CPU'] -= cpu_demand
-
-        # set the substrate links
-        for v_link_id in embedded_links:
-            for e_link_id, v_bandwidth_demand in [embedded_links[v_link_id]]:
-                for node_id in range(len(e_link_id) - 1):
-                    self.SUBSTRATE_NET.edges[e_link_id[node_id], e_link_id[node_id + 1]][
-                        'bandwidth'] -= v_bandwidth_demand
-
-    def _check_served_vnr(self):
-        served_total_revenue = 0
-        for served_vnr, embedded_nodes, embedded_links in self.SERVED_VNR:
-            served_vnr['duration'] -= self.arrival_idx[self.action_step_idx]
-            if served_vnr['duration'] <= 0:
-                for v_node_id in embedded_nodes:
-                    for e_node_id, cpu_demand in [embedded_nodes[v_node_id]]:
-                        self.SUBSTRATE_NET.nodes[e_node_id]['CPU'] += cpu_demand
-                for v_link_id in embedded_links:
-                    for e_link_id, v_bandwidth_demand in [embedded_links[v_link_id]]:
-                        for node_id in range(len(e_link_id) - 1):
-                            self.SUBSTRATE_NET.edges[e_link_id[node_id], e_link_id[node_id + 1]][
-                                'bandwidth'] += v_bandwidth_demand
-                self.SERVED_VNR.remove([served_vnr, embedded_nodes, embedded_links])
-
-        for served_vnr, embedded_nodes, embedded_links in self.SERVED_VNR:
-            served_total_revenue += self._revenue_VNR(served_vnr['graph'])
-
-        return served_total_revenue
-
-    def _check_waiting_vnr(self):
-        for waiting_vnr in self.VNR_INFO[self.arrival_idx[self.action_step_idx + 1]]:
-            if waiting_vnr['delay'] <= 0:
-                self.VNR_INFO[self.arrival_idx[self.action_step_idx + 1]].remove(waiting_vnr)
-
-    def step(self, action):
-        next_state = []
-        reward = 0
-        accept_vnr_count = 0
-        unaccept_vnr_count = 0
-        done = False
-
-        # check the VNR's serving time and calculate the served VNR's total revenue
-        reward = self._check_served_vnr()
-
-        if self.step_idx == 0 or self.arrival_idx[self.action_step_idx] > self.step_idx or action == None:
-            next_state.append(self.SUBSTRATE_NET)
-            next_state.append(self.VNR_INFO)
-
-            info = {
-                'acceptance_ratio': 0.0,
-            }
-
-        else:
-            # processing action
-            # set action in the substrate network
-            for e_vnr_id in action:
-                for e_vnr in action[e_vnr_id]:
-                    if not e_vnr['postponed']:
-                        self._set_substrate_network(e_vnr['embedded_nodes'], e_vnr['embedded_links'])
-                        self.SERVED_VNR.append(
-                            [self.VNR_INFO[self.arrival_idx[self.action_step_idx]][e_vnr_id], e_vnr['embedded_nodes'],
-                             e_vnr['embedded_links']])
-                        # calculate the revenue for reward
-                        reward += self._revenue_VNR(
-                            self.VNR_INFO[self.arrival_idx[self.action_step_idx]][e_vnr_id]['graph'])
-                        accept_vnr_count += 1
-
-                    elif e_vnr['postponed']:  # postponed VNR send the next step
-                        if len(self.arrival_idx) - 1 > self.action_step_idx:
-                            self.VNR_INFO[self.arrival_idx[self.action_step_idx]][e_vnr_id]['delay'] -= (
-                                        self.arrival_idx[self.action_step_idx] - self.arrival_idx[
-                                    self.action_step_idx - 1])
-                            self.VNR_INFO[self.arrival_idx[self.action_step_idx + 1]].append(
-                                self.VNR_INFO[self.arrival_idx[self.action_step_idx]][e_vnr_id])
-                            # check the VNR's waiting time
-                            self._check_waiting_vnr()
-                        unaccept_vnr_count += 1
-
-            next_state.append(self.SUBSTRATE_NET)
-            next_state.append(self.VNR_INFO)
-
-            self.total_acceptance += (accept_vnr_count + unaccept_vnr_count)
-            self.accept_vnr_counts += accept_vnr_count
-            acceptance_ratio = self.accept_vnr_counts / self.total_acceptance
-
-            info = {
-                'acceptance_ratio': acceptance_ratio,
-                'valid': True
-            }
-            self.action_step_idx += 1
-
+    def step(self, action: dict):
         self.step_idx += 1
-        # if self.step_idx == len(self.arrival_idx) - 1:
-        if self.step_idx >= self.arrival_idx[-1]:
-            done = True
 
-        # print("STEP:{0}".format(self.step_idx))
+        # processing of leave_from_queue
+        vnrs_leave_from_queue = []
+        for vnr in self.VNRs_INFO.values():
+            if vnr["time_step_leave_from_queue"] <= self.step_idx:
+                vnrs_leave_from_queue.append(vnr)
+
+        for vnr_left in vnrs_leave_from_queue:
+            del self.VNRs_INFO[vnr_left["id"]]
+
+        # processing of serving_completed
+        vnrs_serving_completed = []
+        for vnr in self.VNRs_INFO.values():
+            if vnr["time_step_serving_completed"] and vnr["time_step_serving_completed"] <= self.step_idx:
+                vnrs_serving_completed.append(vnr)
+                
+                _, embedding_s_nodes, embedding_s_paths = self.VNRs_SERVING[vnr["id"]]
+
+                for s_node_id, v_cpu_demand in embedding_s_nodes.values():
+                    self.SUBSTRATE_NET.nodes[s_node_id]['CPU'] += v_cpu_demand
+
+                for s_links_in_path, v_bandwidth_demand in embedding_s_paths.values():
+                    for s_link in s_links_in_path:
+                        self.SUBSTRATE_NET.edges[s_link]['bandwidth'] += v_bandwidth_demand
+
+        for vnr_completed in vnrs_serving_completed:
+            del self.VNRs_INFO[vnr_completed["id"]]
+
+        # processing of embedding & postponement
+        if action:
+            vnrs_postponement = action["vnrs_postponement"]
+            vnrs_embedding = action["vnrs_embedding"]
+
+            for vnr, embedding_s_nodes, embedding_s_paths in vnrs_embedding:
+                vnr_still_valid = True    # flag variable - binary value (0 or 1)
+
+                for time_step, vnr_left in vnrs_leave_from_queue:
+                    if vnr == vnr_left:
+                        vnr_still_valid = False
+
+                for time_step, vnr_completed in vnrs_serving_completed:
+                    if vnr == vnr_completed:
+                        vnr_still_valid = False
+
+                if vnr_still_valid:
+                    for s_node_id, v_cpu_demand in embedding_s_nodes.values():
+                        self.SUBSTRATE_NET.nodes[s_node_id]['CPU'] -= v_cpu_demand
+
+                    for s_links_in_path, v_bandwidth_demand in embedding_s_paths.values():
+                        for s_link in s_links_in_path:
+                            self.SUBSTRATE_NET.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+
+                    vnr["time_step_serving_completed"] = self.step_idx + vnr["duration"]
+                    
+                    self.VNRs_SERVING[vnr["id"]] = (vnr, embedding_s_nodes, embedding_s_paths)
+
+                    self.successfully_mapped_vnrs += 1
+
+            self.VNRs_COLLECTED.clear()
+
+            for vnr in vnrs_postponement:
+                self.VNRs_COLLECTED.append(vnr)
+        else:
+            arrival_vnrs = self.get_vnrs_for_time_step(self.step_idx)
+            self.VNRs_COLLECTED.extend(arrival_vnrs)
+            self.total_arrival_vnrs += len(arrival_vnrs)
+
+        reward = 0.0
+
+        for vnr_serving, _, _ in self.VNRs_SERVING.values():
+            reward += utils.get_revenue_VNR(vnr_serving)
+
+        if self.step_idx >= self.GLOBAL_MAX_STEPS:
+            done = True
+        else:
+            done = False
+
+        next_state = State()
+        next_state.substrate_net = self.SUBSTRATE_NET
+        next_state.vnrs_collected = self.VNRs_COLLECTED
+
+        info = {
+            "acceptance_ratio": self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
+        }
 
         return next_state, reward, done, info
 
-    @staticmethod
-    def _revenue_VNR(vnr):
-        revenue_cpu = 0.0
-        for node_id in vnr.nodes:
-            revenue_cpu += vnr.nodes[node_id]['CPU']
+    def get_vnrs_for_time_step(self, time_step):
+        vnrs = []
+        for vnr in self.VNRs_INFO.values():
+            if vnr["time_step_arrival"] == time_step:
+                vnrs.append(vnr)
+        return vnrs
 
-        revenue_bandwidth = 0.0
-        for edge_id in vnr.edges:
-            revenue_bandwidth += vnr.edges[edge_id]['bandwidth']
+    def get_new_vnr(self):
+        duration = int(expovariate(self.VNR_DURATION_MEAN_RATE))
 
-        alpha = 0.8
+        delay = self.VNR_DELAY
 
-        revenue = revenue_cpu + alpha * revenue_bandwidth
+        # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
+        num_nodes = randint(5, 20)
 
-        return revenue
+        # Pairs of virtual nodes are randomly connected by links with the probability of 0.5.
+        new_vnr_net = nx.gnp_random_graph(n=num_nodes, p=0.5)
+
+        # CPU and bandwidth requirements of virtual nodes and links are real numbers uniformly distributed between 1 and 50.
+        for node_id in new_vnr_net.nodes:
+            new_vnr_net.nodes[node_id]['CPU'] = randint(1, 50)
+        for edge_id in new_vnr_net.edges:
+            new_vnr_net.edges[edge_id]['bandwidth'] = randint(1, 50)
+
+        return new_vnr_net, duration, delay
