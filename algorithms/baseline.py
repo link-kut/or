@@ -71,7 +71,7 @@ class BaselineVNEAgent():
         sorted_virtual_links = {}
 
         # order the largest bandwidth in VNR
-        for src_v_node, dst_v_node, v_bandwidth_demand in vnr.edges(data=True):
+        for src_v_node, dst_v_node, v_bandwidth_demand in vnr["graph"].edges(data=True):
             sorted_virtual_links[(src_v_node, dst_v_node)] = v_bandwidth_demand['bandwidth']
 
         sorted_virtual_links = sorted(
