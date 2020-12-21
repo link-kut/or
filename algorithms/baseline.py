@@ -120,7 +120,7 @@ class BaselineVNEAgent():
         for link_id in adjacent_links:
             total_node_bandwidth += adjacent_links[link_id]['bandwidth']
 
-        return s_cpu_capacity['CPU'] * total_node_bandwidth
+        return s_cpu_capacity * total_node_bandwidth
 
     def get_action(self, state):
         action = {}
