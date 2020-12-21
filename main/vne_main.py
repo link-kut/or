@@ -6,20 +6,29 @@ import os
 import glob
 
 PROJECT_HOME = os.getcwd()[:-5]
-graph_save_path = os.path.join(PROJECT_HOME, "graphs")
+graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
+log_save_path = os.path.join(PROJECT_HOME, "out", "logs")
 
 if not os.path.exists(graph_save_path):
     os.makedirs(graph_save_path)
 
+if not os.path.exists(log_save_path):
+    os.makedirs(log_save_path)
+
+
 TIME_STEP_SCALE = 1 / 10
-
 GLOBAL_MAX_STEP = int(56000 * TIME_STEP_SCALE)
-
 TIME_WINDOW_SIZE = int(500 * TIME_STEP_SCALE)
+
+# 0.002 --> each VN has an exponentially distributed duration with an average of 500 time units
+VNR_DURATION_MEAN_RATE = int(0.002 * (1.0 / TIME_STEP_SCALE))
+
+# the delay is set to be 200 time units
+VNR_DELAY = int(200 * TIME_STEP_SCALE)
 
 
 def main():
-    env = VNEEnvironment(GLOBAL_MAX_STEP)
+    env = VNEEnvironment(GLOBAL_MAX_STEP, VNR_DURATION_MEAN_RATE, VNR_DELAY)
     bl_agent = BaselineVNEAgent()
     # rl_agent = RLVNRAgent()
 

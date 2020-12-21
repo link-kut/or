@@ -28,8 +28,11 @@ class State:
 
 
 class VNEEnvironment(gym.Env):
-    def __init__(self, global_max_step):
+    def __init__(self, global_max_step, vnr_duration_mean_rate, vnr_delay):
         self.GLOBAL_MAX_STEPS = global_max_step
+        self.VNR_DURATION_MEAN_RATE = vnr_duration_mean_rate
+        self.VNR_DELAY = vnr_delay
+
         self.SUBSTRATE_NET = None
 
         self.VNRs_ARRIVED = None
@@ -197,14 +200,10 @@ class VNEEnvironment(gym.Env):
                 vnrs.append(vnr)
         return vnrs
 
-    @staticmethod
-    def get_new_vnr():
-        # each VN has an exponentially distributed duration with an average of 500 time units
-        # duration mean: 0.002
-        duration = int(expovariate(0.002))
+    def get_new_vnr(self):
+        duration = int(expovariate(self.VNR_DURATION_MEAN_RATE))
 
-        # the delay is set to be 200 time units
-        delay = 200
+        delay = self.VNR_DELAY
 
         # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
         num_nodes = randint(5, 20)
