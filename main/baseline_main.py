@@ -1,4 +1,4 @@
-from environments.han_vne_env import VNETestEnvironment
+from environments.han_vne_env import VNEEnvironment
 from algorithms.baseline import BaselineVNEAgent
 
 import matplotlib.pyplot as plt
@@ -19,8 +19,9 @@ TIME_WINDOW_SIZE = int(500 * TIME_STEP_SCALE)
 
 
 def main():
-    env = VNETestEnvironment(GLOBAL_MAX_STEP)
+    env = VNEEnvironment(GLOBAL_MAX_STEP)
     bl_agent = BaselineVNEAgent()
+    # rl_agent = RLVNRAgent()
 
     state = env.reset()
     done = False
@@ -33,6 +34,8 @@ def main():
 
     next_embedding_epoch = TIME_WINDOW_SIZE
 
+    print(state)
+
     while not done:
         time_step += 1
 
@@ -43,6 +46,8 @@ def main():
             next_embedding_epoch += TIME_WINDOW_SIZE
 
         next_state, reward, done, info = env.step(action)
+
+        print(next_state)
 
         episode_reward += reward
         state = next_state

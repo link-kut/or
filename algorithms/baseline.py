@@ -127,11 +127,11 @@ class BaselineVNEAgent():
         action['vnrs_postponement'] = []
         action['vnrs_embedding'] = []
 
-        COPIED_SUBSTRATE_NET = copy.deepcopy(state["substrate_net"])
-        VNRs_COLLECTED = state["vnrs_collected"]
+        COPIED_SUBSTRATE_NET = copy.deepcopy(state.substrate_net)
+        VNRs_COLLECTED = state.vnrs_collected
 
         #####################################
-        # step 1                            #
+        # step 1 - Greedy Node Mapping      #
         #####################################
 
         # Sort the requests according to their revenues
@@ -143,7 +143,6 @@ class BaselineVNEAgent():
 
         VNRs_NODE_EMBEDDING_SUCCESSFULLY = []
         for vnr in sorted_vnrs:
-
             # find the substrate nodes for the given vnr
             embedding_s_nodes = self.find_substrate_nodes(COPIED_SUBSTRATE_NET, vnr)
 
@@ -153,7 +152,7 @@ class BaselineVNEAgent():
                 VNRs_NODE_EMBEDDING_SUCCESSFULLY.append((vnr, embedding_s_nodes))
 
         #####################################
-        # step 2                            #
+        # step 2 - Link Mapping             #
         #####################################
 
         # Sort the requests that successfully completed the node-mapping stage by their revenues.

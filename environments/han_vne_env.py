@@ -6,14 +6,35 @@ from random import randint, expovariate
 from common import utils
 
 
-class VNETestEnvironment(gym.Env):
+class State:
+    def __init__(self):
+        self.substrate_net = None
+        self.vnrs_collected = None
+
+    def __str__(self):
+        state_str = "[SUBSTRATE_NET] nodes: {0}, edges: {1} ".format(len(self.substrate_net.nodes), len(self.substrate_net.edges))
+
+        vnr_ids_collected = ""
+        if len(self.vnrs_collected) > 0:
+            for vnr_collected in self.vnrs_collected[:-1]:
+                vnr_ids_collected += str(vnr_collected["id"]) + ", "
+            vnr_ids_collected += str(self.vnrs_collected[-1]["id"])
+        else:
+            vnr_ids_collected += "None"
+
+        state_str += "[VNRs_COLLECTED] vnr_ids: {0}".format(vnr_ids_collected)
+
+        return state_str
+
+
+class VNEEnvironment(gym.Env):
     def __init__(self, global_max_step):
         self.GLOBAL_MAX_STEPS = global_max_step
         self.SUBSTRATE_NET = None
 
         self.VNRs_ARRIVED = None
         self.VNRs_INFO = None
-        self.VNRs_SERVED = None
+        self.VNRs_SERVING = None
         self.VNRs_COLLECTED_UNTIL_NEXT_EMBEDDING_EPOCH = None
 
         self.step_idx = None
@@ -35,7 +56,7 @@ class VNETestEnvironment(gym.Env):
 
         self.VNRs_ARRIVED = np.zeros(self.GLOBAL_MAX_STEPS)
         self.VNRs_INFO = {}
-        self.VNRs_SERVED = {}
+        self.VNRs_SERVING = {}
         self.VNRs_COLLECTED = []
 
         time_step = 0
@@ -73,9 +94,9 @@ class VNETestEnvironment(gym.Env):
         self.VNRs_COLLECTED.extend(arrival_vnrs)
         self.total_arrival_vnrs += len(arrival_vnrs)
 
-        initial_state = {}
-        initial_state["substrate_net"] = self.SUBSTRATE_NET
-        initial_state["vnrs_collected"] = self.VNRs_COLLECTED
+        initial_state = State()
+        initial_state.substrate_net = self.SUBSTRATE_NET
+        initial_state.vnrs_collected = self.VNRs_COLLECTED
 
         return initial_state
 
@@ -94,10 +115,10 @@ class VNETestEnvironment(gym.Env):
         # processing of serving_completed
         vnrs_serving_completed = []
         for vnr in self.VNRs_INFO.values():
-            if vnr["time_step_leave_from_queue"] and vnr["time_step_leave_from_queue"] >= self.step_idx:
+            if vnr["time_step_serving_completed"] and vnr["time_step_serving_completed"] >= self.step_idx:
                 vnrs_serving_completed.append(vnr)
                 
-                _, embedding_s_nodes, embedding_s_paths = self.VNRs_SERVED[vnr["id"]]
+                _, embedding_s_nodes, embedding_s_paths = self.VNRs_SERVING[vnr["id"]]
 
                 for s_node_id, v_cpu_demand in embedding_s_nodes.values():
                     self.SUBSTRATE_NET.nodes[s_node_id]['CPU'] += v_cpu_demand
@@ -115,7 +136,7 @@ class VNETestEnvironment(gym.Env):
             vnrs_embedding = action["vnrs_embedding"]
 
             for vnr, embedding_s_nodes, embedding_s_paths in vnrs_embedding:
-                vnr_still_valid = True
+                vnr_still_valid = True    # flag variable - binary value (0 or 1)
 
                 for time_step, vnr_left in vnrs_leave_from_queue:
                     if vnr == vnr_left:
@@ -135,7 +156,7 @@ class VNETestEnvironment(gym.Env):
 
                     vnr["time_step_serving_completed"] = self.step_idx + vnr["duration"]
                     
-                    self.VNRs_SERVED[vnr["id"]] = (vnr, embedding_s_nodes, embedding_s_paths)
+                    self.VNRs_SERVING[vnr["id"]] = (vnr, embedding_s_nodes, embedding_s_paths)
 
                     self.successfully_mapped_vnrs += 1
 
@@ -145,12 +166,12 @@ class VNETestEnvironment(gym.Env):
                 self.VNRs_COLLECTED.append(vnr)
         else:
             arrival_vnrs = self.get_vnrs_for_time_step(self.step_idx)
-            self.VNRs_COLLECTED.extend(self.get_vnrs_for_time_step(self.step_idx))
+            self.VNRs_COLLECTED.extend(arrival_vnrs)
             self.total_arrival_vnrs += len(arrival_vnrs)
 
         reward = 0.0
 
-        for vnr_serving, _, _ in self.VNRs_SERVED.values():
+        for vnr_serving, _, _ in self.VNRs_SERVING.values():
             reward += utils.get_revenue_VNR(vnr_serving)
 
         if self.step_idx >= self.GLOBAL_MAX_STEPS:
@@ -158,9 +179,9 @@ class VNETestEnvironment(gym.Env):
         else:
             done = False
 
-        next_state = {}
-        next_state["substrate_net"] = self.SUBSTRATE_NET
-        next_state["vnrs_collected"] = self.VNRs_COLLECTED
+        next_state = State()
+        next_state.substrate_net = self.SUBSTRATE_NET
+        next_state.vnrs_collected = self.VNRs_COLLECTED
 
         info = {
             "acceptance_ratio": self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
