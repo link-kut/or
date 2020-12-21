@@ -84,6 +84,7 @@ class VNEEnvironment(gym.Env):
                 "time_step_leave_from_queue": time_step + delay,
             }
             self.VNRs_INFO[vnr["id"]] = vnr
+            vnr_id += 1
 
         self.step_idx = 0
 
