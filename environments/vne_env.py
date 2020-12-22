@@ -209,12 +209,10 @@ class VNEEnvironment(gym.Env):
 
                 for vnr_left in vnrs_leave_from_queue:
                     if vnr == vnr_left:
-                        print("&&&&&&&&&&&&&&&&&&& - 1")
                         vnr_still_valid = False
 
                 for vnr_completed in vnrs_serving_completed:
                     if vnr == vnr_completed:
-                        print("&&&&&&&&&&&&&&&&&&& - 2")
                         vnr_still_valid = False
 
                 if vnr_still_valid:
@@ -243,7 +241,6 @@ class VNEEnvironment(gym.Env):
         self.VNRs_COLLECTED.extend(arrival_vnrs)
         self.total_arrival_vnrs += len(arrival_vnrs)
 
-
         reward = 0.0
 
         for vnr_serving, _, _ in self.VNRs_SERVING.values():
@@ -263,10 +260,7 @@ class VNEEnvironment(gym.Env):
         #     "acceptance_ratio": self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
         # }
 
-        if action:
-            # self.successfully_mapped_vnrs += len(action.vnrs_embedding)
-            # self.total_arrival_vnrs += len(action.vnrs_embedding) + len(action.vnrs_postponement)
-            self.acceptance_ratio = self.successfully_mapped_vnrs / self.total_arrival_vnrs
+        self.acceptance_ratio = self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
 
         info = {
             "acceptance_ratio": self.acceptance_ratio

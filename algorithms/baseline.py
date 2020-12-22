@@ -64,16 +64,22 @@ class BaselineVNEAgent():
         :param vnr: virtual network request
         :return: embedded substrate nodes
         '''
-        sorted_virtual_nodes = {}
+        sorted_virtual_nodes = []
 
-        # order the largest CPU in VNR
         for node_id, cpu_demand in vnr.vnr_net.nodes(data=True):
-            sorted_virtual_nodes[node_id] = cpu_demand['CPU']
+            sorted_virtual_nodes.append((node_id, cpu_demand['CPU']))
 
-        # convert dict into list by sorted function
-        sorted_virtual_nodes = sorted(
-            sorted_virtual_nodes.items(), key=lambda x: x[1], reverse=True
-        )
+
+        # sorted_virtual_nodes = {}
+        #
+        # # order the largest CPU in VNR
+        # for node_id, cpu_demand in vnr.vnr_net.nodes(data=True):
+        #     sorted_virtual_nodes[node_id] = cpu_demand['CPU']
+        #
+        # # convert dict into list by sorted function
+        # sorted_virtual_nodes = sorted(
+        #     sorted_virtual_nodes.items(), key=lambda x: x[1], reverse=True
+        # )
 
         subset_S_per_v_node = {}
 
@@ -122,15 +128,20 @@ class BaselineVNEAgent():
         return embedding_s_nodes
 
     def find_substrate_path(self, copied_substrate_net, vnr, embedding_s_nodes):
-        sorted_virtual_links = {}
+        sorted_virtual_links = []
 
-        # order the largest bandwidth in VNR
         for src_v_node, dst_v_node, v_bandwidth_demand in vnr.vnr_net.edges(data=True):
-            sorted_virtual_links[(src_v_node, dst_v_node)] = v_bandwidth_demand['bandwidth']
+            sorted_virtual_links.append(((src_v_node, dst_v_node), v_bandwidth_demand['bandwidth']))
 
-        sorted_virtual_links = sorted(
-            sorted_virtual_links.items(), key=lambda x: x[1], reverse=True
-        )
+        # sorted_virtual_links = {}
+        #
+        # # order the largest bandwidth in VNR
+        # for src_v_node, dst_v_node, v_bandwidth_demand in vnr.vnr_net.edges(data=True):
+        #     sorted_virtual_links[(src_v_node, dst_v_node)] = v_bandwidth_demand['bandwidth']
+        #
+        # sorted_virtual_links = sorted(
+        #     sorted_virtual_links.items(), key=lambda x: x[1], reverse=True
+        # )
 
         embedding_s_paths = {}
 
