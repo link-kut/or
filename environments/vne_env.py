@@ -3,6 +3,7 @@ import networkx as nx
 import numpy as np
 from random import randint, expovariate
 
+from algorithms.baseline import Action
 from common import utils
 
 
@@ -111,7 +112,7 @@ class VNEEnvironment(gym.Env):
 
         return initial_state
 
-    def step(self, action: dict):
+    def step(self, action: Action):
         self.step_idx += 1
 
         # processing of leave_from_queue
@@ -143,8 +144,8 @@ class VNEEnvironment(gym.Env):
 
         # processing of embedding & postponement
         if action:
-            vnrs_postponement = action["vnrs_postponement"]
-            vnrs_embedding = action["vnrs_embedding"]
+            vnrs_postponement = action.vnrs_postponement
+            vnrs_embedding = action.vnrs_embedding
 
             for vnr, embedding_s_nodes, embedding_s_paths in vnrs_embedding:
                 vnr_still_valid = True    # flag variable - binary value (0 or 1)

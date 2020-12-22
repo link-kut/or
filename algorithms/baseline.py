@@ -9,6 +9,37 @@ import matplotlib.pyplot as plt
 from common import utils
 
 
+class Action:
+    def __init__(self):
+        self.vnrs_postponement = None
+        self.vnrs_embedding = None
+
+    def __str__(self):
+        if self.vnrs_postponement:
+            vnrs_postponement_str = ", ".join([
+                    '<id: {0}, arrival: {1}, leave: {2}, duration: {3}> '.format(
+                    vnr["id"], vnr["time_step_arrival"], vnr["time_step_leave_from_queue"], vnr["duration"]
+                    ) for vnr in self.vnrs_postponement
+            ])
+        else:
+            vnrs_postponement_str = "N/A"
+
+        if self.vnrs_embedding:
+            vnrs_embedding_str = ", ".join([
+                '<id: {0}, arrival: {1}, leave: {2}, duration: {3}> '.format(
+                    vnr["id"], vnr["time_step_arrival"], vnr["time_step_leave_from_queue"], vnr["duration"]
+                ) for vnr in self.vnrs_embedding
+            ])
+        else:
+            vnrs_embedding_str = "N/A"
+
+        action_str = "[VNRs Postponement: {0}, VNRs Embedding: {1}".format(
+            vnrs_postponement_str, vnrs_embedding_str
+        )
+
+        return action_str
+
+
 class BaselineVNEAgent():
     def __init__(self):
         pass
@@ -127,9 +158,9 @@ class BaselineVNEAgent():
         return s_cpu_capacity * total_node_bandwidth
 
     def get_action(self, state):
-        action = {}
-        action['vnrs_postponement'] = []
-        action['vnrs_embedding'] = []
+        action = Action()
+        action.vnrs_postponement = []
+        action.vnrs_embedding = []
 
         COPIED_SUBSTRATE_NET = copy.deepcopy(state.substrate_net)
         VNRs_COLLECTED = state.vnrs_collected
@@ -151,7 +182,7 @@ class BaselineVNEAgent():
             embedding_s_nodes = self.find_substrate_nodes(COPIED_SUBSTRATE_NET, vnr)
 
             if embedding_s_nodes is None:
-                action['vnrs_postponement'].append(vnr)
+                action.vnrs_postponement.append(vnr)
             else:
                 VNRs_NODE_EMBEDDING_SUCCESSFULLY.append((vnr, embedding_s_nodes))
 
@@ -170,10 +201,10 @@ class BaselineVNEAgent():
             embedding_s_paths = self.find_substrate_path(COPIED_SUBSTRATE_NET, vnr, embedding_s_nodes)
 
             if embedding_s_paths is None:
-                action['vnrs_postponement'].append(vnr)
+                action.vnrs_postponement.append(vnr)
             else:
-                action['vnrs_embedding'].append((vnr, embedding_s_nodes, embedding_s_paths))
+                action.vnrs_embedding.append((vnr, embedding_s_nodes, embedding_s_paths))
 
-        assert len(action['vnrs_postponement']) + len(action["vnrs_embedding"]) == len(VNRs_COLLECTED)
+        assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
 
         return action
