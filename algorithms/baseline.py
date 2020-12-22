@@ -1,8 +1,5 @@
-import sys
-
 import networkx as nx
 import copy
-import matplotlib.pyplot as plt
 
 
 # Baseline Agent
@@ -41,7 +38,10 @@ class Action:
 
 
 class BaselineVNEAgent():
-    def __init__(self):
+    def __init__(self, logger):
+        self.logger = logger
+        self.num_rejected_by_node_embedding = 0
+        self.num_rejected_by_link_embedding = 0
         pass
 
     def find_subset_S_for_virtual_node(self, copied_substrate_net, v_cpu_demand):
@@ -77,23 +77,29 @@ class BaselineVNEAgent():
 
         subset_S_per_v_node = {}
 
+        embedding_s_nodes = {}
+
+        # already_embedding_s_nodes = []
+
         for v_node_id, v_cpu_demand in sorted_virtual_nodes:
             # Find the subset S of substrate nodes that satisfy restrictions and
             # available CPU capacity (larger than that specified by the request.)
             subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(copied_substrate_net, v_cpu_demand)
+
             if len(subset_S_per_v_node[v_node_id]) == 0:
+                self.num_rejected_by_node_embedding += 1
+                msg = "** VNR {0} REJECTED: 'no subset S' --- {1} **".format(
+                    vnr.id, self.num_rejected_by_node_embedding
+                )
+                self.logger.info(msg), print(msg)
                 return None
 
-        embedding_s_nodes = {}
-
-        already_embedding_s_nodes = []
-
-        for v_node_id, v_cpu_demand in sorted_virtual_nodes:
             max_h_value = -1.0 * 1e10
             embedding_s_nodes[v_node_id] = None
             for s_node_id in subset_S_per_v_node[v_node_id]:
-                if s_node_id in already_embedding_s_nodes:
-                    continue
+
+                # if s_node_id in already_embedding_s_nodes:
+                #     continue
 
                 h_value = self.calculate_H_value(
                     copied_substrate_net.nodes[s_node_id]['CPU'],
@@ -103,11 +109,14 @@ class BaselineVNEAgent():
                 if h_value > max_h_value:
                     max_h_value = h_value
                     embedding_s_nodes[v_node_id] = (s_node_id, v_cpu_demand)
-                    already_embedding_s_nodes.append(s_node_id)
+                    #already_embedding_s_nodes.append(s_node_id)
 
-            if embedding_s_nodes[v_node_id] is None:
-                return None
+            # if embedding_s_nodes[v_node_id] is None:
+            #     msg = "!!!!!!!!!!!!!!!!!!!! - 2"
+            #     self.logger.info(msg), print(msg)
+            #     return None
 
+            assert copied_substrate_net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] >= v_cpu_demand
             copied_substrate_net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] -= v_cpu_demand
 
         return embedding_s_nodes
@@ -130,34 +139,41 @@ class BaselineVNEAgent():
             src_s_node = embedding_s_nodes[v_link[0]][0]
             dst_s_node = embedding_s_nodes[v_link[1]][0]
 
-            subnet = nx.subgraph_view(
-                copied_substrate_net,
-                filter_edge=lambda node_1_id, node_2_id: \
-                    True if copied_substrate_net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
-            )
+            if src_s_node == dst_s_node:
+                s_links_in_path = []
+                embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
+            else:
+                subnet = nx.subgraph_view(
+                    copied_substrate_net,
+                    filter_edge=lambda node_1_id, node_2_id: \
+                        True if copied_substrate_net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
+                )
 
-            # Just for assertion
-            for u, v, a in subnet.edges(data=True):
-                assert a["bandwidth"] >= v_bandwidth_demand
+                # Just for assertion
+                for u, v, a in subnet.edges(data=True):
+                    assert a["bandwidth"] >= v_bandwidth_demand
 
-            if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
-                return None
+                if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
+                    self.num_rejected_by_link_embedding += 1
+                    msg = "** VNR {0} REJECTED: 'no suitable link' --- {1} **".format(
+                        vnr.id, self.num_rejected_by_link_embedding
+                    )
+                    self.logger.info(msg), print(msg)
+                    return None
 
-            MAX_K = 10
+                MAX_K = 10
 
-            shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
+                shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
 
-            s_links_in_path = []
-            for node_idx in range(len(shortest_s_path) - 1):
-                s_links_in_path.append((shortest_s_path[node_idx], shortest_s_path[node_idx + 1]))
+                s_links_in_path = []
+                for node_idx in range(len(shortest_s_path) - 1):
+                    s_links_in_path.append((shortest_s_path[node_idx], shortest_s_path[node_idx + 1]))
 
-            for s_link in s_links_in_path:
-                assert copied_substrate_net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
-                copied_substrate_net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+                for s_link in s_links_in_path:
+                    assert copied_substrate_net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
+                    copied_substrate_net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
 
-            assert len(s_links_in_path) > 0, (shortest_s_path, src_s_node, dst_s_node)
-
-            embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
+                embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
 
         return embedding_s_paths
 

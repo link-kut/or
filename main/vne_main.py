@@ -29,7 +29,7 @@ else:
 
 logger = get_logger("vne_log")
 
-TIME_STEP_SCALE = 1 / 10
+TIME_STEP_SCALE = 1.0
 
 #The arithmetic mean of the ten instances is recorded as the final result.
 NUM_RUNS = 1
@@ -37,7 +37,7 @@ NUM_RUNS = 1
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
 GLOBAL_MAX_STEP = int(56000 * TIME_STEP_SCALE)
 
-TIME_WINDOW_SIZE = int(500 * TIME_STEP_SCALE)
+TIME_WINDOW_SIZE = int(100 * TIME_STEP_SCALE)
 
 # 0.002: Each VN has an exponentially distributed duration with an average of 500 time units
 VNR_DURATION_MEAN_RATE = 0.002 * (1.0 / TIME_STEP_SCALE)
@@ -46,12 +46,12 @@ VNR_DURATION_MEAN_RATE = 0.002 * (1.0 / TIME_STEP_SCALE)
 VNR_DELAY = int(200 * TIME_STEP_SCALE)
 
 # 0.05: The arrival of VNRs follows a Poisson process with an average arrival rate of 5 VNs per 100 time units.
-VNR_INTER_ARRIVAL_RATE = 0.05 * (1.0 / TIME_STEP_SCALE)
+VNR_INTER_ARRIVAL_RATE = 0.05
 
 
 def main():
-    env = VNEEnvironment(GLOBAL_MAX_STEP, VNR_INTER_ARRIVAL_RATE, VNR_DURATION_MEAN_RATE, VNR_DELAY)
-    bl_agent = BaselineVNEAgent()
+    env = VNEEnvironment(GLOBAL_MAX_STEP, VNR_INTER_ARRIVAL_RATE, VNR_DURATION_MEAN_RATE, VNR_DELAY, logger)
+    bl_agent = BaselineVNEAgent(logger)
     # rl_agent = RLVNRAgent()
 
     state = env.reset()
@@ -100,9 +100,13 @@ def main():
             performance_revenue[time_step] += episode_reward / time_step
             performance_acceptance_ratio[time_step] += info['acceptance_ratio']
 
-    performance_revenue /= NUM_RUNS
-    performance_acceptance_ratio /= NUM_RUNS
+            if time_step % TIME_WINDOW_SIZE == 0:
+                draw_performance(performance_revenue / NUM_RUNS, performance_acceptance_ratio / NUM_RUNS, time_step)
 
+    draw_performance(performance_revenue / NUM_RUNS, performance_acceptance_ratio / NUM_RUNS, time_step)
+
+
+def draw_performance(performance_revenue, performance_acceptance_ratio, time_step):
     # save the revenue and acceptance_ratios graph
     files = glob.glob(os.path.join(PROJECT_HOME, "graphs", "*"))
     for f in files:
@@ -111,14 +115,20 @@ def main():
     fig = plt.figure(figsize=(20, 8))
 
     ax_1 = fig.add_subplot(2, 1, 1)
-    ax_1.plot(range(1, GLOBAL_MAX_STEP + 1), performance_revenue[1:])
+    ax_1.plot(
+        range(0, len(performance_revenue[:time_step + 1]), TIME_WINDOW_SIZE),
+        performance_revenue[:time_step + 1:TIME_WINDOW_SIZE]
+    )
     ax_1.set_ylabel("Revenue")
     ax_1.set_xlabel("Time unit")
     ax_1.set_title("Baseline Agent Revenue")
     ax_1.grid(True)
 
     ax_2 = fig.add_subplot(2, 1, 2)
-    ax_2.plot(range(1, GLOBAL_MAX_STEP + 1), performance_acceptance_ratio[1:])
+    ax_2.plot(
+        range(0, len(performance_acceptance_ratio[:time_step + 1]), TIME_WINDOW_SIZE),
+        performance_acceptance_ratio[:time_step + 1:TIME_WINDOW_SIZE]
+    )
     ax_2.set_ylabel("Acceptance Ratio")
     ax_2.set_xlabel("Time unit")
     ax_2.set_title("Baseline Agent Acceptance Ratio")
@@ -126,8 +136,6 @@ def main():
 
     fig.tight_layout()
     fig.savefig(os.path.join(graph_save_path, "results.png"))
-
-    print(episode_reward)
 
 
 if __name__ == "__main__":

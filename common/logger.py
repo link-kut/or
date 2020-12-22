@@ -25,7 +25,7 @@ def get_logger(name):
     rotate_handler = RotatingFileHandler(
         os.path.join(PROJECT_HOME, "out", "logs", name + ".log"),
         'a',
-        1024 * 1024 * 5,
+        1024 * 1024 * 2,
         5
     )
     formatter = logging.Formatter(

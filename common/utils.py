@@ -8,7 +8,7 @@ def get_revenue_VNR(vnr):
     for _, v_cpu_demand in vnr.vnr_net.nodes(data=True):
         revenue_cpu += v_cpu_demand['CPU']
 
-    revenue_bandwidth = 0
+    revenue_bandwidth = 0.0
     for _, _, v_bandwidth_demand in vnr.vnr_net.edges(data=True):
         revenue_bandwidth += v_bandwidth_demand['bandwidth']
 

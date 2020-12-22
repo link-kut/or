@@ -8,20 +8,25 @@ from common import utils
 
 
 class State:
-    def __init__(self):
+    def __init__(self, initial_total_cpu_capacity, initial_total_bandwidth_capacity):
         self.substrate_net = None
         self.vnrs_collected = None
         self.vnrs_serving = None
 
-    def __str__(self):
-        cpu_resource = sum([node_data['CPU'] for _, node_data in self.substrate_net.nodes(data=True)])
-        bandwidth_resource = sum([link_data['bandwidth'] for _, _, link_data in self.substrate_net.edges(data=True)])
+        self.initial_total_cpu_capacity = initial_total_cpu_capacity
+        self.initial_total_bandwidth_capacity = initial_total_bandwidth_capacity
 
-        state_str = "[SUBSTRATE_NET nodes: {0}(CPU: {1}), links: {2}(BANDWIDTH: {3})] ".format(
+    def __str__(self):
+        remaining_cpu_resource = sum([node_data['CPU'] for _, node_data in self.substrate_net.nodes(data=True)])
+        remaining_bandwidth_resource = sum([link_data['bandwidth'] for _, _, link_data in self.substrate_net.edges(data=True)])
+
+        state_str = "[SUBSTRATE_NET nodes: {0}(CPU: {1}, {2:4.2f}%), links: {3}(BANDWIDTH: {4}, {5:4.2f}%)] ".format(
             len(self.substrate_net.nodes),
-            cpu_resource,
+            remaining_cpu_resource,
+            100 * remaining_cpu_resource / self.initial_total_cpu_capacity,
             len(self.substrate_net.edges),
-            bandwidth_resource
+            remaining_bandwidth_resource,
+            100 * remaining_bandwidth_resource / self.initial_total_bandwidth_capacity
         )
 
         state_str += "[{0} VNRs COLLECTED] ".format(len(self.vnrs_collected))
@@ -78,11 +83,12 @@ class VNR:
 
 
 class VNEEnvironment(gym.Env):
-    def __init__(self, global_max_step, vnr_inter_arrival_rate, vnr_duration_mean_rate, vnr_delay):
+    def __init__(self, global_max_step, vnr_inter_arrival_rate, vnr_duration_mean_rate, vnr_delay, logger):
         self.GLOBAL_MAX_STEPS = global_max_step
         self.VNR_INTER_ARRIVAL_RATE = vnr_inter_arrival_rate
         self.VNR_DURATION_MEAN_RATE = vnr_duration_mean_rate
         self.VNR_DELAY = vnr_delay
+        self.logger = logger
 
         self.SUBSTRATE_NET = None
 
@@ -96,17 +102,25 @@ class VNEEnvironment(gym.Env):
         self.total_arrival_vnrs = None
         self.successfully_mapped_vnrs = None
 
+        self.initial_total_cpu_capacity = 0.0
+        self.initial_total_bandwidth_capacity = 0.0
+
+        self.acceptance_ratio = 0.0
+
     def reset(self):
         # Each substrate network is configured to have 100 nodes with over 500 links,
         # which is about the scale of a medium-sized ISP.
         self.SUBSTRATE_NET = nx.gnm_random_graph(n=100, m=500)
 
         # corresponding CPU and bandwidth resources of it are real numbers uniformly distributed from 50 to 100
+
         for node_id in self.SUBSTRATE_NET.nodes:
             self.SUBSTRATE_NET.nodes[node_id]['CPU'] = randint(50, 100)
+            self.initial_total_cpu_capacity += self.SUBSTRATE_NET.nodes[node_id]['CPU']
 
         for edge_id in self.SUBSTRATE_NET.edges:
             self.SUBSTRATE_NET.edges[edge_id]['bandwidth'] = randint(50, 100)
+            self.initial_total_bandwidth_capacity += self.SUBSTRATE_NET.edges[edge_id]['bandwidth']
 
         self.VNRs_ARRIVED = np.zeros(self.GLOBAL_MAX_STEPS)
         self.VNRs_INFO = {}
@@ -134,9 +148,12 @@ class VNEEnvironment(gym.Env):
 
             self.VNRs_INFO[vnr.id] = vnr
             vnr_id += 1
+        msg = "TOTAL NUMBER OF VNRs: {0}\n".format(len(self.VNRs_INFO))
+        self.logger.info(msg), print(msg)
 
         self.step_idx = 0
 
+        self.acceptance_ratio = 0.0
         self.total_arrival_vnrs = 0
         self.successfully_mapped_vnrs = 0
 
@@ -144,7 +161,7 @@ class VNEEnvironment(gym.Env):
         self.VNRs_COLLECTED.extend(arrival_vnrs)
         self.total_arrival_vnrs += len(arrival_vnrs)
 
-        initial_state = State()
+        initial_state = State(self.initial_total_cpu_capacity, self.initial_total_bandwidth_capacity)
         initial_state.substrate_net = self.SUBSTRATE_NET
         initial_state.vnrs_collected = self.VNRs_COLLECTED
         initial_state.vnrs_serving = self.VNRs_SERVING
@@ -163,6 +180,7 @@ class VNEEnvironment(gym.Env):
         for vnr_left in vnrs_leave_from_queue:
             assert vnr_left in self.VNRs_COLLECTED
             self.VNRs_COLLECTED.remove(vnr_left)
+            self.total_arrival_vnrs -= 1
 
         # processing of serving_completed
         vnrs_serving_completed = []
@@ -191,10 +209,12 @@ class VNEEnvironment(gym.Env):
 
                 for vnr_left in vnrs_leave_from_queue:
                     if vnr == vnr_left:
+                        print("&&&&&&&&&&&&&&&&&&& - 1")
                         vnr_still_valid = False
 
                 for vnr_completed in vnrs_serving_completed:
                     if vnr == vnr_completed:
+                        print("&&&&&&&&&&&&&&&&&&& - 2")
                         vnr_still_valid = False
 
                 if vnr_still_valid:
@@ -218,10 +238,10 @@ class VNEEnvironment(gym.Env):
 
             for vnr in vnrs_postponement:
                 self.VNRs_COLLECTED.append(vnr)
-        else:
-            arrival_vnrs = self.get_vnrs_for_time_step(self.step_idx)
-            self.VNRs_COLLECTED.extend(arrival_vnrs)
-            self.total_arrival_vnrs += len(arrival_vnrs)
+
+        arrival_vnrs = self.get_vnrs_for_time_step(self.step_idx)
+        self.VNRs_COLLECTED.extend(arrival_vnrs)
+        self.total_arrival_vnrs += len(arrival_vnrs)
 
         reward = 0.0
 
@@ -233,13 +253,22 @@ class VNEEnvironment(gym.Env):
         else:
             done = False
 
-        next_state = State()
+        next_state = State(self.initial_total_cpu_capacity, self.initial_total_bandwidth_capacity)
         next_state.substrate_net = self.SUBSTRATE_NET
         next_state.vnrs_collected = self.VNRs_COLLECTED
         next_state.vnrs_serving = self.VNRs_SERVING
 
+        # info = {
+        #     "acceptance_ratio": self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
+        # }
+
+        if action:
+            # self.successfully_mapped_vnrs += len(action.vnrs_embedding)
+            # self.total_arrival_vnrs += len(action.vnrs_embedding) + len(action.vnrs_postponement)
+            self.acceptance_ratio = self.successfully_mapped_vnrs / self.total_arrival_vnrs
+
         info = {
-            "acceptance_ratio": self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
+            "acceptance_ratio": self.acceptance_ratio
         }
 
         return next_state, reward, done, info
