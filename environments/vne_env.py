@@ -12,7 +12,15 @@ class State:
         self.vnrs_collected = None
 
     def __str__(self):
-        state_str = "[SUBSTRATE_NET] nodes: {0}, edges: {1} ".format(len(self.substrate_net.nodes), len(self.substrate_net.edges))
+        cpu_resource = sum([node_data['CPU'] for _, node_data in self.substrate_net.nodes(data=True)])
+        bandwidth_resource = sum([link_data['bandwidth'] for _, _, link_data in self.substrate_net.edges(data=True)])
+
+        state_str = "[SUBSTRATE_NET nodes: {0}(CPU: {1}), links: {2}(BANDWIDTH: {3})] ".format(
+            len(self.substrate_net.nodes),
+            cpu_resource,
+            len(self.substrate_net.edges),
+            bandwidth_resource
+        )
 
         vnr_ids_collected = ""
         if len(self.vnrs_collected) > 0:
@@ -22,7 +30,7 @@ class State:
         else:
             vnr_ids_collected += "None"
 
-        state_str += "[VNRs_COLLECTED] vnr_ids: {0}".format(vnr_ids_collected)
+        state_str += "[VNRs_COLLECTED vnr_ids: {0}]".format(vnr_ids_collected)
 
         return state_str
 
