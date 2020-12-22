@@ -180,7 +180,7 @@ class VNEEnvironment(gym.Env):
         for vnr_left in vnrs_leave_from_queue:
             assert vnr_left in self.VNRs_COLLECTED
             self.VNRs_COLLECTED.remove(vnr_left)
-            self.total_arrival_vnrs -= 1
+            # self.total_arrival_vnrs -= 1
 
         # processing of serving_completed
         vnrs_serving_completed = []
@@ -242,6 +242,7 @@ class VNEEnvironment(gym.Env):
         arrival_vnrs = self.get_vnrs_for_time_step(self.step_idx)
         self.VNRs_COLLECTED.extend(arrival_vnrs)
         self.total_arrival_vnrs += len(arrival_vnrs)
+
 
         reward = 0.0
 

@@ -37,7 +37,7 @@ NUM_RUNS = 1
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
 GLOBAL_MAX_STEP = int(56000 * TIME_STEP_SCALE)
 
-TIME_WINDOW_SIZE = int(100 * TIME_STEP_SCALE)
+TIME_WINDOW_SIZE = int(50 * TIME_STEP_SCALE)
 
 # 0.002: Each VN has an exponentially distributed duration with an average of 500 time units
 VNR_DURATION_MEAN_RATE = 0.002 * (1.0 / TIME_STEP_SCALE)
