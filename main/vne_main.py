@@ -76,6 +76,8 @@ def main():
 
             msg = "[STEP: {0}]\nstate: {1}\n".format(time_step, state)
 
+            num_vnrs_before_action = len(state.vnrs_collected)
+
             if time_step < next_embedding_epoch:
                 action = None
             else:
@@ -83,6 +85,8 @@ def main():
                 next_embedding_epoch += TIME_WINDOW_SIZE
 
             next_state, reward, done, info = env.step(action)
+
+            num_vnrs_after_action = len(next_state.vnrs_collected)
 
             msg += "action: {0}\nreward: {1}\nnext_state: {2}\ndone: {3}\n".format(
                 action, reward, next_state, done
@@ -93,7 +97,7 @@ def main():
             episode_reward += reward
             state = next_state
 
-            performance_revenue[time_step] += reward
+            performance_revenue[time_step] += episode_reward / time_step
             performance_acceptance_ratio[time_step] += info['acceptance_ratio']
 
     performance_revenue /= NUM_RUNS

@@ -25,11 +25,16 @@ class Action:
         else:
             vnrs_embedding_str = "N/A"
 
-        action_str = "[{0} VNRs Postponement: {1}] [{2} VNRs Embedding: {3}]".format(
+        # action_str = "[{0} VNRs Postponement: {1}] [{2} VNRs Embedding: {3}]".format(
+        #     len(self.vnrs_postponement),
+        #     vnrs_postponement_str,
+        #     len(self.vnrs_embedding),
+        #     vnrs_embedding_str
+        # )
+
+        action_str = "[{0} VNRs Postponement] [{1} VNRs Embedding]".format(
             len(self.vnrs_postponement),
-            vnrs_postponement_str,
             len(self.vnrs_embedding),
-            vnrs_embedding_str
         )
 
         return action_str
@@ -81,17 +86,27 @@ class BaselineVNEAgent():
 
         embedding_s_nodes = {}
 
+        already_embedding_s_nodes = []
+
         for v_node_id, v_cpu_demand in sorted_virtual_nodes:
             max_h_value = -1.0 * 1e10
             embedding_s_nodes[v_node_id] = None
-            for candidate_s_node_id in subset_S_per_v_node[v_node_id]:
+            for s_node_id in subset_S_per_v_node[v_node_id]:
+                if s_node_id in already_embedding_s_nodes:
+                    continue
+
                 h_value = self.calculate_H_value(
-                    copied_substrate_net.nodes[candidate_s_node_id]['CPU'],
-                    copied_substrate_net[candidate_s_node_id]
+                    copied_substrate_net.nodes[s_node_id]['CPU'],
+                    copied_substrate_net[s_node_id]
                 )
+
                 if h_value > max_h_value:
                     max_h_value = h_value
-                    embedding_s_nodes[v_node_id] = (candidate_s_node_id, v_cpu_demand)
+                    embedding_s_nodes[v_node_id] = (s_node_id, v_cpu_demand)
+                    already_embedding_s_nodes.append(s_node_id)
+
+            if embedding_s_nodes[v_node_id] is None:
+                return None
 
             copied_substrate_net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] -= v_cpu_demand
 
@@ -140,7 +155,7 @@ class BaselineVNEAgent():
                 assert copied_substrate_net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
                 copied_substrate_net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
 
-            assert len(s_links_in_path) > 0
+            assert len(s_links_in_path) > 0, (shortest_s_path, src_s_node, dst_s_node)
 
             embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
 

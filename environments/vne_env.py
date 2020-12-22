@@ -11,6 +11,7 @@ class State:
     def __init__(self):
         self.substrate_net = None
         self.vnrs_collected = None
+        self.vnrs_serving = None
 
     def __str__(self):
         cpu_resource = sum([node_data['CPU'] for _, node_data in self.substrate_net.nodes(data=True)])
@@ -23,12 +24,16 @@ class State:
             bandwidth_resource
         )
 
-        if len(self.vnrs_collected):
-            vnrs_collected_str = ", ".join([str(vnr) for vnr in self.vnrs_collected])
-        else:
-            vnrs_collected_str = "N/A"
+        state_str += "[{0} VNRs COLLECTED] ".format(len(self.vnrs_collected))
 
-        state_str += "[{0} VNRs COLLECTED: {1}]".format(len(self.vnrs_collected), vnrs_collected_str)
+        # if len(self.vnrs_collected):
+        #     vnrs_collected_str = ", ".join([str(vnr) for vnr in self.vnrs_collected])
+        # else:
+        #     vnrs_collected_str = "N/A"
+
+        # state_str += "[{0} VNRs COLLECTED: {1}]".format(len(self.vnrs_collected), vnrs_collected_str)
+
+        state_str += "[{0} VNRs SERVING]".format(len(self.vnrs_serving))
 
         return state_str
 
@@ -142,6 +147,7 @@ class VNEEnvironment(gym.Env):
         initial_state = State()
         initial_state.substrate_net = self.SUBSTRATE_NET
         initial_state.vnrs_collected = self.VNRs_COLLECTED
+        initial_state.vnrs_serving = self.VNRs_SERVING
 
         return initial_state
 
@@ -150,21 +156,20 @@ class VNEEnvironment(gym.Env):
 
         # processing of leave_from_queue
         vnrs_leave_from_queue = []
-        for vnr in self.VNRs_INFO.values():
+        for vnr in self.VNRs_COLLECTED:
             if vnr.time_step_leave_from_queue <= self.step_idx:
                 vnrs_leave_from_queue.append(vnr)
 
         for vnr_left in vnrs_leave_from_queue:
-            del self.VNRs_INFO[vnr_left.id]
+            assert vnr_left in self.VNRs_COLLECTED
+            self.VNRs_COLLECTED.remove(vnr_left)
 
         # processing of serving_completed
         vnrs_serving_completed = []
-        for vnr in self.VNRs_INFO.values():
+        for vnr, embedding_s_nodes, embedding_s_paths in self.VNRs_SERVING.values():
             if vnr.time_step_serving_completed and vnr.time_step_serving_completed <= self.step_idx:
                 vnrs_serving_completed.append(vnr)
                 
-                _, embedding_s_nodes, embedding_s_paths = self.VNRs_SERVING[vnr.id]
-
                 for s_node_id, v_cpu_demand in embedding_s_nodes.values():
                     self.SUBSTRATE_NET.nodes[s_node_id]['CPU'] += v_cpu_demand
 
@@ -173,7 +178,8 @@ class VNEEnvironment(gym.Env):
                         self.SUBSTRATE_NET.edges[s_link]['bandwidth'] += v_bandwidth_demand
 
         for vnr_completed in vnrs_serving_completed:
-            del self.VNRs_INFO[vnr_completed.id]
+            assert vnr_completed.id in self.VNRs_SERVING
+            del self.VNRs_SERVING[vnr_completed.id]
 
         # processing of embedding & postponement
         if action:
@@ -203,6 +209,9 @@ class VNEEnvironment(gym.Env):
                     
                     self.VNRs_SERVING[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
 
+                    assert vnr in self.VNRs_COLLECTED
+                    self.VNRs_COLLECTED.remove(vnr)
+
                     self.successfully_mapped_vnrs += 1
 
             self.VNRs_COLLECTED.clear()
@@ -227,6 +236,7 @@ class VNEEnvironment(gym.Env):
         next_state = State()
         next_state.substrate_net = self.SUBSTRATE_NET
         next_state.vnrs_collected = self.VNRs_COLLECTED
+        next_state.vnrs_serving = self.VNRs_SERVING
 
         info = {
             "acceptance_ratio": self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
