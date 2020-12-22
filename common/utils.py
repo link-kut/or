@@ -17,6 +17,20 @@ def get_revenue_VNR(vnr):
 
     return revenue
 
+def get_cost_VNR(vnr, paths):
+    revenue_cpu = 0.0
+    for _, v_cpu_demand in vnr.vnr_net.nodes(data=True):
+        revenue_cpu += v_cpu_demand['CPU']
+
+    revenue_embedded_s_path = 0.0
+    for v_link_id in paths:
+        revenue_embedded_s_path += len(paths[v_link_id][0]) * paths[v_link_id][1]
+
+    alpha = 0.8
+    cost = revenue_cpu + alpha * revenue_embedded_s_path
+
+    return cost
+
 
 def k_shortest_paths(G, source, target, k, weight=None):
     return list(

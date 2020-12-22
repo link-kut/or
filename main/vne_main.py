@@ -65,6 +65,8 @@ def main():
 
     performance_revenue = np.zeros(GLOBAL_MAX_STEP + 1)
     performance_acceptance_ratio = np.zeros(GLOBAL_MAX_STEP + 1)
+    performance_rc_ratio = np.zeros(GLOBAL_MAX_STEP + 1)
+
 
     for run in range(NUM_RUNS):
 
@@ -99,14 +101,15 @@ def main():
 
             performance_revenue[time_step] += episode_reward / time_step
             performance_acceptance_ratio[time_step] += info['acceptance_ratio']
+            performance_rc_ratio[time_step] += info['rc_ratio']
 
             if time_step % TIME_WINDOW_SIZE == 0:
-                draw_performance(performance_revenue / NUM_RUNS, performance_acceptance_ratio / NUM_RUNS, time_step)
+                draw_performance(performance_revenue / NUM_RUNS, performance_acceptance_ratio / NUM_RUNS, performance_rc_ratio / NUM_RUNS, time_step)
 
     draw_performance(performance_revenue / NUM_RUNS, performance_acceptance_ratio / NUM_RUNS, time_step)
 
 
-def draw_performance(performance_revenue, performance_acceptance_ratio, time_step):
+def draw_performance(performance_revenue, performance_acceptance_ratio, performance_rc_ratio, time_step):
     # save the revenue and acceptance_ratios graph
     files = glob.glob(os.path.join(PROJECT_HOME, "graphs", "*"))
     for f in files:
@@ -114,7 +117,7 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, time_ste
 
     fig = plt.figure(figsize=(20, 8))
 
-    ax_1 = fig.add_subplot(2, 1, 1)
+    ax_1 = fig.add_subplot(3, 1, 1)
     ax_1.plot(
         range(0, len(performance_revenue[:time_step + 1]), TIME_WINDOW_SIZE),
         performance_revenue[:time_step + 1:TIME_WINDOW_SIZE]
@@ -124,7 +127,7 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, time_ste
     ax_1.set_title("Baseline Agent Revenue")
     ax_1.grid(True)
 
-    ax_2 = fig.add_subplot(2, 1, 2)
+    ax_2 = fig.add_subplot(3, 1, 2)
     ax_2.plot(
         range(0, len(performance_acceptance_ratio[:time_step + 1]), TIME_WINDOW_SIZE),
         performance_acceptance_ratio[:time_step + 1:TIME_WINDOW_SIZE]
@@ -133,6 +136,16 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, time_ste
     ax_2.set_xlabel("Time unit")
     ax_2.set_title("Baseline Agent Acceptance Ratio")
     ax_2.grid(True)
+
+    ax_3 = fig.add_subplot(3, 1, 3)
+    ax_3.plot(
+        range(0, len(performance_rc_ratio[:time_step + 1]), TIME_WINDOW_SIZE),
+        performance_rc_ratio[:time_step + 1:TIME_WINDOW_SIZE]
+    )
+    ax_3.set_ylabel("R/C Ratio")
+    ax_3.set_xlabel("Time unit")
+    ax_3.set_title("Baseline Agent R/C Ratio")
+    ax_3.grid(True)
 
     fig.tight_layout()
     fig.savefig(os.path.join(graph_save_path, "results.png"))

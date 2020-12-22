@@ -106,6 +106,7 @@ class VNEEnvironment(gym.Env):
         self.initial_total_bandwidth_capacity = 0.0
 
         self.acceptance_ratio = 0.0
+        self.rc_ratio = 0.0
 
     def reset(self):
         # Each substrate network is configured to have 100 nodes with over 500 links,
@@ -154,6 +155,7 @@ class VNEEnvironment(gym.Env):
         self.step_idx = 0
 
         self.acceptance_ratio = 0.0
+        self.rc_ratio = 0.0
         self.total_arrival_vnrs = 0
         self.successfully_mapped_vnrs = 0
 
@@ -242,9 +244,13 @@ class VNEEnvironment(gym.Env):
         self.total_arrival_vnrs += len(arrival_vnrs)
 
         reward = 0.0
+        cost = 0.0
 
         for vnr_serving, _, _ in self.VNRs_SERVING.values():
             reward += utils.get_revenue_VNR(vnr_serving)
+
+        for vnr_serving, _, embedding_s_paths in self.VNRs_SERVING.values():
+            cost += utils.get_cost_VNR(vnr_serving, embedding_s_paths)
 
         if self.step_idx >= self.GLOBAL_MAX_STEPS:
             done = True
@@ -261,9 +267,11 @@ class VNEEnvironment(gym.Env):
         # }
 
         self.acceptance_ratio = self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
+        self.rc_ratio = reward / cost if cost else 0.0
 
         info = {
-            "acceptance_ratio": self.acceptance_ratio
+            "acceptance_ratio": self.acceptance_ratio,
+            "rc_ratio": self.rc_ratio
         }
 
         return next_state, reward, done, info
