@@ -29,7 +29,7 @@ else:
 
 logger = get_logger("vne_log")
 
-TIME_STEP_SCALE = 1 / 10
+TIME_STEP_SCALE = 1 / 20
 
 #The arithmetic mean of the ten instances is recorded as the final result.
 NUM_RUNS = 2
@@ -63,8 +63,8 @@ def main():
 
     next_embedding_epoch = TIME_WINDOW_SIZE
 
-    performance_revenue = np.zeros(GLOBAL_MAX_STEP)
-    performance_acceptance_ratio = np.zeros(GLOBAL_MAX_STEP)
+    performance_revenue = np.zeros(GLOBAL_MAX_STEP + 1)
+    performance_acceptance_ratio = np.zeros(GLOBAL_MAX_STEP + 1)
 
     for run in range(NUM_RUNS):
 
@@ -105,14 +105,14 @@ def main():
     fig = plt.figure(figsize=(20, 8))
 
     ax_1 = fig.add_subplot(2, 1, 1)
-    ax_1.plot(range(1, GLOBAL_MAX_STEP + 1), performance_revenue[0:])
+    ax_1.plot(range(1, GLOBAL_MAX_STEP + 1), performance_revenue[1:])
     ax_1.set_ylabel("Revenue")
     ax_1.set_xlabel("Time unit")
     ax_1.set_title("Baseline Agent Revenue")
     ax_1.grid(True)
 
     ax_2 = fig.add_subplot(2, 1, 2)
-    ax_2.plot(range(1, GLOBAL_MAX_STEP + 1), performance_acceptance_ratio[0:])
+    ax_2.plot(range(1, GLOBAL_MAX_STEP + 1), performance_acceptance_ratio[1:])
     ax_2.set_ylabel("Acceptance Ratio")
     ax_2.set_xlabel("Time unit")
     ax_2.set_title("Baseline Agent Acceptance Ratio")

@@ -1,4 +1,4 @@
 from random import randint, expovariate
 
-print(expovariate(0.002))
-print(expovariate(0.02))
+TIME_STEP_SCALE = 1 / 100
+print(expovariate(0.002 * (1.0 / TIME_STEP_SCALE)))
