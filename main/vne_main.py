@@ -32,7 +32,7 @@ logger = get_logger("vne_log")
 TIME_STEP_SCALE = 1 / 20
 
 #The arithmetic mean of the ten instances is recorded as the final result.
-NUM_RUNS = 2
+NUM_RUNS = 1
 
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
 GLOBAL_MAX_STEP = int(56000 * TIME_STEP_SCALE)
