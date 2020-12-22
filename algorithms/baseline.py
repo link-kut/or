@@ -89,34 +89,19 @@ class BaselineVNEAgent():
             src_s_node = embedding_s_nodes[v_link[0]][0]
             dst_s_node = embedding_s_nodes[v_link[1]][0]
 
-            try:
-                subnet = nx.subgraph_view(
-                    copied_substrate_net,
-                    #filter_node=lambda s_node: True if s_node in [src_s_node, dst_s_node] else False,
-                    filter_edge=lambda node_1_id, node_2_id: \
-                        True if copied_substrate_net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
-                )
+            subnet = nx.subgraph_view(
+                copied_substrate_net,
+                #filter_node=lambda s_node: True if s_node in [src_s_node, dst_s_node] else False,
+                filter_edge=lambda node_1_id, node_2_id: \
+                    True if copied_substrate_net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
+            )
 
-                if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
-                    return None
+            if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
+                return None
 
-                MAX_K = 10
+            MAX_K = 10
 
-                shortest_s_paths = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)
-            except nx.exception.NetworkXNoPath as err:
-                print(err)
-
-                pos = nx.spiral_layout(copied_substrate_net)
-                plt.figure(figsize=(10, 5))
-                nx.draw(copied_substrate_net, pos, with_labels=True)
-                plt.show()
-
-                pos = nx.spiral_layout(subnet)
-                plt.figure(figsize=(10, 5))
-                nx.draw(subnet, pos, with_labels=True)
-                plt.show()
-
-                sys.exit(1)
+            shortest_s_paths = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)
 
             s_links_in_path = []
             for s_path in shortest_s_paths:
