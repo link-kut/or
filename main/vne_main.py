@@ -29,7 +29,7 @@ else:
 
 logger = get_logger("vne_log")
 
-TIME_STEP_SCALE = 1 / 20
+TIME_STEP_SCALE = 1 / 10
 
 #The arithmetic mean of the ten instances is recorded as the final result.
 NUM_RUNS = 1
@@ -95,9 +95,6 @@ def main():
 
             performance_revenue[time_step] += reward
             performance_acceptance_ratio[time_step] += info['acceptance_ratio']
-
-            if time_step == 26:
-                break
 
     performance_revenue /= NUM_RUNS
     performance_acceptance_ratio /= NUM_RUNS

@@ -173,7 +173,7 @@ class VNEEnvironment(gym.Env):
                         self.SUBSTRATE_NET.edges[s_link]['bandwidth'] += v_bandwidth_demand
 
         for vnr_completed in vnrs_serving_completed:
-            del self.VNRs_INFO[vnr_completed["id"]]
+            del self.VNRs_INFO[vnr_completed.id]
 
         # processing of embedding & postponement
         if action:
