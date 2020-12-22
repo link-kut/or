@@ -23,17 +23,53 @@ class State:
             bandwidth_resource
         )
 
-        vnr_ids_collected = ""
-        if len(self.vnrs_collected) > 0:
-            for vnr_collected in self.vnrs_collected[:-1]:
-                vnr_ids_collected += str(vnr_collected["id"]) + ", "
-            vnr_ids_collected += str(self.vnrs_collected[-1]["id"])
+        if len(self.vnrs_collected):
+            vnrs_collected_str = ", ".join([str(vnr) for vnr in self.vnrs_collected])
         else:
-            vnr_ids_collected += "None"
+            vnrs_collected_str = "N/A"
 
-        state_str += "[VNRs_COLLECTED vnr_ids: {0}]".format(vnr_ids_collected)
+        state_str += "[{0} VNRs COLLECTED: {1}]".format(len(self.vnrs_collected), vnrs_collected_str)
 
         return state_str
+
+
+class VNR:
+    def __init__(self, id, vnr_duration_mean_rate, delay, time_step_arrival):
+        self.id = id
+
+        self.duration = int(expovariate(vnr_duration_mean_rate))
+
+        self.delay = delay
+
+        # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
+        self.num_nodes = randint(5, 20)
+
+        # Pairs of virtual nodes are randomly connected by links with the probability of 0.5.
+        self.vnr_net = nx.gnp_random_graph(n=self.num_nodes, p=0.5)
+
+        # CPU and bandwidth requirements of virtual nodes and links are real numbers uniformly distributed between 1 and 50.
+        for node_id in self.vnr_net.nodes:
+            self.vnr_net.nodes[node_id]['CPU'] = randint(1, 50)
+
+        for edge_id in self.vnr_net.edges:
+            self.vnr_net.edges[edge_id]['bandwidth'] = randint(1, 50)
+
+        self.time_step_arrival = time_step_arrival
+
+        self.time_step_serving_completed = None
+
+        self.time_step_leave_from_queue = self.time_step_arrival + self.delay
+
+    def __str__(self):
+        # vnr_str = '<id: {0}, arrival: {1}, leave: {2}, duration: {3}> '.format(
+        #     self.id, self.time_step_arrival, self.time_step_leave_from_queue, self.duration
+        # )
+
+        vnr_str = '{0}'.format(
+            self.id
+        )
+
+        return vnr_str
 
 
 class VNEEnvironment(gym.Env):
@@ -84,17 +120,14 @@ class VNEEnvironment(gym.Env):
 
             self.VNRs_ARRIVED[time_step] += 1
 
-            new_vnr_net, duration, delay = self.get_new_vnr()
-            vnr = {
-                "id": vnr_id,
-                "time_step_arrival": time_step,
-                "graph": new_vnr_net,
-                "duration": duration,
-                "time_step_serving_completed": None,
-                "delay": delay,
-                "time_step_leave_from_queue": time_step + delay,
-            }
-            self.VNRs_INFO[vnr["id"]] = vnr
+            vnr = VNR(
+                id=vnr_id,
+                vnr_duration_mean_rate=self.VNR_DURATION_MEAN_RATE,
+                delay=self.VNR_DELAY,
+                time_step_arrival=time_step
+            )
+
+            self.VNRs_INFO[vnr.id] = vnr
             vnr_id += 1
 
         self.step_idx = 0
@@ -118,19 +151,19 @@ class VNEEnvironment(gym.Env):
         # processing of leave_from_queue
         vnrs_leave_from_queue = []
         for vnr in self.VNRs_INFO.values():
-            if vnr["time_step_leave_from_queue"] <= self.step_idx:
+            if vnr.time_step_leave_from_queue <= self.step_idx:
                 vnrs_leave_from_queue.append(vnr)
 
         for vnr_left in vnrs_leave_from_queue:
-            del self.VNRs_INFO[vnr_left["id"]]
+            del self.VNRs_INFO[vnr_left.id]
 
         # processing of serving_completed
         vnrs_serving_completed = []
         for vnr in self.VNRs_INFO.values():
-            if vnr["time_step_serving_completed"] and vnr["time_step_serving_completed"] <= self.step_idx:
+            if vnr.time_step_serving_completed and vnr.time_step_serving_completed <= self.step_idx:
                 vnrs_serving_completed.append(vnr)
                 
-                _, embedding_s_nodes, embedding_s_paths = self.VNRs_SERVING[vnr["id"]]
+                _, embedding_s_nodes, embedding_s_paths = self.VNRs_SERVING[vnr.id]
 
                 for s_node_id, v_cpu_demand in embedding_s_nodes.values():
                     self.SUBSTRATE_NET.nodes[s_node_id]['CPU'] += v_cpu_demand
@@ -166,9 +199,9 @@ class VNEEnvironment(gym.Env):
                         for s_link in s_links_in_path:
                             self.SUBSTRATE_NET.edges[s_link]['bandwidth'] -= v_bandwidth_demand
 
-                    vnr["time_step_serving_completed"] = self.step_idx + vnr["duration"]
+                    vnr.time_step_serving_completed = self.step_idx + vnr.duration
                     
-                    self.VNRs_SERVING[vnr["id"]] = (vnr, embedding_s_nodes, embedding_s_paths)
+                    self.VNRs_SERVING[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
 
                     self.successfully_mapped_vnrs += 1
 
@@ -204,25 +237,6 @@ class VNEEnvironment(gym.Env):
     def get_vnrs_for_time_step(self, time_step):
         vnrs = []
         for vnr in self.VNRs_INFO.values():
-            if vnr["time_step_arrival"] == time_step:
+            if vnr.time_step_arrival == time_step:
                 vnrs.append(vnr)
         return vnrs
-
-    def get_new_vnr(self):
-        duration = int(expovariate(self.VNR_DURATION_MEAN_RATE))
-
-        delay = self.VNR_DELAY
-
-        # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
-        num_nodes = randint(5, 20)
-
-        # Pairs of virtual nodes are randomly connected by links with the probability of 0.5.
-        new_vnr_net = nx.gnp_random_graph(n=num_nodes, p=0.5)
-
-        # CPU and bandwidth requirements of virtual nodes and links are real numbers uniformly distributed between 1 and 50.
-        for node_id in new_vnr_net.nodes:
-            new_vnr_net.nodes[node_id]['CPU'] = randint(1, 50)
-        for edge_id in new_vnr_net.edges:
-            new_vnr_net.edges[edge_id]['bandwidth'] = randint(1, 50)
-
-        return new_vnr_net, duration, delay

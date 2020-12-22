@@ -82,7 +82,7 @@ def main():
 
             next_state, reward, done, info = env.step(action)
 
-            msg = "[STEP: {0}] state: {1}, action: {2}, reward: {3}, next_state: {4}, done: {5}".format(
+            msg = "[STEP: {0}]\nstate: {1}\naction: {2}\nreward: {3}\nnext_state: {4}\ndone: {5}\n".format(
                 time_step, state, action, reward, next_state, done
             )
 
@@ -93,6 +93,9 @@ def main():
 
             performance_revenue[time_step] += reward
             performance_acceptance_ratio[time_step] += info['acceptance_ratio']
+
+            if time_step == 26:
+                break
 
     performance_revenue /= NUM_RUNS
     performance_acceptance_ratio /= NUM_RUNS

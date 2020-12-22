@@ -16,25 +16,17 @@ class Action:
 
     def __str__(self):
         if self.vnrs_postponement:
-            vnrs_postponement_str = ", ".join([
-                    '<id: {0}, arrival: {1}, leave: {2}, duration: {3}> '.format(
-                    vnr["id"], vnr["time_step_arrival"], vnr["time_step_leave_from_queue"], vnr["duration"]
-                    ) for vnr in self.vnrs_postponement
-            ])
+            vnrs_postponement_str = ", ".join([str(vnr) for vnr in self.vnrs_postponement])
         else:
             vnrs_postponement_str = "N/A"
 
         if self.vnrs_embedding:
-            vnrs_embedding_str = ", ".join([
-                '<id: {0}, arrival: {1}, leave: {2}, duration: {3}> '.format(
-                    vnr["id"], vnr["time_step_arrival"], vnr["time_step_leave_from_queue"], vnr["duration"]
-                ) for vnr in self.vnrs_embedding
-            ])
+            vnrs_embedding_str = ", ".join([str(vnr) for vnr in self.vnrs_embedding])
         else:
             vnrs_embedding_str = "N/A"
 
-        action_str = "[VNRs Postponement: {0}, VNRs Embedding: {1}".format(
-            vnrs_postponement_str, vnrs_embedding_str
+        action_str = "[{0} VNRs Postponement: {1}] [{2} VNRs Embedding: {3}]".format(
+            len(self.vnrs_postponement), vnrs_postponement_str, len(self.vnrs_embedding), vnrs_embedding_str
         )
 
         return action_str
@@ -67,7 +59,7 @@ class BaselineVNEAgent():
         sorted_virtual_nodes = {}
 
         # order the largest CPU in VNR
-        for node_id, cpu_demand in vnr["graph"].nodes(data=True):
+        for node_id, cpu_demand in vnr.vnr_net.nodes(data=True):
             sorted_virtual_nodes[node_id] = cpu_demand['CPU']
 
         # convert dict into list by sorted function
@@ -106,7 +98,7 @@ class BaselineVNEAgent():
         sorted_virtual_links = {}
 
         # order the largest bandwidth in VNR
-        for src_v_node, dst_v_node, v_bandwidth_demand in vnr["graph"].edges(data=True):
+        for src_v_node, dst_v_node, v_bandwidth_demand in vnr.vnr_net.edges(data=True):
             sorted_virtual_links[(src_v_node, dst_v_node)] = v_bandwidth_demand['bandwidth']
 
         sorted_virtual_links = sorted(
@@ -131,7 +123,7 @@ class BaselineVNEAgent():
 
             MAX_K = 10
 
-            shortest_s_paths = utils.k_shortest_paths(copied_substrate_net, source=src_s_node, target=dst_s_node, k=MAX_K)
+            shortest_s_paths = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)
 
             if shortest_s_paths == None:
                 return None

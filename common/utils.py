@@ -5,11 +5,11 @@ from itertools import islice
 def get_revenue_VNR(vnr):
     revenue_cpu = 0.0
 
-    for _, v_cpu_demand in vnr["graph"].nodes(data=True):
+    for _, v_cpu_demand in vnr.vnr_net.nodes(data=True):
         revenue_cpu += v_cpu_demand['CPU']
 
     revenue_bandwidth = 0
-    for _, _, v_bandwidth_demand in vnr["graph"].edges(data=True):
+    for _, _, v_bandwidth_demand in vnr.vnr_net.edges(data=True):
         revenue_bandwidth += v_bandwidth_demand['bandwidth']
 
     alpha = 0.8

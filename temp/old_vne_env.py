@@ -51,7 +51,7 @@ class VNETestEnvironment(gym.Env):
                 self.VNR_INFO[time_step] = []
 
             self.VNR_INFO[time_step].append({
-                "graph": new_vnr,
+                "vnr_net": new_vnr,
                 "duration": duration,
                 "delay": delay
             })
@@ -74,7 +74,7 @@ class VNETestEnvironment(gym.Env):
                     self.COLLECT_VNR[time_window] = []
                 for idx in range(len(self.VNR_INFO[time_step])):
                     self.COLLECT_VNR[time_window].append({
-                        "graph": self.VNR_INFO[time_step][idx]['graph'],
+                        "vnr_net": self.VNR_INFO[time_step][idx]['vnr_net'],
                         "duration": self.VNR_INFO[time_step][idx]['duration'],
                         "delay": self.VNR_INFO[time_step][idx]['delay']
                     })
@@ -86,7 +86,7 @@ class VNETestEnvironment(gym.Env):
                         self.COLLECT_VNR[time_window] = []
                     for idx in range(len(self.VNR_INFO[time_step])):
                         self.COLLECT_VNR[time_window].append({
-                            "graph": self.VNR_INFO[time_step][idx]['graph'],
+                            "vnr_net": self.VNR_INFO[time_step][idx]['vnr_net'],
                             "duration": self.VNR_INFO[time_step][idx]['duration'],
                             "delay": self.VNR_INFO[time_step][idx]['delay']
                         })
@@ -146,7 +146,7 @@ class VNETestEnvironment(gym.Env):
                 self.SERVED_VNR.remove([served_vnr, embedded_nodes, embedded_links])
 
         for served_vnr, embedded_nodes, embedded_links in self.SERVED_VNR:
-            served_total_revenue += self._revenue_VNR(served_vnr['graph'])
+            served_total_revenue += self._revenue_VNR(served_vnr['vnr_net'])
 
         return served_total_revenue
 
@@ -185,7 +185,7 @@ class VNETestEnvironment(gym.Env):
                              e_vnr['embedded_links']])
                         # calculate the revenue for reward
                         reward += self._revenue_VNR(
-                            self.VNR_INFO[self.arrival_idx[self.action_step_idx]][e_vnr_id]['graph'])
+                            self.VNR_INFO[self.arrival_idx[self.action_step_idx]][e_vnr_id]['vnr_net'])
                         accept_vnr_count += 1
 
                     elif e_vnr['postponed']:  # postponed VNR send the next step
