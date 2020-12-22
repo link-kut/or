@@ -104,9 +104,19 @@ def main():
             performance_rc_ratio[time_step] += info['rc_ratio']
 
             if time_step % TIME_WINDOW_SIZE == 0:
-                draw_performance(performance_revenue / NUM_RUNS, performance_acceptance_ratio / NUM_RUNS, performance_rc_ratio / NUM_RUNS, time_step)
+                draw_performance(
+                    performance_revenue / NUM_RUNS,
+                    performance_acceptance_ratio / NUM_RUNS,
+                    performance_rc_ratio / NUM_RUNS,
+                    time_step
+                )
 
-    draw_performance(performance_revenue / NUM_RUNS, performance_acceptance_ratio / NUM_RUNS, time_step)
+    draw_performance(
+        performance_revenue / NUM_RUNS,
+        performance_acceptance_ratio / NUM_RUNS,
+        performance_rc_ratio / NUM_RUNS,
+        time_step
+    )
 
 
 def draw_performance(performance_revenue, performance_acceptance_ratio, performance_rc_ratio, time_step):
