@@ -1,5 +1,9 @@
+import sys
+
 import networkx as nx
 import copy
+import matplotlib.pyplot as plt
+
 
 # Baseline Agent
 from common import utils
@@ -91,7 +95,7 @@ class BaselineVNEAgent():
                     True if copied_substrate_net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
             )
 
-            if len(subnet.edges) == 0:
+            if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
                 return None
 
             MAX_K = 10
