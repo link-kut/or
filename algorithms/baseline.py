@@ -87,19 +87,19 @@ class BaselineVNEAgent():
 
             subnet = nx.subgraph_view(
                 copied_substrate_net,
-                #filter_node=lambda s_node: True if s_node in [src_s_node, dst_s_node] else False,
                 filter_edge=lambda node_1_id, node_2_id: \
                     True if copied_substrate_net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
             )
-
-            # all_simple_paths = nx.all_simple_paths(subnet, src_s_node, dst_s_node)
 
             if len(subnet.edges) == 0:
                 return None
 
             MAX_K = 10
 
-            shortest_s_paths = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)
+            shortest_s_paths = utils.k_shortest_paths(copied_substrate_net, source=src_s_node, target=dst_s_node, k=MAX_K)
+
+            if shortest_s_paths == None:
+                return None
 
             s_links_in_path = []
             for s_path in shortest_s_paths:

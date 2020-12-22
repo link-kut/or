@@ -52,7 +52,7 @@ def main():
         episode_reward += reward
         state = next_state
 
-        step_rewards.append(reward)
+        step_rewards.append(reward / time_step)
         acceptance_ratios.append(info['acceptance_ratio'])
 
     # save the revenue and acceptance_ratios graph

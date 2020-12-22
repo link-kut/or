@@ -139,11 +139,11 @@ class VNEEnvironment(gym.Env):
             for vnr, embedding_s_nodes, embedding_s_paths in vnrs_embedding:
                 vnr_still_valid = True    # flag variable - binary value (0 or 1)
 
-                for time_step, vnr_left in vnrs_leave_from_queue:
+                for vnr_left in vnrs_leave_from_queue:
                     if vnr == vnr_left:
                         vnr_still_valid = False
 
-                for time_step, vnr_completed in vnrs_serving_completed:
+                for vnr_completed in vnrs_serving_completed:
                     if vnr == vnr_completed:
                         vnr_still_valid = False
 

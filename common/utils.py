@@ -19,7 +19,9 @@ def get_revenue_VNR(vnr):
 
 
 def k_shortest_paths(G, source, target, k, weight=None):
-
-    return list(
-        islice(nx.shortest_simple_paths(G, source, target, weight=weight), k)
-    )
+    try:
+        return list(
+            islice(nx.shortest_simple_paths(G, source, target, weight=weight), k)
+        )
+    except nx.exception.NetworkXNoPath:
+        return None
