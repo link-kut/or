@@ -21,12 +21,15 @@ class Action:
             vnrs_postponement_str = "N/A"
 
         if self.vnrs_embedding:
-            vnrs_embedding_str = ", ".join([str(vnr) for vnr in self.vnrs_embedding])
+            vnrs_embedding_str = ", ".join([str(vnr) for vnr, _, _ in self.vnrs_embedding])
         else:
             vnrs_embedding_str = "N/A"
 
         action_str = "[{0} VNRs Postponement: {1}] [{2} VNRs Embedding: {3}]".format(
-            len(self.vnrs_postponement), vnrs_postponement_str, len(self.vnrs_embedding), vnrs_embedding_str
+            len(self.vnrs_postponement),
+            vnrs_postponement_str,
+            len(self.vnrs_embedding),
+            vnrs_embedding_str
         )
 
         return action_str
@@ -118,23 +121,26 @@ class BaselineVNEAgent():
                     True if copied_substrate_net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
             )
 
+            # Just for assertion
+            for u, v, a in subnet.edges(data=True):
+                assert a["bandwidth"] >= v_bandwidth_demand
+
             if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
                 return None
 
             MAX_K = 10
 
-            shortest_s_paths = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)
-
-            if shortest_s_paths == None:
-                return None
+            shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
 
             s_links_in_path = []
-            for s_path in shortest_s_paths:
-                for node_idx in range(len(s_path) - 1):
-                    s_links_in_path.append((s_path[node_idx], s_path[node_idx + 1]))
+            for node_idx in range(len(shortest_s_path) - 1):
+                s_links_in_path.append((shortest_s_path[node_idx], shortest_s_path[node_idx + 1]))
 
-                for s_link in s_links_in_path:
-                    copied_substrate_net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+            for s_link in s_links_in_path:
+                assert copied_substrate_net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
+                copied_substrate_net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+
+            assert len(s_links_in_path) > 0
 
             embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
 

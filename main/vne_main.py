@@ -74,6 +74,8 @@ def main():
         while not done:
             time_step += 1
 
+            msg = "[STEP: {0}]\nstate: {1}\n".format(time_step, state)
+
             if time_step < next_embedding_epoch:
                 action = None
             else:
@@ -82,8 +84,8 @@ def main():
 
             next_state, reward, done, info = env.step(action)
 
-            msg = "[STEP: {0}]\nstate: {1}\naction: {2}\nreward: {3}\nnext_state: {4}\ndone: {5}\n".format(
-                time_step, state, action, reward, next_state, done
+            msg += "action: {0}\nreward: {1}\nnext_state: {2}\ndone: {3}\n".format(
+                action, reward, next_state, done
             )
 
             logger.info(msg), print(msg)
