@@ -68,7 +68,7 @@ class VNETestEnvironment(gym.Env):
         self.VNR_ARRIVALS = None
         self.VNR_DICT = None
         self.SERVED_VNR = None
-        self.step_idx = None
+        self.time_step = None
         self.action_step_idx = None
         self.total_acceptance = None
         self.accept_vnr_counts = None
@@ -109,7 +109,7 @@ class VNETestEnvironment(gym.Env):
                 "delay": delay
             })
 
-        self.step_idx = 0
+        self.time_step = 0
         self.action_step_idx = 0
         self.total_acceptance = 0
         self.accept_vnr_counts = 0
@@ -218,7 +218,7 @@ class VNETestEnvironment(gym.Env):
         # check the VNR's serving time and calculate the served VNR's total revenue
         reward = self._check_served_vnr()
 
-        if self.step_idx == 0 or self.arrival_idx[self.action_step_idx] > self.step_idx or action == None:
+        if self.time_step == 0 or self.arrival_idx[self.action_step_idx] > self.time_step or action == None:
             next_state.append(self.SUBSTRATE_NET)
             next_state.append(self.VNR_INFO)
 
@@ -265,12 +265,12 @@ class VNETestEnvironment(gym.Env):
             }
             self.action_step_idx += 1
 
-        self.step_idx += 1
-        # if self.step_idx == len(self.arrival_idx) - 1:
-        if self.step_idx >= self.arrival_idx[-1]:
+        self.time_step += 1
+        # if self.time_step == len(self.arrival_idx) - 1:
+        if self.time_step >= self.arrival_idx[-1]:
             done = True
 
-        # print("STEP:{0}".format(self.step_idx))
+        # print("STEP:{0}".format(self.time_step))
 
         return next_state, reward, done, info
 

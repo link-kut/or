@@ -25,6 +25,7 @@ class BaselineVNEAgent:
         self.logger = logger
         self.num_rejected_by_node_embedding = 0
         self.num_rejected_by_link_embedding = 0
+        self.time_step = 0
         pass
 
     def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand):
@@ -61,10 +62,10 @@ class BaselineVNEAgent:
 
             if len(subset_S_per_v_node[v_node_id]) == 0:
                 self.num_rejected_by_node_embedding += 1
-                # msg = "** VNR {0} REJECTED: 'no subset S' --- {1} **".format(
-                #     vnr.id, self.num_rejected_by_node_embedding
-                # )
-                # self.logger.info(msg), print(msg)
+                msg = "VNR {0} REJECTED: 'no subset S' --- {1}".format(
+                    vnr.id, self.num_rejected_by_node_embedding
+                )
+                self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
 
             max_h_value = -1.0 * 1e10
@@ -120,10 +121,10 @@ class BaselineVNEAgent:
 
                 if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
                     self.num_rejected_by_link_embedding += 1
-                    # msg = "** VNR {0} REJECTED: 'no suitable link' --- {1} **".format(
-                    #     vnr.id, self.num_rejected_by_link_embedding
-                    # )
-                    # self.logger.info(msg), print(msg)
+                    msg = "VNR {0} REJECTED: 'no suitable link' --- {1}".format(
+                        vnr.id, self.num_rejected_by_link_embedding
+                    )
+                    self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                     return None
 
                 MAX_K = 1
@@ -152,6 +153,8 @@ class BaselineVNEAgent:
         return s_cpu_capacity * total_node_bandwidth
 
     def get_action(self, state):
+        self.time_step += 1
+
         action = Action()
         action.vnrs_postponement = []
         action.vnrs_embedding = []
@@ -165,7 +168,7 @@ class BaselineVNEAgent:
 
         # Sort the requests according to their revenues
         sorted_vnrs = sorted(
-            VNRs_COLLECTED,
+            VNRs_COLLECTED.values(),
             key=lambda vnr: utils.get_revenue_VNR(vnr),
             reverse=True
         )

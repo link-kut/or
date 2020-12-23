@@ -82,14 +82,16 @@ class VNR:
             self.net.edges[edge_id]['bandwidth'] = randint(1, 50)
 
         self.time_step_arrival = time_step_arrival
-
-        self.time_step_serving_completed = None
-
         self.time_step_leave_from_queue = self.time_step_arrival + self.delay
 
+        self.time_step_serving_started = None
+        self.time_step_serving_completed = None
+
     def __str__(self):
-        vnr_str = '<id: {0}, arrival: {1}, leave: {2}, duration: {3}> '.format(
-            self.id, self.time_step_arrival, self.time_step_leave_from_queue, self.duration
+        vnr_str = '[id: {0}, arrival: {1}, left out: {2}, duration: {3}, started: {4}, completed out: {5}]'.format(
+            self.id, self.time_step_arrival, self.time_step_leave_from_queue, self.duration,
+            self.time_step_serving_started if self.time_step_serving_started else "N/A",
+            self.time_step_serving_completed if self.time_step_serving_completed else "N/A"
         )
 
         # vnr_str = '{0}'.format(
@@ -114,10 +116,10 @@ class VNEEnvironment(gym.Env):
         self.VNRs_SERVING = None
         self.VNRs_COLLECTED_UNTIL_NEXT_EMBEDDING_EPOCH = None
 
-        self.step_idx = None
+        self.time_step = None
 
-        self.total_arrival_vnrs = None
-        self.successfully_mapped_vnrs = None
+        self.total_arrival_vnrs = 0
+        self.successfully_mapped_vnrs = 0
 
         self.initial_total_cpu_capacity = 0.0
         self.initial_total_bandwidth_capacity = 0.0
@@ -132,7 +134,7 @@ class VNEEnvironment(gym.Env):
         self.VNRs_ARRIVED = np.zeros(self.GLOBAL_MAX_STEPS)
         self.VNRs_INFO = {}
         self.VNRs_SERVING = {}
-        self.VNRs_COLLECTED = []
+        self.VNRs_COLLECTED = {}
 
         time_step = 0
         vnr_id = 0
@@ -158,17 +160,17 @@ class VNEEnvironment(gym.Env):
         msg = "TOTAL NUMBER OF VNRs: {0}\n".format(len(self.VNRs_INFO))
         self.logger.info(msg), print(msg)
 
-        self.step_idx = 0
+        self.time_step = 0
 
         self.episode_reward = 0.0
         self.revenue = 0.0
         self.acceptance_ratio = 0.0
         self.rc_ratio = 0.0
+
+        self.total_arrival_vnrs = 0
         self.successfully_mapped_vnrs = 0
 
-        arrival_vnrs = self.get_vnrs_for_time_step(self.step_idx)
-        self.VNRs_COLLECTED.extend(arrival_vnrs)
-        self.total_arrival_vnrs = len(arrival_vnrs)
+        self.collect_vnrs_new_arrival()
 
         initial_state = State()
         initial_state.substrate = self.SUBSTRATE
@@ -178,77 +180,19 @@ class VNEEnvironment(gym.Env):
         return initial_state
 
     def step(self, action: Action):
-        self.step_idx += 1
+        self.time_step += 1
 
-        # processing of leave_from_queue
-        vnrs_leave_from_queue = []
-        for vnr in self.VNRs_COLLECTED:
-            if vnr.time_step_leave_from_queue <= self.step_idx:
-                vnrs_leave_from_queue.append(vnr)
+        vnrs_left_from_queue = self.release_vnrs_expired_from_collected()
 
-        for vnr_left in vnrs_leave_from_queue:
-            assert vnr_left in self.VNRs_COLLECTED
-            self.VNRs_COLLECTED.remove(vnr_left)
-            #self.total_arrival_vnrs -= 1
-
-        # processing of serving_completed
-        vnrs_serving_completed = []
-        for vnr, embedding_s_nodes, embedding_s_paths in self.VNRs_SERVING.values():
-            if vnr.time_step_serving_completed and vnr.time_step_serving_completed <= self.step_idx:
-                vnrs_serving_completed.append(vnr)
-                
-                for s_node_id, v_cpu_demand in embedding_s_nodes.values():
-                    self.SUBSTRATE.net.nodes[s_node_id]['CPU'] += v_cpu_demand
-
-                for s_links_in_path, v_bandwidth_demand in embedding_s_paths.values():
-                    for s_link in s_links_in_path:
-                        self.SUBSTRATE.net.edges[s_link]['bandwidth'] += v_bandwidth_demand
-
-        for vnr_completed in vnrs_serving_completed:
-            assert vnr_completed.id in self.VNRs_SERVING
-            del self.VNRs_SERVING[vnr_completed.id]
+        vnrs_serving_completed = self.complete_vnrs_serving()
 
         # processing of embedding & postponement
         if action:
-            vnrs_postponement = action.vnrs_postponement
-            vnrs_embedding = action.vnrs_embedding
+            for vnr, embedding_s_nodes, embedding_s_paths in action.vnrs_embedding:
+                assert vnr not in vnrs_left_from_queue
+                assert vnr not in vnrs_serving_completed
 
-            for vnr, embedding_s_nodes, embedding_s_paths in vnrs_embedding:
-                vnr_still_valid = True    # flag variable - binary value (0 or 1)
-
-                for vnr_left in vnrs_leave_from_queue:
-                    if vnr == vnr_left:
-                        vnr_still_valid = False
-
-                for vnr_completed in vnrs_serving_completed:
-                    if vnr == vnr_completed:
-                        vnr_still_valid = False
-
-                if vnr_still_valid:
-                    for s_node_id, v_cpu_demand in embedding_s_nodes.values():
-                        self.SUBSTRATE.net.nodes[s_node_id]['CPU'] -= v_cpu_demand
-
-                    for s_links_in_path, v_bandwidth_demand in embedding_s_paths.values():
-                        for s_link in s_links_in_path:
-                            self.SUBSTRATE.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
-
-                    vnr.time_step_serving_completed = self.step_idx + vnr.duration
-                    
-                    self.VNRs_SERVING[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
-
-                    assert vnr in self.VNRs_COLLECTED
-                    self.VNRs_COLLECTED.remove(vnr)
-
-                    self.successfully_mapped_vnrs += 1
-
-            self.VNRs_COLLECTED.clear()
-
-            for vnr in vnrs_postponement:
-                self.VNRs_COLLECTED.append(vnr)
-
-        arrival_vnrs = self.get_vnrs_for_time_step(self.step_idx)
-        self.VNRs_COLLECTED.extend(arrival_vnrs)
-        self.total_arrival_vnrs += len(arrival_vnrs)
+                self.starting_serving_for_a_vnr(vnr, embedding_s_nodes, embedding_s_paths)
 
         reward = 0.0
         cost = 0.0
@@ -259,7 +203,7 @@ class VNEEnvironment(gym.Env):
         for vnr_serving, _, embedding_s_paths in self.VNRs_SERVING.values():
             cost += utils.get_cost_VNR(vnr_serving, embedding_s_paths)
 
-        if self.step_idx >= self.GLOBAL_MAX_STEPS:
+        if self.time_step >= self.GLOBAL_MAX_STEPS:
             done = True
         else:
             done = False
@@ -270,7 +214,7 @@ class VNEEnvironment(gym.Env):
         next_state.vnrs_serving = self.VNRs_SERVING
 
         self.episode_reward += reward
-        self.revenue += self.episode_reward / self.step_idx
+        self.revenue += self.episode_reward / self.time_step
         self.acceptance_ratio = self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
         self.rc_ratio = reward / cost if cost else 0.0
 
@@ -282,9 +226,68 @@ class VNEEnvironment(gym.Env):
 
         return next_state, reward, done, info
 
-    def get_vnrs_for_time_step(self, time_step):
-        vnrs = []
+    def release_vnrs_expired_from_collected(self):
+        '''
+        processing of leave_from_queue
+
+        :return: vnrs_left_from_queue
+        '''
+        vnrs_left_from_queue = []
+        for vnr in self.VNRs_COLLECTED.values():
+            if vnr.time_step_leave_from_queue <= self.time_step:
+                vnrs_left_from_queue.append(vnr)
+
+        for vnr in vnrs_left_from_queue:
+            del self.VNRs_COLLECTED[vnr.id]
+            self.logger.info("{0} VNR LEFT OUT - {1}".format(utils.step_prefix(self.time_step), vnr))
+
+        return vnrs_left_from_queue
+
+    def starting_serving_for_a_vnr(self, vnr, embedding_s_nodes, embedding_s_paths):
+        for s_node_id, v_cpu_demand in embedding_s_nodes.values():
+            self.SUBSTRATE.net.nodes[s_node_id]['CPU'] -= v_cpu_demand
+
+        for s_links_in_path, v_bandwidth_demand in embedding_s_paths.values():
+            for s_link in s_links_in_path:
+                self.SUBSTRATE.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+
+        vnr.time_step_serving_started = self.time_step
+        vnr.time_step_serving_completed = self.time_step + vnr.duration
+
+        self.VNRs_SERVING[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
+        self.logger.info("{0} VNR SERVING STARTED - {1}".format(utils.step_prefix(self.time_step), vnr))
+
+        del self.VNRs_COLLECTED[vnr.id]
+
+        self.successfully_mapped_vnrs += 1
+
+    def complete_vnrs_serving(self):
+        '''
+        processing of serving_completed
+        :return: vnrs_serving_completed
+        '''
+        vnrs_serving_completed = []
+        for vnr, embedding_s_nodes, embedding_s_paths in self.VNRs_SERVING.values():
+            if vnr.time_step_serving_completed and vnr.time_step_serving_completed <= self.time_step:
+                vnrs_serving_completed.append(vnr)
+
+                for s_node_id, v_cpu_demand in embedding_s_nodes.values():
+                    self.SUBSTRATE.net.nodes[s_node_id]['CPU'] += v_cpu_demand
+
+                for s_links_in_path, v_bandwidth_demand in embedding_s_paths.values():
+                    for s_link in s_links_in_path:
+                        self.SUBSTRATE.net.edges[s_link]['bandwidth'] += v_bandwidth_demand
+
+        for vnr in vnrs_serving_completed:
+            assert vnr.id in self.VNRs_SERVING
+            del self.VNRs_SERVING[vnr.id]
+            self.logger.info("{0} VNR SERVING COMPLETED - {1}".format(utils.step_prefix(self.time_step), vnr))
+
+        return vnrs_serving_completed
+
+    def collect_vnrs_new_arrival(self):
         for vnr in self.VNRs_INFO.values():
-            if vnr.time_step_arrival == time_step:
-                vnrs.append(vnr)
-        return vnrs
+            if vnr.time_step_arrival == self.time_step:
+                self.VNRs_COLLECTED[vnr.id] = vnr
+                self.total_arrival_vnrs += 1
+                self.logger.info("{0} NEW VNR ARRIVED - {1}".format(utils.step_prefix(self.time_step), vnr))

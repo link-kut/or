@@ -7,6 +7,8 @@ import numpy as np
 import warnings
 from matplotlib import MatplotlibDeprecationWarning
 
+from common import utils
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 
@@ -78,8 +80,8 @@ def main():
         while not done:
             time_step += 1
 
-            before_action_msg = "[STEP: {0:5d}] state {1} | ".format(time_step, state)
-            print(before_action_msg, end="")
+            before_action_msg = "state {0} | ".format(state)
+            logger.info("{0} {1}".format(utils.step_prefix(time_step), before_action_msg))
 
             if time_step < next_embedding_epoch:
                 action = None
@@ -87,31 +89,35 @@ def main():
                 action = bl_agent.get_action(state)
                 next_embedding_epoch += TIME_WINDOW_SIZE
 
+            action_msg = "action {0:30} |".format(str(action) if action else " ")
+            logger.info("{0} {1}".format(utils.step_prefix(time_step), action_msg))
+
             next_state, reward, done, info = env.step(action)
 
-            elapsed_time = time.time() - start_ts
-            after_action_msg = "action {0:30} | reward {1:7.1f} | revenue {2:9.1f} | " \
-                               "accept ratio {3:4.2f} | r/c ratio {4:4.2f} | elapsed time {5}".format(
-                str(action) if action else " ",
+            after_action_msg = "reward {0:7.1f} | revenue {1:9.1f} | accept ratio {2:4.2f} | r/c ratio {3:4.2f} | elapsed time {4}".format(
                 reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio'],
-                time.strftime("%Hh %Mm %Ss", time.gmtime(elapsed_time))
+                time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_ts))
             )
+            logger.info("{0} {1}".format(utils.step_prefix(time_step), after_action_msg))
 
-            logger.info(before_action_msg + after_action_msg), print(after_action_msg)
+            print("{0} {1} {2} {3}".format(utils.step_prefix(time_step), before_action_msg, action_msg, after_action_msg))
 
+            env.collect_vnrs_new_arrival()
             state = next_state
 
             performance_revenue[time_step] += info['revenue']
             performance_acceptance_ratio[time_step] += info['acceptance_ratio']
             performance_rc_ratio[time_step] += info['rc_ratio']
 
-            if time_step % (TIME_WINDOW_SIZE * 10) == 0:
+            if time_step % 100 == 0:
                 draw_performance(
                     performance_revenue / NUM_RUNS,
                     performance_acceptance_ratio / NUM_RUNS,
                     performance_rc_ratio / NUM_RUNS,
                     time_step
                 )
+
+            logger.info("")
 
     draw_performance(
         performance_revenue / NUM_RUNS,
