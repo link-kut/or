@@ -8,6 +8,7 @@ import warnings
 from matplotlib import MatplotlibDeprecationWarning
 
 from common import utils
+from main import config
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
@@ -21,7 +22,6 @@ from common.logger import get_logger
 from environments.vne_env import VNEEnvironment
 from algorithms.baseline import BaselineVNEAgent
 
-
 PROJECT_HOME = os.getcwd()[:-5]
 graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
 log_save_path = os.path.join(PROJECT_HOME, "out", "logs")
@@ -34,29 +34,12 @@ if not os.path.exists(log_save_path):
 else:
     shutil.rmtree(log_save_path)
 
-logger = get_logger("vne_log")
-
-#The arithmetic mean of the ten instances is recorded as the final result.
-NUM_RUNS = 1
-
-# Each experiment runs ten independent instances while each instance lasts for over 56000 time units
-GLOBAL_MAX_STEP = 56000
-
-TIME_WINDOW_SIZE = 1
-
-# 0.002: Each VN has an exponentially distributed duration with an average of 500 time units
-VNR_DURATION_MEAN_RATE = 0.002
-
-# VNR delay is set to be 200 time units
-VNR_DELAY = 200
-
-# 0.05: The arrival of VNRs follows a Poisson process with an average arrival rate of 5 VNs per 100 time units.
-VNR_INTER_ARRIVAL_RATE = 0.05
+logger = get_logger("vne")
 
 plt.figure(figsize=(20, 8))
 
 def main():
-    env = VNEEnvironment(GLOBAL_MAX_STEP, VNR_INTER_ARRIVAL_RATE, VNR_DURATION_MEAN_RATE, VNR_DELAY, logger)
+    env = VNEEnvironment(logger)
     bl_agent = BaselineVNEAgent(logger)
     # rl_agent = RLVNRAgent()
 
@@ -65,13 +48,11 @@ def main():
 
     time_step = 0
 
-    next_embedding_epoch = TIME_WINDOW_SIZE
+    performance_revenue = np.zeros(config.GLOBAL_MAX_STEPS + 1)
+    performance_acceptance_ratio = np.zeros(config.GLOBAL_MAX_STEPS + 1)
+    performance_rc_ratio = np.zeros(config.GLOBAL_MAX_STEPS + 1)
 
-    performance_revenue = np.zeros(GLOBAL_MAX_STEP + 1)
-    performance_acceptance_ratio = np.zeros(GLOBAL_MAX_STEP + 1)
-    performance_rc_ratio = np.zeros(GLOBAL_MAX_STEP + 1)
-
-    for run in range(NUM_RUNS):
+    for run in range(config.NUM_RUNS):
         msg = "RUN: {0}".format(run)
         logger.info(msg), print(msg)
 
@@ -83,13 +64,9 @@ def main():
             before_action_msg = "state {0} | ".format(state)
             logger.info("{0} {1}".format(utils.step_prefix(time_step), before_action_msg))
 
-            if time_step < next_embedding_epoch:
-                action = None
-            else:
-                action = bl_agent.get_action(state)
-                next_embedding_epoch += TIME_WINDOW_SIZE
+            action = bl_agent.get_action(state)
 
-            action_msg = "action {0:30} |".format(str(action) if action else " ")
+            action_msg = "action {0:30} |".format(str(action) if action else " - ")
             logger.info("{0} {1}".format(utils.step_prefix(time_step), action_msg))
 
             next_state, reward, done, info = env.step(action)
@@ -111,18 +88,18 @@ def main():
 
             if time_step % 100 == 0:
                 draw_performance(
-                    performance_revenue / NUM_RUNS,
-                    performance_acceptance_ratio / NUM_RUNS,
-                    performance_rc_ratio / NUM_RUNS,
+                    performance_revenue / config.NUM_RUNS,
+                    performance_acceptance_ratio / config.NUM_RUNS,
+                    performance_rc_ratio / config.NUM_RUNS,
                     time_step
                 )
 
             logger.info("")
 
     draw_performance(
-        performance_revenue / NUM_RUNS,
-        performance_acceptance_ratio / NUM_RUNS,
-        performance_rc_ratio / NUM_RUNS,
+        performance_revenue / config.NUM_RUNS,
+        performance_acceptance_ratio / config.NUM_RUNS,
+        performance_rc_ratio / config.NUM_RUNS,
         time_step
     )
 
@@ -133,11 +110,11 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     for f in files:
         os.remove(f)
 
-    x_range = range(TIME_WINDOW_SIZE, time_step + 1, TIME_WINDOW_SIZE)
+    x_range = range(config.TIME_WINDOW_SIZE, time_step + 1, config.TIME_WINDOW_SIZE)
 
     plt.subplot(311)
 
-    plt.plot(x_range, performance_revenue[TIME_WINDOW_SIZE: time_step + 1: TIME_WINDOW_SIZE]
+    plt.plot(x_range, performance_revenue[config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE]
     )
     plt.ylabel("Revenue")
     plt.xlabel("Time unit")
@@ -145,14 +122,14 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     plt.grid(True)
 
     plt.subplot(312)
-    plt.plot(x_range, performance_acceptance_ratio[TIME_WINDOW_SIZE: time_step + 1: TIME_WINDOW_SIZE])
+    plt.plot(x_range, performance_acceptance_ratio[config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE])
     plt.ylabel("Acceptance Ratio")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent Acceptance Ratio")
     plt.grid(True)
 
     plt.subplot(313)
-    plt.plot(x_range, performance_rc_ratio[TIME_WINDOW_SIZE: time_step + 1: TIME_WINDOW_SIZE])
+    plt.plot(x_range, performance_rc_ratio[config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE])
     plt.ylabel("R/C Ratio")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent R/C Ratio")

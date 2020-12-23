@@ -4,6 +4,7 @@ import copy
 
 # Baseline Agent
 from common import utils
+from main import config
 
 
 class Action:
@@ -26,7 +27,7 @@ class BaselineVNEAgent:
         self.num_rejected_by_node_embedding = 0
         self.num_rejected_by_link_embedding = 0
         self.time_step = 0
-        pass
+        self.next_embedding_epoch = config.TIME_WINDOW_SIZE
 
     def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand):
         '''
@@ -155,6 +156,9 @@ class BaselineVNEAgent:
     def get_action(self, state):
         self.time_step += 1
 
+        if self.time_step < self.next_embedding_epoch:
+            return None
+
         action = Action()
         action.vnrs_postponement = []
         action.vnrs_embedding = []
@@ -203,5 +207,7 @@ class BaselineVNEAgent:
                 action.vnrs_embedding.append((vnr, embedding_s_nodes, embedding_s_paths))
 
         assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
+
+        self.next_embedding_epoch += config.TIME_WINDOW_SIZE
 
         return action

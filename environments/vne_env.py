@@ -5,13 +5,12 @@ from random import randint, expovariate
 
 from algorithms.baseline import Action
 from common import utils
+from main import config
 
 
 class Substrate:
     def __init__(self):
-        # Each substrate network is configured to have 100 nodes with over 500 links,
-        # which is about the scale of a medium-sized ISP.
-        self.net = nx.gnm_random_graph(n=100, m=500)
+        self.net = nx.gnm_random_graph(n=config.SUBSTRATE_NODES, m=config.SUBSTRATE_LINKS)
 
         self.initial_total_cpu_capacity = 0.0
         self.initial_total_bandwidth_capacity = 0.0
@@ -68,18 +67,19 @@ class VNR:
 
         self.delay = delay
 
-        # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
-        self.num_nodes = randint(5, 20)
+        self.num_nodes = randint(config.VNR_NODES_MIN, config.VNR_NODES_MAX)
 
-        # Pairs of virtual nodes are randomly connected by links with the probability of 0.5.
-        self.net = nx.gnp_random_graph(n=self.num_nodes, p=0.5)
+        self.net = nx.gnp_random_graph(n=self.num_nodes, p=config.VNR_LINK_PROBABILITY)
 
-        # CPU and bandwidth requirements of virtual nodes and links are real numbers uniformly distributed between 1 and 50.
         for node_id in self.net.nodes:
-            self.net.nodes[node_id]['CPU'] = randint(1, 50)
+            self.net.nodes[node_id]['CPU'] = randint(
+                config.VNR_CPU_DEMAND_MIN, config.VNR_CPU_DEMAND_MAX
+            )
 
         for edge_id in self.net.edges:
-            self.net.edges[edge_id]['bandwidth'] = randint(1, 50)
+            self.net.edges[edge_id]['bandwidth'] = randint(
+                config.VNR_BANDWIDTH_DEMAND_MIN, config.VNR_BANDWIDTH_DEMAND_MAX
+            )
 
         self.time_step_arrival = time_step_arrival
         self.time_step_leave_from_queue = self.time_step_arrival + self.delay
@@ -102,11 +102,7 @@ class VNR:
 
 
 class VNEEnvironment(gym.Env):
-    def __init__(self, global_max_step, vnr_inter_arrival_rate, vnr_duration_mean_rate, vnr_delay, logger):
-        self.GLOBAL_MAX_STEPS = global_max_step
-        self.VNR_INTER_ARRIVAL_RATE = vnr_inter_arrival_rate
-        self.VNR_DURATION_MEAN_RATE = vnr_duration_mean_rate
-        self.VNR_DELAY = vnr_delay
+    def __init__(self, logger):
         self.logger = logger
 
         self.SUBSTRATE = None
@@ -131,7 +127,7 @@ class VNEEnvironment(gym.Env):
 
     def reset(self):
         self.SUBSTRATE = Substrate()
-        self.VNRs_ARRIVED = np.zeros(self.GLOBAL_MAX_STEPS)
+        self.VNRs_ARRIVED = np.zeros(config.GLOBAL_MAX_STEPS)
         self.VNRs_INFO = {}
         self.VNRs_SERVING = {}
         self.VNRs_COLLECTED = {}
@@ -140,18 +136,18 @@ class VNEEnvironment(gym.Env):
         vnr_id = 0
 
         while True:
-            next_arrival = int(expovariate(self.VNR_INTER_ARRIVAL_RATE))
+            next_arrival = int(expovariate(config.VNR_INTER_ARRIVAL_RATE))
 
             time_step += next_arrival
-            if time_step >= self.GLOBAL_MAX_STEPS:
+            if time_step >= config.GLOBAL_MAX_STEPS:
                 break
 
             self.VNRs_ARRIVED[time_step] += 1
 
             vnr = VNR(
                 id=vnr_id,
-                vnr_duration_mean_rate=self.VNR_DURATION_MEAN_RATE,
-                delay=self.VNR_DELAY,
+                vnr_duration_mean_rate=config.VNR_DURATION_MEAN_RATE,
+                delay=config.VNR_DELAY,
                 time_step_arrival=time_step
             )
 
@@ -203,7 +199,7 @@ class VNEEnvironment(gym.Env):
         for vnr_serving, _, embedding_s_paths in self.VNRs_SERVING.values():
             cost += utils.get_cost_VNR(vnr_serving, embedding_s_paths)
 
-        if self.time_step >= self.GLOBAL_MAX_STEPS:
+        if self.time_step >= config.GLOBAL_MAX_STEPS:
             done = True
         else:
             done = False
