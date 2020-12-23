@@ -203,7 +203,7 @@ class VNEEnvironment(gym.Env):
 
         for vnr, _, embedding_s_paths in self.VNRs_SERVING.values():
             reward += vnr.revenue
-            cost += utils.get_cost_VNR(vnr, embedding_s_paths)
+            cost += vnr.cost
 
         if self.time_step >= config.GLOBAL_MAX_STEPS:
             done = True
