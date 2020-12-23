@@ -1,3 +1,4 @@
+import copy
 import shutil
 import time
 import matplotlib.pyplot as plt
@@ -51,13 +52,9 @@ def main():
 
     time_step = 0
 
-    performance_revenue_bl = np.zeros(config.GLOBAL_MAX_STEPS + 1)
-    performance_acceptance_ratio_bl = np.zeros(config.GLOBAL_MAX_STEPS + 1)
-    performance_rc_ratio_bl = np.zeros(config.GLOBAL_MAX_STEPS + 1)
-
-    performance_revenue_ta = np.zeros(config.GLOBAL_MAX_STEPS + 1)
-    performance_acceptance_ratio_ta = np.zeros(config.GLOBAL_MAX_STEPS + 1)
-    performance_rc_ratio_ta = np.zeros(config.GLOBAL_MAX_STEPS + 1)
+    performance_revenue = np.zeros(config.GLOBAL_MAX_STEPS + 1)
+    performance_acceptance_ratio = np.zeros(config.GLOBAL_MAX_STEPS + 1)
+    performance_rc_ratio = np.zeros(config.GLOBAL_MAX_STEPS + 1)
 
     for run in range(config.NUM_RUNS):
         msg = "RUN: {0}".format(run)
@@ -89,24 +86,24 @@ def main():
 
             state = next_state
 
-            performance_revenue_bl[time_step] += info['revenue']
-            performance_acceptance_ratio_bl[time_step] += info['acceptance_ratio']
-            performance_rc_ratio_bl[time_step] += info['rc_ratio']
+            performance_revenue[time_step] += info['revenue']
+            performance_acceptance_ratio[time_step] += info['acceptance_ratio']
+            performance_rc_ratio[time_step] += info['rc_ratio']
 
             if time_step % 100 == 0:
                 draw_performance(
-                    performance_revenue_bl / config.NUM_RUNS,
-                    performance_acceptance_ratio_bl / config.NUM_RUNS,
-                    performance_rc_ratio_bl / config.NUM_RUNS,
+                    performance_revenue / config.NUM_RUNS,
+                    performance_acceptance_ratio / config.NUM_RUNS,
+                    performance_rc_ratio / config.NUM_RUNS,
                     time_step
                 )
 
             logger.info("")
 
     draw_performance(
-        performance_revenue_bl / config.NUM_RUNS,
-        performance_acceptance_ratio_bl / config.NUM_RUNS,
-        performance_rc_ratio_bl / config.NUM_RUNS,
+        performance_revenue / config.NUM_RUNS,
+        performance_acceptance_ratio / config.NUM_RUNS,
+        performance_rc_ratio / config.NUM_RUNS,
         time_step
     )
 
