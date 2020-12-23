@@ -34,7 +34,9 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
             sorted_vnrs_with_node_ranking.append((v_node_id, v_node_data, vnr_node_ranking))
 
         # sorting the vnr nodes with node's ranking
-        sorted_vnrs_with_node_ranking.sort(key=lambda sorted_vnrs_with_node_ranking: sorted_vnrs_with_node_ranking[2], reverse=True)
+        sorted_vnrs_with_node_ranking.sort(
+            key=lambda sorted_vnrs_with_node_ranking: sorted_vnrs_with_node_ranking[2], reverse=True
+        )
 
         for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
@@ -84,4 +86,4 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
         for link_id in adjacent_links:
             total_node_bandwidth += adjacent_links[link_id]['bandwidth']
 
-        return (config.BETA * node_cpu_capacity) + ((1 - config.BETA) * len(adjacent_links) * total_node_bandwidth)
+        return config.BETA * node_cpu_capacity + (1.0 - config.BETA) * len(adjacent_links) * total_node_bandwidth
