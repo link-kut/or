@@ -156,12 +156,10 @@ class BaselineVNEAgent:
     def greedy_node_mapping(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
         # Sort the requests according to their revenues
         sorted_vnrs = sorted(
-            VNRs_COLLECTED.values(),
-            key=lambda vnr: utils.get_revenue_VNR(vnr),
-            reverse=True
+            VNRs_COLLECTED.values(), key=lambda vnr: vnr.revenue, reverse=True
         )
 
-        VNRs_NODE_EMBEDDING_SUCCESSFULLY = []
+        VNRs_NODE_EMBEDDING_SUCCESSFULLY = {}
         for vnr in sorted_vnrs:
             # find the substrate nodes for the given vnr
             embedding_s_nodes = self.find_substrate_nodes(COPIED_SUBSTRATE, vnr)
@@ -169,15 +167,15 @@ class BaselineVNEAgent:
             if embedding_s_nodes is None:
                 action.vnrs_postponement[vnr.id] = vnr
             else:
-                VNRs_NODE_EMBEDDING_SUCCESSFULLY.append((vnr, embedding_s_nodes))
+                VNRs_NODE_EMBEDDING_SUCCESSFULLY[vnr.id] = (vnr, embedding_s_nodes)
 
         return VNRs_NODE_EMBEDDING_SUCCESSFULLY
 
     def greedy_link_mapping(self, VNRs_NODE_EMBEDDING_SUCCESSFULLY, COPIED_SUBSTRATE, action):
         # Sort the requests that successfully completed the node-mapping stage by their revenues.
         sorted_vnrs_and_embedding_s_nodes = sorted(
-            VNRs_NODE_EMBEDDING_SUCCESSFULLY,
-            key=lambda vnr_and_embedded_nodes: utils.get_revenue_VNR(vnr_and_embedded_nodes[0]),
+            VNRs_NODE_EMBEDDING_SUCCESSFULLY.values(),
+            key=lambda vnr_and_embedded_nodes: vnr_and_embedded_nodes[0].revenue,
             reverse=True
         )
 
