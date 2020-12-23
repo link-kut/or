@@ -214,7 +214,7 @@ class VNEEnvironment(gym.Env):
         next_state.vnrs_serving = self.VNRs_SERVING
 
         self.episode_reward += reward
-        self.revenue += self.episode_reward / self.time_step
+        self.revenue = self.episode_reward / self.time_step
         self.acceptance_ratio = self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
         self.rc_ratio = reward / cost if cost else 0.0
 
