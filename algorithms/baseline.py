@@ -153,23 +153,7 @@ class BaselineVNEAgent:
 
         return s_cpu_capacity * total_node_bandwidth
 
-    def get_action(self, state):
-        self.time_step += 1
-
-        if self.time_step < self.next_embedding_epoch:
-            return None
-
-        action = Action()
-        action.vnrs_postponement = []
-        action.vnrs_embedding = []
-
-        COPIED_SUBSTRATE = copy.deepcopy(state.substrate)
-        VNRs_COLLECTED = state.vnrs_collected
-
-        #####################################
-        # step 1 - Greedy Node Mapping      #
-        #####################################
-
+    def greedy_node_mapping(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
         # Sort the requests according to their revenues
         sorted_vnrs = sorted(
             VNRs_COLLECTED.values(),
@@ -187,10 +171,9 @@ class BaselineVNEAgent:
             else:
                 VNRs_NODE_EMBEDDING_SUCCESSFULLY.append((vnr, embedding_s_nodes))
 
-        #####################################
-        # step 2 - Link Mapping             #
-        #####################################
+        return VNRs_NODE_EMBEDDING_SUCCESSFULLY
 
+    def greedy_link_mapping(self, VNRs_NODE_EMBEDDING_SUCCESSFULLY, COPIED_SUBSTRATE, action):
         # Sort the requests that successfully completed the node-mapping stage by their revenues.
         sorted_vnrs_and_embedding_s_nodes = sorted(
             VNRs_NODE_EMBEDDING_SUCCESSFULLY,
@@ -205,6 +188,30 @@ class BaselineVNEAgent:
                 action.vnrs_postponement.append(vnr)
             else:
                 action.vnrs_embedding.append((vnr, embedding_s_nodes, embedding_s_paths))
+
+    def get_action(self, state):
+        self.time_step += 1
+
+        if self.time_step < self.next_embedding_epoch:
+            return None
+
+        action = Action()
+        action.vnrs_postponement = []
+        action.vnrs_embedding = []
+
+        COPIED_SUBSTRATE = copy.deepcopy(state.substrate)
+        VNRs_COLLECTED = state.vnrs_collected
+
+        #####################################
+        # step 1 - Greedy Node Mapping      #
+        #####################################
+        VNRs_NODE_EMBEDDING_SUCCESSFULLY = self.greedy_node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
+
+
+        #####################################
+        # step 2 - Link Mapping             #
+        #####################################
+        self.greedy_link_mapping(VNRs_NODE_EMBEDDING_SUCCESSFULLY, COPIED_SUBSTRATE, action)
 
         assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
 
