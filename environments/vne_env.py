@@ -121,16 +121,13 @@ class VNEEnvironment(gym.Env):
 
         self.time_step = None
 
-        self.total_arrival_vnrs = 0
-        self.successfully_mapped_vnrs = 0
+        self.total_arrival_vnrs = None
+        self.total_embedded_vnrs = None
 
-        self.initial_total_cpu_capacity = 0.0
-        self.initial_total_bandwidth_capacity = 0.0
-
-        self.episode_reward = 0.0
-        self.revenue = 0.0
-        self.acceptance_ratio = 0.0
-        self.rc_ratio = 0.0
+        self.episode_reward = None
+        self.revenue = None
+        self.acceptance_ratio = None
+        self.rc_ratio = None
 
     def reset(self):
         self.SUBSTRATE = Substrate()
@@ -171,7 +168,7 @@ class VNEEnvironment(gym.Env):
         self.rc_ratio = 0.0
 
         self.total_arrival_vnrs = 0
-        self.successfully_mapped_vnrs = 0
+        self.total_embedded_vnrs = 0
 
         self.collect_vnrs_new_arrival()
 
@@ -220,7 +217,7 @@ class VNEEnvironment(gym.Env):
 
         self.episode_reward += reward
         self.revenue = self.episode_reward / self.time_step
-        self.acceptance_ratio = self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
+        self.acceptance_ratio = self.total_embedded_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
         self.rc_ratio = reward / cost if cost else 0.0
 
         info = {
@@ -262,10 +259,9 @@ class VNEEnvironment(gym.Env):
 
         self.VNRs_SERVING[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
         self.logger.info("{0} VNR SERVING STARTED - {1}".format(utils.step_prefix(self.time_step), vnr))
+        self.total_embedded_vnrs += 1
 
         del self.VNRs_COLLECTED[vnr.id]
-
-        self.successfully_mapped_vnrs += 1
 
     def complete_vnrs_serving(self):
         '''
