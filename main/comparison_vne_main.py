@@ -39,6 +39,7 @@ else:
 logger = get_logger("vne")
 
 plt.figure(figsize=(20, 8))
+plt.style.use('seaborn-dark-palette')
 
 bl_env = VNEEnvironment(logger)
 ta_0_9_env = copy.deepcopy(bl_env)
@@ -55,6 +56,9 @@ agents = [
 agent_labels = [
     "BL", "TA_0.9", "TA_0.3"
 ]
+# agent_plot_colors = [
+#     "red", "blue", "magenta"
+# ]
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
@@ -110,7 +114,7 @@ def main():
                         performance_revenue / config.NUM_RUNS,
                         performance_acceptance_ratio / config.NUM_RUNS,
                         performance_rc_ratio / config.NUM_RUNS,
-                        time_step
+                        time_step,
                     )
 
                 logger.info("")
@@ -123,7 +127,7 @@ def main():
         )
 
 
-def draw_performance(performance_revenue, performance_acceptance_ratio, performance_rc_ratio, time_step, num_agents):
+def draw_performance(performance_revenue, performance_acceptance_ratio, performance_rc_ratio, time_step):
     # save the revenue and acceptance_ratios graph
     files = glob.glob(os.path.join(PROJECT_HOME, "graphs", "*"))
     for f in files:
@@ -133,7 +137,7 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
 
     plt.subplot(311)
 
-    for agent_id in range(num_agents):
+    for agent_id in range(len(agents)):
         plt.plot(
             x_range,
             performance_revenue[agent_id, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE],
@@ -143,11 +147,11 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     plt.ylabel("Revenue")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent Revenue")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=18, ncol=2)
+    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
     plt.grid(True)
 
     plt.subplot(312)
-    for agent_id in range(num_agents):
+    for agent_id in range(len(agents)):
         plt.plot(
             x_range,
             performance_acceptance_ratio[agent_id, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE],
@@ -157,11 +161,11 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     plt.ylabel("Acceptance Ratio")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent Acceptance Ratio")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=18, ncol=2)
+    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
     plt.grid(True)
 
     plt.subplot(313)
-    for agent_id in range(num_agents):
+    for agent_id in range(len(agents)):
         plt.plot(
             x_range,
             performance_rc_ratio[agent_id, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE],
@@ -171,7 +175,7 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     plt.ylabel("R/C Ratio")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent R/C Ratio")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=18, ncol=2)
+    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
     plt.grid(True)
 
     plt.tight_layout()
