@@ -79,7 +79,6 @@ def main():
 
             print("{0} {1} {2} {3}".format(utils.step_prefix(time_step), before_action_msg, action_msg, after_action_msg))
 
-            env.collect_vnrs_new_arrival()
             state = next_state
 
             performance_revenue[time_step] += info['revenue']

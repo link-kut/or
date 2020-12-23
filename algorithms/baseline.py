@@ -63,8 +63,8 @@ class BaselineVNEAgent:
 
             if len(subset_S_per_v_node[v_node_id]) == 0:
                 self.num_rejected_by_node_embedding += 1
-                msg = "VNR {0} REJECTED: 'no subset S' --- {1}".format(
-                    vnr.id, self.num_rejected_by_node_embedding
+                msg = "VNR REJECTED ({0}): 'no subset S' - {1}".format(
+                    self.num_rejected_by_node_embedding, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
@@ -122,8 +122,8 @@ class BaselineVNEAgent:
 
                 if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
                     self.num_rejected_by_link_embedding += 1
-                    msg = "VNR {0} REJECTED: 'no suitable link' --- {1}".format(
-                        vnr.id, self.num_rejected_by_link_embedding
+                    msg = "VNR REJECTED ({0}): 'no suitable link' - {1}".format(
+                        self.num_rejected_by_link_embedding, vnr
                     )
                     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                     return None

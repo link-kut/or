@@ -190,6 +190,8 @@ class VNEEnvironment(gym.Env):
 
                 self.starting_serving_for_a_vnr(vnr, embedding_s_nodes, embedding_s_paths)
 
+        self.collect_vnrs_new_arrival()
+
         reward = 0.0
         cost = 0.0
 
