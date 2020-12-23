@@ -41,13 +41,23 @@ logger = get_logger("vne")
 plt.figure(figsize=(20, 8))
 
 bl_env = VNEEnvironment(logger)
-ta_env = copy.deepcopy(bl_env)
+ta_0_9_env = copy.deepcopy(bl_env)
+ta_0_3_env = copy.deepcopy(bl_env)
 
-envs = [bl_env, ta_env]
-agents = [BaselineVNEAgent(logger), TopologyAwareBaselineVNEAgent(logger)]
-performance_revenue = np.zeros(shape=(2, config.GLOBAL_MAX_STEPS + 1))
-performance_acceptance_ratio = np.zeros(shape=(2, config.GLOBAL_MAX_STEPS + 1))
-performance_rc_ratio = np.zeros(shape=(2, config.GLOBAL_MAX_STEPS + 1))
+envs = [
+    bl_env, ta_0_9_env, ta_0_3_env
+]
+agents = [
+    BaselineVNEAgent(logger),
+    TopologyAwareBaselineVNEAgent(0.9, logger),
+    TopologyAwareBaselineVNEAgent(0.3, logger)
+]
+agent_labels = [
+    "BL", "TA_0.9", "TA_0.3"
+]
+performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
+performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
+performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 
 states = []
 
@@ -113,7 +123,7 @@ def main():
         )
 
 
-def draw_performance(performance_revenue, performance_acceptance_ratio, performance_rc_ratio, time_step):
+def draw_performance(performance_revenue, performance_acceptance_ratio, performance_rc_ratio, time_step, num_agents):
     # save the revenue and acceptance_ratios graph
     files = glob.glob(os.path.join(PROJECT_HOME, "graphs", "*"))
     for f in files:
@@ -123,8 +133,13 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
 
     plt.subplot(311)
 
-    plt.plot(x_range, performance_revenue[0, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="BL")
-    plt.plot(x_range, performance_revenue[1, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="TA")
+    for agent_id in range(num_agents):
+        plt.plot(
+            x_range,
+            performance_revenue[agent_id, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE],
+            label=agent_labels[agent_id]
+        )
+
     plt.ylabel("Revenue")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent Revenue")
@@ -132,8 +147,13 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     plt.grid(True)
 
     plt.subplot(312)
-    plt.plot(x_range, performance_acceptance_ratio[0, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="BL")
-    plt.plot(x_range, performance_acceptance_ratio[1, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="TA")
+    for agent_id in range(num_agents):
+        plt.plot(
+            x_range,
+            performance_acceptance_ratio[agent_id, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE],
+            label=agent_labels[agent_id]
+        )
+
     plt.ylabel("Acceptance Ratio")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent Acceptance Ratio")
@@ -141,8 +161,13 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     plt.grid(True)
 
     plt.subplot(313)
-    plt.plot(x_range, performance_rc_ratio[0, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="BL")
-    plt.plot(x_range, performance_rc_ratio[1, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="TA")
+    for agent_id in range(num_agents):
+        plt.plot(
+            x_range,
+            performance_rc_ratio[agent_id, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE],
+            label=agent_labels[agent_id]
+        )
+
     plt.ylabel("R/C Ratio")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent R/C Ratio")

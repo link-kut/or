@@ -9,8 +9,9 @@ from main import config
 
 
 class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
-    def __init__(self, logger):
+    def __init__(self, beta, logger):
         super(TopologyAwareBaselineVNEAgent, self).__init__(logger)
+        self.beta = beta
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -86,4 +87,4 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
         for link_id in adjacent_links:
             total_node_bandwidth += adjacent_links[link_id]['bandwidth']
 
-        return config.BETA * node_cpu_capacity + (1.0 - config.BETA) * len(adjacent_links) * total_node_bandwidth
+        return self.beta * node_cpu_capacity + (1.0 - self.beta) * len(adjacent_links) * total_node_bandwidth
