@@ -112,29 +112,8 @@ class VNEEnvironment(gym.Env):
     def __init__(self, logger):
         self.logger = logger
 
-        self.SUBSTRATE = None
-
-        self.VNRs_ARRIVED = None
-        self.VNRs_INFO = None
-        self.VNRs_SERVING = None
-        self.VNRs_COLLECTED_UNTIL_NEXT_EMBEDDING_EPOCH = None
-
-        self.time_step = None
-
-        self.total_arrival_vnrs = None
-        self.total_embedded_vnrs = None
-
-        self.episode_reward = None
-        self.revenue = None
-        self.acceptance_ratio = None
-        self.rc_ratio = None
-
-    def reset(self):
         self.SUBSTRATE = Substrate()
-        self.VNRs_ARRIVED = np.zeros(config.GLOBAL_MAX_STEPS)
         self.VNRs_INFO = {}
-        self.VNRs_SERVING = {}
-        self.VNRs_COLLECTED = {}
 
         time_step = 0
         vnr_id = 0
@@ -145,8 +124,6 @@ class VNEEnvironment(gym.Env):
             time_step += next_arrival
             if time_step >= config.GLOBAL_MAX_STEPS:
                 break
-
-            self.VNRs_ARRIVED[time_step] += 1
 
             vnr = VNR(
                 id=vnr_id,
@@ -160,15 +137,32 @@ class VNEEnvironment(gym.Env):
         msg = "TOTAL NUMBER OF VNRs: {0}\n".format(len(self.VNRs_INFO))
         self.logger.info(msg), print(msg)
 
+        self.VNRs_SERVING = None
+        self.VNRs_COLLECTED = None
+
+        self.time_step = None
+
+        self.total_arrival_vnrs = None
+        self.total_embedded_vnrs = None
+
+        self.episode_reward = None
+        self.revenue = None
+        self.acceptance_ratio = None
+        self.rc_ratio = None
+
+    def reset(self):
+        self.VNRs_SERVING = {}
+        self.VNRs_COLLECTED = {}
+
         self.time_step = 0
+
+        self.total_arrival_vnrs = 0
+        self.total_embedded_vnrs = 0
 
         self.episode_reward = 0.0
         self.revenue = 0.0
         self.acceptance_ratio = 0.0
         self.rc_ratio = 0.0
-
-        self.total_arrival_vnrs = 0
-        self.total_embedded_vnrs = 0
 
         self.collect_vnrs_new_arrival()
 

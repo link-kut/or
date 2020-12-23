@@ -40,72 +40,77 @@ logger = get_logger("vne")
 
 plt.figure(figsize=(20, 8))
 
+bl_env = VNEEnvironment(logger)
+ta_env = copy.deepcopy(bl_env)
+
+envs = [bl_env, ta_env]
+agents = [BaselineVNEAgent(logger), TopologyAwareBaselineVNEAgent(logger)]
+performance_revenue = np.zeros(shape=(2, config.GLOBAL_MAX_STEPS + 1))
+performance_acceptance_ratio = np.zeros(shape=(2, config.GLOBAL_MAX_STEPS + 1))
+performance_rc_ratio = np.zeros(shape=(2, config.GLOBAL_MAX_STEPS + 1))
+
+states = []
+
 def main():
-    env = VNEEnvironment(logger)
-    bl_agent = BaselineVNEAgent(logger)
-    ta_agent = TopologyAwareBaselineVNEAgent(logger)
-    # rl_agent = RLVNRAgent()
-
-    state_bl = env.reset()
-    state_ta = copy.deepcopy(state_bl)
-    done = False
-
-    time_step = 0
-
-    performance_revenue = np.zeros(config.GLOBAL_MAX_STEPS + 1)
-    performance_acceptance_ratio = np.zeros(config.GLOBAL_MAX_STEPS + 1)
-    performance_rc_ratio = np.zeros(config.GLOBAL_MAX_STEPS + 1)
-
     for run in range(config.NUM_RUNS):
+        start_ts = time.time()
+
         msg = "RUN: {0}".format(run)
         logger.info(msg), print(msg)
 
-        start_ts = time.time()
+        for agent_id in range(len(agents)):
+            states.append(envs[agent_id].reset())
+
+        done = False
+        time_step = 0
 
         while not done:
             time_step += 1
+            for agent_id in range(len(agents)):
+                before_action_msg = "state {0} | ".format(states[agent_id])
+                logger.info("{0} {1}".format(utils.agent_step_prefix(agent_id, time_step), before_action_msg))
 
-            before_action_msg = "state {0} | ".format(state)
-            logger.info("{0} {1}".format(utils.step_prefix(time_step), before_action_msg))
+                # action = bl_agent.get_action(state)
+                action = agents[agent_id].get_action(states[agent_id])
 
-            # action = bl_agent.get_action(state)
-            action = ta_agent.get_action(state)
+                action_msg = "action {0:30} |".format(str(action) if action else " - ")
+                logger.info("{0} {1}".format(utils.agent_step_prefix(agent_id, time_step), action_msg))
 
-            action_msg = "action {0:30} |".format(str(action) if action else " - ")
-            logger.info("{0} {1}".format(utils.step_prefix(time_step), action_msg))
+                next_state, reward, done, info = envs[agent_id].step(action)
 
-            next_state, reward, done, info = env.step(action)
-
-            after_action_msg = "reward {0:7.1f} | revenue {1:9.1f} | accept ratio {2:4.2f} | r/c ratio {3:4.2f} | elapsed time {4}".format(
-                reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio'],
-                time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_ts))
-            )
-            logger.info("{0} {1}".format(utils.step_prefix(time_step), after_action_msg))
-
-            print("{0} {1} {2} {3}".format(utils.step_prefix(time_step), before_action_msg, action_msg, after_action_msg))
-
-            state = next_state
-
-            performance_revenue[time_step] += info['revenue']
-            performance_acceptance_ratio[time_step] += info['acceptance_ratio']
-            performance_rc_ratio[time_step] += info['rc_ratio']
-
-            if time_step % 100 == 0:
-                draw_performance(
-                    performance_revenue / config.NUM_RUNS,
-                    performance_acceptance_ratio / config.NUM_RUNS,
-                    performance_rc_ratio / config.NUM_RUNS,
-                    time_step
+                after_action_msg = "reward {0:7.1f} | revenue {1:9.1f} | accept ratio {2:4.2f} | " \
+                                   "r/c ratio {3:4.2f} | elapsed time {4}".format(
+                    reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio'],
+                    time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_ts))
                 )
+                logger.info("{0} {1}".format(utils.agent_step_prefix(agent_id, time_step), after_action_msg))
 
-            logger.info("")
+                print("{0} {1} {2} {3}".format(
+                    utils.agent_step_prefix(agent_id, time_step), before_action_msg, action_msg, after_action_msg
+                ))
 
-    draw_performance(
-        performance_revenue / config.NUM_RUNS,
-        performance_acceptance_ratio / config.NUM_RUNS,
-        performance_rc_ratio / config.NUM_RUNS,
-        time_step
-    )
+                states[agent_id] = next_state
+
+                performance_revenue[agent_id, time_step] += info['revenue']
+                performance_acceptance_ratio[agent_id, time_step] += info['acceptance_ratio']
+                performance_rc_ratio[agent_id, time_step] += info['rc_ratio']
+
+                if time_step % 100 == 0:
+                    draw_performance(
+                        performance_revenue / config.NUM_RUNS,
+                        performance_acceptance_ratio / config.NUM_RUNS,
+                        performance_rc_ratio / config.NUM_RUNS,
+                        time_step
+                    )
+
+                logger.info("")
+
+        draw_performance(
+            performance_revenue / config.NUM_RUNS,
+            performance_acceptance_ratio / config.NUM_RUNS,
+            performance_rc_ratio / config.NUM_RUNS,
+            time_step
+        )
 
 
 def draw_performance(performance_revenue, performance_acceptance_ratio, performance_rc_ratio, time_step):
@@ -118,30 +123,35 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
 
     plt.subplot(311)
 
-    plt.plot(x_range, performance_revenue[config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE]
-    )
+    plt.plot(x_range, performance_revenue[0, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="BL")
+    plt.plot(x_range, performance_revenue[1, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="TA")
     plt.ylabel("Revenue")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent Revenue")
+    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=18, ncol=2)
     plt.grid(True)
 
     plt.subplot(312)
-    plt.plot(x_range, performance_acceptance_ratio[config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE])
+    plt.plot(x_range, performance_acceptance_ratio[0, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="BL")
+    plt.plot(x_range, performance_acceptance_ratio[1, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="TA")
     plt.ylabel("Acceptance Ratio")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent Acceptance Ratio")
+    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=18, ncol=2)
     plt.grid(True)
 
     plt.subplot(313)
-    plt.plot(x_range, performance_rc_ratio[config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE])
+    plt.plot(x_range, performance_rc_ratio[0, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="BL")
+    plt.plot(x_range, performance_rc_ratio[1, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE], label="TA")
     plt.ylabel("R/C Ratio")
     plt.xlabel("Time unit")
     plt.title("Baseline Agent R/C Ratio")
+    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=18, ncol=2)
     plt.grid(True)
 
     plt.tight_layout()
     plt.savefig(os.path.join(graph_save_path, "results.png"))
-
+    plt.clf()
 
 if __name__ == "__main__":
     main()

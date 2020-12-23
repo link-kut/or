@@ -38,5 +38,10 @@ def k_shortest_paths(G, source, target, k, weight=None):
         islice(nx.shortest_simple_paths(G, source, target, weight=weight), k)
     )
 
+
 def step_prefix(time_step):
     return "[STEP: {0:5d}]".format(time_step)
+
+
+def agent_step_prefix(agent_id, time_step):
+    return "[STEP: {0}/{1:5d}]".format(agent_id, time_step)
