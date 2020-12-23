@@ -63,7 +63,7 @@ class VNR:
     def __init__(self, id, vnr_duration_mean_rate, delay, time_step_arrival):
         self.id = id
 
-        self.duration = int(expovariate(vnr_duration_mean_rate))
+        self.duration = int(expovariate(vnr_duration_mean_rate) + 1.0)
 
         self.delay = delay
 
@@ -80,16 +80,23 @@ class VNR:
             self.net.edges[edge_id]['bandwidth'] = randint(
                 config.VNR_BANDWIDTH_DEMAND_MIN, config.VNR_BANDWIDTH_DEMAND_MAX
             )
-
         self.time_step_arrival = time_step_arrival
         self.time_step_leave_from_queue = self.time_step_arrival + self.delay
 
         self.time_step_serving_started = None
         self.time_step_serving_completed = None
 
+        self.revenue = utils.get_revenue_VNR(self)
+
+        self.cost = None
+
+    def __lt__(self, other_vnr):
+        return 1.0 / self.revenue < 1.0 / other_vnr.revenue
+
     def __str__(self):
-        vnr_str = '[id: {0}, arrival: {1}, left out: {2}, duration: {3}, started: {4}, completed out: {5}]'.format(
-            self.id, self.time_step_arrival, self.time_step_leave_from_queue, self.duration,
+        vnr_str = '[id: {0}, revenue: {1:6.1f}, arrival: {2}, left out: {3}, duration: {4}, started: {5}, completed out: {6}]'.format(
+            self.id, self.revenue,
+            self.time_step_arrival, self.time_step_leave_from_queue, self.duration,
             self.time_step_serving_started if self.time_step_serving_started else "N/A",
             self.time_step_serving_completed if self.time_step_serving_completed else "N/A"
         )
@@ -114,16 +121,13 @@ class VNEEnvironment(gym.Env):
 
         self.time_step = None
 
-        self.total_arrival_vnrs = 0
-        self.successfully_mapped_vnrs = 0
+        self.total_arrival_vnrs = None
+        self.total_embedded_vnrs = None
 
-        self.initial_total_cpu_capacity = 0.0
-        self.initial_total_bandwidth_capacity = 0.0
-
-        self.episode_reward = 0.0
-        self.revenue = 0.0
-        self.acceptance_ratio = 0.0
-        self.rc_ratio = 0.0
+        self.episode_reward = None
+        self.revenue = None
+        self.acceptance_ratio = None
+        self.rc_ratio = None
 
     def reset(self):
         self.SUBSTRATE = Substrate()
@@ -164,7 +168,7 @@ class VNEEnvironment(gym.Env):
         self.rc_ratio = 0.0
 
         self.total_arrival_vnrs = 0
-        self.successfully_mapped_vnrs = 0
+        self.total_embedded_vnrs = 0
 
         self.collect_vnrs_new_arrival()
 
@@ -197,11 +201,9 @@ class VNEEnvironment(gym.Env):
         reward = 0.0
         cost = 0.0
 
-        for vnr_serving, _, _ in self.VNRs_SERVING.values():
-            reward += utils.get_revenue_VNR(vnr_serving)
-
-        for vnr_serving, _, embedding_s_paths in self.VNRs_SERVING.values():
-            cost += utils.get_cost_VNR(vnr_serving, embedding_s_paths)
+        for vnr, _, embedding_s_paths in self.VNRs_SERVING.values():
+            reward += vnr.revenue
+            cost += utils.get_cost_VNR(vnr, embedding_s_paths)
 
         if self.time_step >= config.GLOBAL_MAX_STEPS:
             done = True
@@ -215,7 +217,7 @@ class VNEEnvironment(gym.Env):
 
         self.episode_reward += reward
         self.revenue = self.episode_reward / self.time_step
-        self.acceptance_ratio = self.successfully_mapped_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
+        self.acceptance_ratio = self.total_embedded_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
         self.rc_ratio = reward / cost if cost else 0.0
 
         info = {
@@ -253,13 +255,13 @@ class VNEEnvironment(gym.Env):
 
         vnr.time_step_serving_started = self.time_step
         vnr.time_step_serving_completed = self.time_step + vnr.duration
+        vnr.cost = utils.get_cost_VNR(vnr, embedding_s_paths)
 
         self.VNRs_SERVING[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
         self.logger.info("{0} VNR SERVING STARTED - {1}".format(utils.step_prefix(self.time_step), vnr))
+        self.total_embedded_vnrs += 1
 
         del self.VNRs_COLLECTED[vnr.id]
-
-        self.successfully_mapped_vnrs += 1
 
     def complete_vnrs_serving(self):
         '''

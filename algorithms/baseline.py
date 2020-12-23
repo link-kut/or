@@ -156,12 +156,11 @@ class BaselineVNEAgent:
     def greedy_node_mapping(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
         # Sort the requests according to their revenues
         sorted_vnrs = sorted(
-            VNRs_COLLECTED.values(),
-            key=lambda vnr: utils.get_revenue_VNR(vnr),
-            reverse=True
+            VNRs_COLLECTED.values(), key=lambda vnr: vnr.revenue, reverse=True
         )
 
-        VNRs_NODE_EMBEDDING_SUCCESSFULLY = []
+        sorted_vnrs_and_node_embedding = []
+
         for vnr in sorted_vnrs:
             # find the substrate nodes for the given vnr
             embedding_s_nodes = self.find_substrate_nodes(COPIED_SUBSTRATE, vnr)
@@ -169,19 +168,19 @@ class BaselineVNEAgent:
             if embedding_s_nodes is None:
                 action.vnrs_postponement[vnr.id] = vnr
             else:
-                VNRs_NODE_EMBEDDING_SUCCESSFULLY.append((vnr, embedding_s_nodes))
+                sorted_vnrs_and_node_embedding.append((vnr, embedding_s_nodes))
 
-        return VNRs_NODE_EMBEDDING_SUCCESSFULLY
+        return sorted_vnrs_and_node_embedding
 
-    def greedy_link_mapping(self, VNRs_NODE_EMBEDDING_SUCCESSFULLY, COPIED_SUBSTRATE, action):
+    def greedy_link_mapping(self, sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action):
         # Sort the requests that successfully completed the node-mapping stage by their revenues.
-        sorted_vnrs_and_embedding_s_nodes = sorted(
-            VNRs_NODE_EMBEDDING_SUCCESSFULLY,
-            key=lambda vnr_and_embedded_nodes: utils.get_revenue_VNR(vnr_and_embedded_nodes[0]),
-            reverse=True
-        )
+        # sorted_vnrs_and_embedding_s_nodes = sorted(
+        #     node_embedding_sorted_vnrs,
+        #     key=lambda vnr_and_embedded_nodes: vnr_and_embedded_nodes[0].revenue,
+        #     reverse=True
+        # )
 
-        for vnr, embedding_s_nodes in sorted_vnrs_and_embedding_s_nodes:
+        for vnr, embedding_s_nodes in sorted_vnrs_and_node_embedding:
             embedding_s_paths = self.find_substrate_path(COPIED_SUBSTRATE, vnr, embedding_s_nodes)
 
             if embedding_s_paths is None:
@@ -205,12 +204,12 @@ class BaselineVNEAgent:
         #####################################
         # step 1 - Greedy Node Mapping      #
         #####################################
-        VNRs_NODE_EMBEDDING_SUCCESSFULLY = self.greedy_node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
+        sorted_vnrs_and_node_embedding = self.greedy_node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
 
         #####################################
         # step 2 - Link Mapping             #
         #####################################
-        self.greedy_link_mapping(VNRs_NODE_EMBEDDING_SUCCESSFULLY, COPIED_SUBSTRATE, action)
+        self.greedy_link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
 
         assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
 
