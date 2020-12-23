@@ -12,19 +12,6 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
         super(TopologyAwareBaselineVNEAgent, self).__init__(logger)
 
-    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand):
-        '''
-        find the subset S of the substrate nodes that satisfy restrictions and available CPU capacity
-        :param substrate: substrate network
-        :param v_cpu_demand: cpu demand of the given virtual node
-        :return:
-        '''
-        subset_S = []
-        for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True):
-            if s_cpu_capacity['CPU'] >= v_cpu_demand:
-                subset_S.append(s_node_id)
-        return subset_S
-
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
         Execute Step 1
@@ -34,11 +21,22 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
         '''
         subset_S_per_v_node = {}
         embedding_s_nodes = {}
+        sorted_vnrs_with_node_ranking = []
 
         # already_embedding_s_nodes = []
-        node_sorted_with_ranking = self.calcuated_node_ranking(copied_substrate)
 
+        # calcuate the vnr node ranking
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
+            vnr_node_ranking = self.calcuated_node_ranking(
+                vnr.net.nodes[v_node_id]['CPU'],
+                vnr.net[v_node_id]
+            )
+            sorted_vnrs_with_node_ranking.append((v_node_id, v_node_data, vnr_node_ranking))
+
+        # sorting the vnr nodes with node's ranking
+        sorted_vnrs_with_node_ranking.sort(key=lambda sorted_vnrs_with_node_ranking: sorted_vnrs_with_node_ranking[2], reverse=True)
+
+        for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
 
             # Find the subset S of substrate nodes that satisfy restrictions and
@@ -53,20 +51,20 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
 
-            max_h_value = -1.0 * 1e10
+            max_node_ranking = -1.0 * 1e10
             embedding_s_nodes[v_node_id] = None
             for s_node_id in subset_S_per_v_node[v_node_id]:
 
                 # if s_node_id in already_embedding_s_nodes:
                 #     continue
 
-                h_value = self.calculate_H_value(
+                node_ranking = self.calcuated_node_ranking(
                     copied_substrate.net.nodes[s_node_id]['CPU'],
                     copied_substrate.net[s_node_id]
                 )
 
-                if h_value > max_h_value:
-                    max_h_value = h_value
+                if node_ranking > max_node_ranking:
+                    max_node_ranking = node_ranking
                     embedding_s_nodes[v_node_id] = (s_node_id, v_cpu_demand)
                     #already_embedding_s_nodes.append(s_node_id)
 
@@ -80,17 +78,10 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
 
         return embedding_s_nodes
 
-    def calcuated_node_ranking(self, copied_substrate):
-        node_sorted_with_ranking = []
+    def calcuated_node_ranking(self, node_cpu_capacity, adjacent_links):
         total_node_bandwidth = 0
 
-        for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True):
-            node_degree = len(copied_substrate.net.edges(s_node_id, data=True))
-            print(copied_substrate.net.edges(s_node_id, data=True))
-            for src_link_id, dst_link_id, s_bandwidth in copied_substrate.net.edges(s_node_id, data=True):
-                print(s_bandwidth)
-                total_node_bandwidth += s_bandwidth['bandwidth']
-            print(total_node_bandwidth)
+        for link_id in adjacent_links:
+            total_node_bandwidth += adjacent_links[link_id]['bandwidth']
 
-
-        return node_sorted_with_ranking
+        return (config.BETA * node_cpu_capacity) + ((1 - config.BETA) * len(adjacent_links) * total_node_bandwidth)
