@@ -6,6 +6,59 @@ from random import randint, expovariate
 
 GLOBAL_MAX_STEP = 5600
 
+class Action:
+    def __init__(self):
+        self.vnrs_postponement = None
+        self.vnrs_embedding = None
+
+    def __str__(self):
+        # if self.vnrs_postponement:
+        #     vnrs_postponement_str = ", ".join([str(vnr) for vnr in self.vnrs_postponement])
+        # else:
+        #     vnrs_postponement_str = "N/A"
+        #
+        # if self.vnrs_embedding:
+        #     vnrs_embedding_str = ", ".join([str(vnr) for vnr, _, _ in self.vnrs_embedding])
+        # else:
+        #     vnrs_embedding_str = "N/A"
+        #
+        # action_str = "[{0} VNRs Postponement: {1}] [{2} VNRs Embedding: {3}]".format(
+        #     len(self.vnrs_postponement),
+        #     vnrs_postponement_str,
+        #     len(self.vnrs_embedding),
+        #     vnrs_embedding_str
+        # )
+
+        action_str = "[{0} VNRs Postponement] [{1} VNRs Embedding]".format(
+            len(self.vnrs_postponement),
+            len(self.vnrs_embedding),
+        )
+
+        return action_str
+
+
+class State:
+    def __init__(self):
+        self.substrate = None
+        self.vnrs_collected = None
+        self.vnrs_serving = None
+
+    def __str__(self):
+        state_str = str(self.substrate)
+
+        state_str += "[{0} VNRs COLLECTED] ".format(len(self.vnrs_collected))
+
+        # if len(self.vnrs_collected):
+        #     vnrs_collected_str = ", ".join([str(vnr) for vnr in self.vnrs_collected])
+        # else:
+        #     vnrs_collected_str = "N/A"
+
+        # state_str += "[{0} VNRs COLLECTED: {1}]".format(len(self.vnrs_collected), vnrs_collected_str)
+
+        state_str += "[{0} VNRs SERVING]".format(len(self.vnrs_serving))
+
+        return state_str
+
 
 class VNETestEnvironment(gym.Env):
     def __init__(self):

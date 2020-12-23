@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 import os, sys
 import glob
 import numpy as np
+import warnings
+from matplotlib import MatplotlibDeprecationWarning
+
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 
 idx = os.getcwd().index("or")
 PROJECT_HOME = os.getcwd()[:idx] + "or"
@@ -48,6 +53,7 @@ VNR_DELAY = int(200 * TIME_STEP_SCALE)
 # 0.05: The arrival of VNRs follows a Poisson process with an average arrival rate of 5 VNs per 100 time units.
 VNR_INTER_ARRIVAL_RATE = 0.05
 
+plt.figure(figsize=(20, 8))
 
 def main():
     env = VNEEnvironment(GLOBAL_MAX_STEP, VNR_INTER_ARRIVAL_RATE, VNR_DURATION_MEAN_RATE, VNR_DELAY, logger)
@@ -57,8 +63,6 @@ def main():
     state = env.reset()
     done = False
 
-    episode_reward = 0.0
-
     time_step = 0
 
     next_embedding_epoch = TIME_WINDOW_SIZE
@@ -67,18 +71,15 @@ def main():
     performance_acceptance_ratio = np.zeros(GLOBAL_MAX_STEP + 1)
     performance_rc_ratio = np.zeros(GLOBAL_MAX_STEP + 1)
 
-
     for run in range(NUM_RUNS):
-
         msg = "RUN: {0}".format(run)
         logger.info(msg), print(msg)
 
         while not done:
             time_step += 1
 
-            msg = "[STEP: {0}]\nstate: {1}\n".format(time_step, state)
-
-            num_vnrs_before_action = len(state.vnrs_collected)
+            before_action_msg = "[STEP: {0:3}] state {1} | ".format(time_step, state)
+            print(before_action_msg, end="")
 
             if time_step < next_embedding_epoch:
                 action = None
@@ -88,22 +89,19 @@ def main():
 
             next_state, reward, done, info = env.step(action)
 
-            num_vnrs_after_action = len(next_state.vnrs_collected)
-
-            msg += "action: {0}\nreward: {1}\nnext_state: {2}\ndone: {3}\n".format(
-                action, reward, next_state, done
+            after_action_msg = "action {0:30} | reward {1:7.1f} | revenue {2:9.1f} | acceptance ratio {3:4.2f} | r/c ratio {4:4.2f}".format(
+                str(action) if action else " ", reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio']
             )
 
-            logger.info(msg), print(msg)
+            logger.info(before_action_msg + after_action_msg), print(after_action_msg)
 
-            episode_reward += reward
             state = next_state
 
-            performance_revenue[time_step] += episode_reward / time_step
+            performance_revenue[time_step] += info['revenue']
             performance_acceptance_ratio[time_step] += info['acceptance_ratio']
             performance_rc_ratio[time_step] += info['rc_ratio']
 
-            if time_step % TIME_WINDOW_SIZE == 0:
+            if time_step % (TIME_WINDOW_SIZE * 10) == 0:
                 draw_performance(
                     performance_revenue / NUM_RUNS,
                     performance_acceptance_ratio / NUM_RUNS,
@@ -125,40 +123,33 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     for f in files:
         os.remove(f)
 
-    fig = plt.figure(figsize=(20, 8))
+    x_range = range(TIME_WINDOW_SIZE, time_step + 1, TIME_WINDOW_SIZE)
 
-    ax_1 = fig.add_subplot(3, 1, 1)
-    ax_1.plot(
-        range(0, len(performance_revenue[:time_step + 1]), TIME_WINDOW_SIZE),
-        performance_revenue[:time_step + 1:TIME_WINDOW_SIZE]
+    plt.subplot(311)
+
+    plt.plot(x_range, performance_revenue[TIME_WINDOW_SIZE: time_step + 1: TIME_WINDOW_SIZE]
     )
-    ax_1.set_ylabel("Revenue")
-    ax_1.set_xlabel("Time unit")
-    ax_1.set_title("Baseline Agent Revenue")
-    ax_1.grid(True)
+    plt.ylabel("Revenue")
+    plt.xlabel("Time unit")
+    plt.title("Baseline Agent Revenue")
+    plt.grid(True)
 
-    ax_2 = fig.add_subplot(3, 1, 2)
-    ax_2.plot(
-        range(0, len(performance_acceptance_ratio[:time_step + 1]), TIME_WINDOW_SIZE),
-        performance_acceptance_ratio[:time_step + 1:TIME_WINDOW_SIZE]
-    )
-    ax_2.set_ylabel("Acceptance Ratio")
-    ax_2.set_xlabel("Time unit")
-    ax_2.set_title("Baseline Agent Acceptance Ratio")
-    ax_2.grid(True)
+    plt.subplot(312)
+    plt.plot(x_range, performance_acceptance_ratio[TIME_WINDOW_SIZE: time_step + 1: TIME_WINDOW_SIZE])
+    plt.ylabel("Acceptance Ratio")
+    plt.xlabel("Time unit")
+    plt.title("Baseline Agent Acceptance Ratio")
+    plt.grid(True)
 
-    ax_3 = fig.add_subplot(3, 1, 3)
-    ax_3.plot(
-        range(0, len(performance_rc_ratio[:time_step + 1]), TIME_WINDOW_SIZE),
-        performance_rc_ratio[:time_step + 1:TIME_WINDOW_SIZE]
-    )
-    ax_3.set_ylabel("R/C Ratio")
-    ax_3.set_xlabel("Time unit")
-    ax_3.set_title("Baseline Agent R/C Ratio")
-    ax_3.grid(True)
+    plt.subplot(313)
+    plt.plot(x_range, performance_rc_ratio[TIME_WINDOW_SIZE: time_step + 1: TIME_WINDOW_SIZE])
+    plt.ylabel("R/C Ratio")
+    plt.xlabel("Time unit")
+    plt.title("Baseline Agent R/C Ratio")
+    plt.grid(True)
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(graph_save_path, "results.png"))
+    plt.tight_layout()
+    plt.savefig(os.path.join(graph_save_path, "results.png"))
 
 
 if __name__ == "__main__":
