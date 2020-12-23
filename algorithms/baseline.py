@@ -53,8 +53,8 @@ class BaselineVNEAgent:
         # already_embedding_s_nodes = []
 
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
-
             v_cpu_demand = v_node_data['CPU']
+
             # Find the subset S of substrate nodes that satisfy restrictions and
             # available CPU capacity (larger than that specified by the request.)
             subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(copied_substrate, v_cpu_demand)
@@ -126,7 +126,7 @@ class BaselineVNEAgent:
                     # self.logger.info(msg), print(msg)
                     return None
 
-                MAX_K = 10
+                MAX_K = 1
 
                 shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
 

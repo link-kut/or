@@ -1,5 +1,5 @@
 import shutil
-
+import time
 import matplotlib.pyplot as plt
 import os, sys
 import glob
@@ -34,21 +34,19 @@ else:
 
 logger = get_logger("vne_log")
 
-TIME_STEP_SCALE = 1.0
-
 #The arithmetic mean of the ten instances is recorded as the final result.
 NUM_RUNS = 1
 
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
-GLOBAL_MAX_STEP = int(56000 * TIME_STEP_SCALE)
+GLOBAL_MAX_STEP = 56000
 
-TIME_WINDOW_SIZE = int(10 * TIME_STEP_SCALE)
+TIME_WINDOW_SIZE = 1
 
 # 0.002: Each VN has an exponentially distributed duration with an average of 500 time units
-VNR_DURATION_MEAN_RATE = 0.002 * (1.0 / TIME_STEP_SCALE)
+VNR_DURATION_MEAN_RATE = 0.002
 
 # VNR delay is set to be 200 time units
-VNR_DELAY = int(200 * TIME_STEP_SCALE)
+VNR_DELAY = 200
 
 # 0.05: The arrival of VNRs follows a Poisson process with an average arrival rate of 5 VNs per 100 time units.
 VNR_INTER_ARRIVAL_RATE = 0.05
@@ -75,10 +73,12 @@ def main():
         msg = "RUN: {0}".format(run)
         logger.info(msg), print(msg)
 
+        start_ts = time.time()
+
         while not done:
             time_step += 1
 
-            before_action_msg = "[STEP: {0:3}] state {1} | ".format(time_step, state)
+            before_action_msg = "[STEP: {0:5d}] state {1} | ".format(time_step, state)
             print(before_action_msg, end="")
 
             if time_step < next_embedding_epoch:
@@ -89,8 +89,12 @@ def main():
 
             next_state, reward, done, info = env.step(action)
 
-            after_action_msg = "action {0:30} | reward {1:7.1f} | revenue {2:9.1f} | acceptance ratio {3:4.2f} | r/c ratio {4:4.2f}".format(
-                str(action) if action else " ", reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio']
+            elapsed_time = time.time() - start_ts
+            after_action_msg = "action {0:30} | reward {1:7.1f} | revenue {2:9.1f} | " \
+                               "accept ratio {3:4.2f} | r/c ratio {4:4.2f} | elapsed time {5}".format(
+                str(action) if action else " ",
+                reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio'],
+                time.strftime("%Hh %Mm %Ss", time.gmtime(elapsed_time))
             )
 
             logger.info(before_action_msg + after_action_msg), print(after_action_msg)
