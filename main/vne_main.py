@@ -7,9 +7,6 @@ import numpy as np
 import warnings
 from matplotlib import MatplotlibDeprecationWarning
 
-from common import utils
-from main import config
-
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 
@@ -17,6 +14,9 @@ idx = os.getcwd().index("or")
 PROJECT_HOME = os.getcwd()[:idx] + "or"
 if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
+
+from common import utils
+from main import config
 
 from common.logger import get_logger
 from environments.vne_env import VNEEnvironment
