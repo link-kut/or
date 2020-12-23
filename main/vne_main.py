@@ -21,6 +21,7 @@ if PROJECT_HOME not in sys.path:
 from common.logger import get_logger
 from environments.vne_env import VNEEnvironment
 from algorithms.baseline import BaselineVNEAgent
+from algorithms.topology_aware_baseline import TopologyAwareBaselineVNEAgent
 
 PROJECT_HOME = os.getcwd()[:-5]
 graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
@@ -40,7 +41,8 @@ plt.figure(figsize=(20, 8))
 
 def main():
     env = VNEEnvironment(logger)
-    bl_agent = BaselineVNEAgent(logger)
+    # bl_agent = BaselineVNEAgent(logger)
+    ta_agent = TopologyAwareBaselineVNEAgent(logger)
     # rl_agent = RLVNRAgent()
 
     state = env.reset()
@@ -64,7 +66,7 @@ def main():
             before_action_msg = "state {0} | ".format(state)
             logger.info("{0} {1}".format(utils.step_prefix(time_step), before_action_msg))
 
-            action = bl_agent.get_action(state)
+            action = ta_agent.get_action(state)
 
             action_msg = "action {0:30} |".format(str(action) if action else " - ")
             logger.info("{0} {1}".format(utils.step_prefix(time_step), action_msg))
