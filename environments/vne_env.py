@@ -178,13 +178,15 @@ class VNEEnvironment(gym.Env):
     def step(self, action: Action):
         self.time_step += 1
 
-        vnrs_left_from_queue = self.release_vnrs_expired_from_collected()
+        vnrs_left_from_queue = self.release_vnrs_expired_from_collected(
+            action.vnrs_embedding if action else []
+        )
 
         vnrs_serving_completed = self.complete_vnrs_serving()
 
         # processing of embedding & postponement
         if action:
-            for vnr, embedding_s_nodes, embedding_s_paths in action.vnrs_embedding:
+            for vnr, embedding_s_nodes, embedding_s_paths in action.vnrs_embedding.values():
                 assert vnr not in vnrs_left_from_queue
                 assert vnr not in vnrs_serving_completed
 
@@ -224,7 +226,7 @@ class VNEEnvironment(gym.Env):
 
         return next_state, reward, done, info
 
-    def release_vnrs_expired_from_collected(self):
+    def release_vnrs_expired_from_collected(self, vnrs_embedding):
         '''
         processing of leave_from_queue
 
@@ -232,7 +234,7 @@ class VNEEnvironment(gym.Env):
         '''
         vnrs_left_from_queue = []
         for vnr in self.VNRs_COLLECTED.values():
-            if vnr.time_step_leave_from_queue <= self.time_step:
+            if vnr.time_step_leave_from_queue <= self.time_step and vnr.id not in vnrs_embedding:
                 vnrs_left_from_queue.append(vnr)
 
         for vnr in vnrs_left_from_queue:

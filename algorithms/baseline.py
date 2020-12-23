@@ -167,7 +167,7 @@ class BaselineVNEAgent:
             embedding_s_nodes = self.find_substrate_nodes(COPIED_SUBSTRATE, vnr)
 
             if embedding_s_nodes is None:
-                action.vnrs_postponement.append(vnr)
+                action.vnrs_postponement[vnr.id] = vnr
             else:
                 VNRs_NODE_EMBEDDING_SUCCESSFULLY.append((vnr, embedding_s_nodes))
 
@@ -185,9 +185,9 @@ class BaselineVNEAgent:
             embedding_s_paths = self.find_substrate_path(COPIED_SUBSTRATE, vnr, embedding_s_nodes)
 
             if embedding_s_paths is None:
-                action.vnrs_postponement.append(vnr)
+                action.vnrs_postponement[vnr.id] = vnr
             else:
-                action.vnrs_embedding.append((vnr, embedding_s_nodes, embedding_s_paths))
+                action.vnrs_embedding[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
 
     def get_action(self, state):
         self.time_step += 1
@@ -196,8 +196,8 @@ class BaselineVNEAgent:
             return None
 
         action = Action()
-        action.vnrs_postponement = []
-        action.vnrs_embedding = []
+        action.vnrs_postponement = {}
+        action.vnrs_embedding = {}
 
         COPIED_SUBSTRATE = copy.deepcopy(state.substrate)
         VNRs_COLLECTED = state.vnrs_collected
@@ -206,7 +206,6 @@ class BaselineVNEAgent:
         # step 1 - Greedy Node Mapping      #
         #####################################
         VNRs_NODE_EMBEDDING_SUCCESSFULLY = self.greedy_node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
-
 
         #####################################
         # step 2 - Link Mapping             #
