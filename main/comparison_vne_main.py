@@ -39,7 +39,6 @@ else:
 logger = get_logger("vne")
 
 plt.figure(figsize=(20, 8))
-plt.style.use('seaborn-dark-palette')
 
 bl_env = VNEEnvironment(logger)
 ta_0_9_env = copy.deepcopy(bl_env)
@@ -134,6 +133,8 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     for f in files:
         os.remove(f)
 
+    plt.style.use('seaborn-dark-palette')
+
     x_range = range(config.TIME_WINDOW_SIZE, time_step + 1, config.TIME_WINDOW_SIZE)
 
     plt.subplot(311)
@@ -180,6 +181,9 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     plt.grid(True)
 
     plt.tight_layout()
+
+    plt.subplots_adjust(top=0.9)
+
     plt.suptitle('EXECUTED RUNS: {0}'.format(config.NUM_RUNS))
     plt.savefig(os.path.join(graph_save_path, "results.png"))
     plt.clf()
