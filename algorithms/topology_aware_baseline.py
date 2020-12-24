@@ -61,7 +61,7 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
                 if node_ranking > max_node_ranking:
                     max_node_ranking = node_ranking
                     embedding_s_nodes[v_node_id] = (s_node_id, v_cpu_demand)
-                    if config.ALLOW_SAME_NODE_EMBEDDING:
+                    if not config.ALLOW_SAME_NODE_EMBEDDING:
                         already_embedding_s_nodes.append(s_node_id)
 
             assert copied_substrate.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] >= v_cpu_demand
