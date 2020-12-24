@@ -48,7 +48,9 @@ agents = [
 ]
 
 agent_labels = [
-    "BL", "TA_0.9", "TA_0.3"
+    "BL",
+    "TA_0.9",
+    "TA_0.3"
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
@@ -57,16 +59,17 @@ performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1)
 
 def main():
     for run in range(config.NUM_RUNS):
-        bl_env = VNEEnvironment(logger)
-        ta_0_9_env = copy.deepcopy(bl_env)
-        ta_0_3_env = copy.deepcopy(bl_env)
-        envs = [
-            bl_env, ta_0_9_env, ta_0_3_env
-        ]
+        env = VNEEnvironment(logger)
+        envs = []
+        for agent_id in range(len(agents)):
+            if agent_id == 0:
+                envs.append(env)
+            else:
+                envs.append(copy.deepcopy(env))
 
         start_ts = time.time()
 
-        msg = "RUN: {0}".format(run)
+        msg = "RUN: {0} STARTED".format(run + 1)
         logger.info(msg), print(msg)
 
         states = []
@@ -82,25 +85,34 @@ def main():
             for agent_id in range(len(agents)):
                 before_action_msg = "state {0} | ".format(repr(states[agent_id]))
                 before_action_simple_msg = "state {0} | ".format(states[agent_id])
-                logger.info("{0} {1}".format(utils.agent_step_prefix(agent_id, time_step), before_action_msg))
+                logger.info("{0} {1}".format(
+                    utils.run_agent_step_prefix(run + 1, agent_id, time_step), before_action_msg
+                ))
 
                 # action = bl_agent.get_action(state)
                 action = agents[agent_id].get_action(states[agent_id])
 
                 action_msg = "action {0:30} |".format(str(action) if action else " - ")
-                logger.info("{0} {1}".format(utils.agent_step_prefix(agent_id, time_step), action_msg))
+                logger.info("{0} {1}".format(
+                    utils.run_agent_step_prefix(run + 1, agent_id, time_step), action_msg
+                ))
 
                 next_state, reward, done, info = envs[agent_id].step(action)
 
                 after_action_msg = "reward {0:7.1f} | revenue {1:9.1f} | accept ratio {2:4.2f} | " \
-                                   "r/c ratio {3:4.2f} | elapsed time {4}".format(
+                                   "r/c ratio {3:4.2f} | {4}".format(
                     reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio'],
                     time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_ts))
                 )
-                logger.info("{0} {1}".format(utils.agent_step_prefix(agent_id, time_step), after_action_msg))
+                logger.info("{0} {1}".format(
+                    utils.run_agent_step_prefix(run + 1, agent_id, time_step), after_action_msg
+                ))
 
                 print("{0} {1} {2} {3}".format(
-                    utils.agent_step_prefix(agent_id, time_step), before_action_simple_msg, action_msg, after_action_msg
+                    utils.run_agent_step_prefix(run + 1, agent_id, time_step),
+                    before_action_simple_msg,
+                    action_msg,
+                    after_action_msg
                 ))
 
                 states[agent_id] = next_state
@@ -126,6 +138,11 @@ def main():
             performance_rc_ratio / config.NUM_RUNS,
             send_image_to_slack=True
         )
+
+        msg = "RUN: {0} FINISHED - ELAPSED TIME: {1}".format(
+            run + 1, time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_ts))
+        )
+        logger.info(msg), print(msg)
 
 
 def draw_performance(
@@ -186,7 +203,9 @@ def draw_performance(
 
     plt.subplots_adjust(top=0.9)
 
-    plt.suptitle('EXECUTED RUNS: {0}/{1}'.format(run, config.NUM_RUNS))
+    plt.suptitle('EXECUTED RUNS: {0}/{1} FROM HOST: {2}'.format(
+        run + 1, config.NUM_RUNS, config.HOST
+    ))
 
     now = datetime.datetime.now()
 

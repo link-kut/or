@@ -4,10 +4,18 @@ import os
 idx = os.getcwd().index("or")
 PROJECT_HOME = os.getcwd()[:idx] + "or"
 
-config_parser = configparser.ConfigParser()
+config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))
 
-SLACK_API_TOKEN = config_parser['GENERAL']['SLACK_API_TOKEN']
+if 'GENERAL' in config_parser and 'SLACK_API_TOKEN' in config_parser['GENERAL']:
+    SLACK_API_TOKEN = config_parser['GENERAL']['SLACK_API_TOKEN']
+else:
+    SLACK_API_TOKEN = None
+
+if 'GENERAL' in config_parser and 'HOST' in config_parser['GENERAL']:
+    HOST = config_parser['GENERAL']['HOST']
+else:
+    HOST = 'Default Host'
 
 #The arithmetic mean of the ten instances is recorded as the final result.
 NUM_RUNS = 10
@@ -49,4 +57,4 @@ ALPHA = 0.8
 
 ALLOW_SAME_NODE_EMBEDDING = True
 
-FIGURE_START_TIME_STEP = 5000
+FIGURE_START_TIME_STEP = 50
