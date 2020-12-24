@@ -138,9 +138,7 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     '''
 
     files = glob.glob(os.path.join(graph_save_path, "*"))
-    print(os.path.join(PROJECT_HOME, "graphs", "*"))
     for f in files:
-        print(f)
         os.remove(f)
 
     plt.style.use('seaborn-dark-palette')
@@ -198,7 +196,10 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
 
     now = datetime.datetime.now()
 
-    plt.savefig(os.path.join(graph_save_path, "results_{0}.png".format(now.strftime("%Y_%m_%d_%H_%M"))))
+    new_file_path = os.path.join(graph_save_path, "results_{0}.png".format(now.strftime("%Y_%m_%d_%H_%M")))
+    plt.savefig(new_file_path)
+    utils.send_file_to_slack(new_file_path)
+
     plt.clf()
 
 

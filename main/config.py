@@ -1,3 +1,14 @@
+import configparser
+import os
+
+idx = os.getcwd().index("or")
+PROJECT_HOME = os.getcwd()[:idx] + "or"
+
+config_parser = configparser.ConfigParser()
+read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))
+
+SLACK_API_TOKEN = config_parser['GENERAL']['SLACK_API_TOKEN']
+
 #The arithmetic mean of the ten instances is recorded as the final result.
 NUM_RUNS = 1
 
@@ -36,6 +47,6 @@ VNR_BANDWIDTH_DEMAND_MAX = 50
 
 ALPHA = 0.8
 
-ALLOW_SAME_NODE_EMBEDDING = False
+ALLOW_SAME_NODE_EMBEDDING = True
 
 FIGURE_START_TIME_STEP = 5000

@@ -1,7 +1,14 @@
 import networkx as nx
 from itertools import islice
 
+import os
+from slack import WebClient
+from slack.errors import SlackApiError
+
 from main import config
+
+
+client = WebClient(token=config.SLACK_API_TOKEN)
 
 
 def get_revenue_VNR(vnr):
@@ -45,3 +52,17 @@ def step_prefix(time_step):
 
 def agent_step_prefix(agent_id, time_step):
     return "[STEP: {0}/{1:5d}]".format(agent_id, time_step)
+
+
+def send_file_to_slack(filepath):
+    try:
+        response = client.files_upload(
+            channels='#intelligent_network',
+            file=filepath
+        )
+        assert response["file"]  # the uploaded file
+    except SlackApiError as e:
+        # You will get a SlackApiError if "ok" is False
+        assert e.response["ok"] is False
+        assert e.response["error"]  # str like 'invalid_auth', 'channel_not_found'
+        print(f"Got an error: {e.response['error']}")

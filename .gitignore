@@ -134,3 +134,5 @@ dmypy.json
 graphs
 
 logs
+
+config.ini
