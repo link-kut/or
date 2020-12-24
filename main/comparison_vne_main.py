@@ -7,6 +7,7 @@ import glob
 import numpy as np
 import warnings
 from matplotlib import MatplotlibDeprecationWarning
+import datetime
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
@@ -109,7 +110,7 @@ def main():
                 performance_acceptance_ratio[agent_id, time_step] += info['acceptance_ratio']
                 performance_rc_ratio[agent_id, time_step] += info['rc_ratio']
 
-                if time_step % 100 == 0:
+                if time_step > config.FIGURE_START_TIME_STEP - 1 and time_step % 100 == 0:
                     draw_performance(
                         performance_revenue / config.NUM_RUNS,
                         performance_acceptance_ratio / config.NUM_RUNS,
@@ -135,14 +136,14 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
 
     plt.style.use('seaborn-dark-palette')
 
-    x_range = range(config.TIME_WINDOW_SIZE, time_step + 1, config.TIME_WINDOW_SIZE)
+    x_range = range(config.FIGURE_START_TIME_STEP, time_step + 1, config.TIME_WINDOW_SIZE)
 
     plt.subplot(311)
 
     for agent_id in range(len(agents)):
         plt.plot(
             x_range,
-            performance_revenue[agent_id, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE],
+            performance_revenue[agent_id, config.FIGURE_START_TIME_STEP: time_step + 1: config.TIME_WINDOW_SIZE],
             label=agent_labels[agent_id]
         )
 
@@ -156,7 +157,7 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     for agent_id in range(len(agents)):
         plt.plot(
             x_range,
-            performance_acceptance_ratio[agent_id, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE],
+            performance_acceptance_ratio[agent_id, config.FIGURE_START_TIME_STEP: time_step + 1: config.TIME_WINDOW_SIZE],
             label=agent_labels[agent_id]
         )
 
@@ -170,7 +171,7 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     for agent_id in range(len(agents)):
         plt.plot(
             x_range,
-            performance_rc_ratio[agent_id, config.TIME_WINDOW_SIZE: time_step + 1: config.TIME_WINDOW_SIZE],
+            performance_rc_ratio[agent_id, config.FIGURE_START_TIME_STEP: time_step + 1: config.TIME_WINDOW_SIZE],
             label=agent_labels[agent_id]
         )
 
@@ -185,7 +186,10 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     plt.subplots_adjust(top=0.9)
 
     plt.suptitle('EXECUTED RUNS: {0}'.format(config.NUM_RUNS))
-    plt.savefig(os.path.join(graph_save_path, "results.png"))
+
+    now = datetime.datetime.now()
+
+    plt.savefig(os.path.join(graph_save_path, "results_{0}.png".format(now.strftime("%Y_%m_%d_%H_%M"))))
     plt.clf()
 
 
