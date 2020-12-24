@@ -135,4 +135,5 @@ graphs
 
 logs
 
-config.ini
+common/config.ini
+
