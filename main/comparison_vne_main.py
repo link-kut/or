@@ -56,14 +56,13 @@ agents = [
 agent_labels = [
     "BL", "TA_0.9", "TA_0.3"
 ]
-# agent_plot_colors = [
-#     "red", "blue", "magenta"
-# ]
+
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 
 states = []
+
 
 def main():
     for run in range(config.NUM_RUNS):
@@ -110,15 +109,15 @@ def main():
                 performance_acceptance_ratio[agent_id, time_step] += info['acceptance_ratio']
                 performance_rc_ratio[agent_id, time_step] += info['rc_ratio']
 
-                if time_step > config.FIGURE_START_TIME_STEP - 1 and time_step % 100 == 0:
-                    draw_performance(
-                        performance_revenue / config.NUM_RUNS,
-                        performance_acceptance_ratio / config.NUM_RUNS,
-                        performance_rc_ratio / config.NUM_RUNS,
-                        time_step,
-                    )
-
                 logger.info("")
+
+            if time_step > config.FIGURE_START_TIME_STEP - 1 and time_step % 100 == 0:
+                draw_performance(
+                    performance_revenue / config.NUM_RUNS,
+                    performance_acceptance_ratio / config.NUM_RUNS,
+                    performance_rc_ratio / config.NUM_RUNS,
+                    time_step,
+                )
 
         draw_performance(
             performance_revenue / config.NUM_RUNS,
@@ -129,9 +128,19 @@ def main():
 
 
 def draw_performance(performance_revenue, performance_acceptance_ratio, performance_rc_ratio, time_step):
-    # save the revenue and acceptance_ratios graph
-    files = glob.glob(os.path.join(PROJECT_HOME, "graphs", "*"))
+    '''
+    save the revenue and acceptance_ratios graph
+    :param performance_revenue:
+    :param performance_acceptance_ratio:
+    :param performance_rc_ratio:
+    :param time_step:
+    :return:
+    '''
+
+    files = glob.glob(os.path.join(graph_save_path, "*"))
+    print(os.path.join(PROJECT_HOME, "graphs", "*"))
     for f in files:
+        print(f)
         os.remove(f)
 
     plt.style.use('seaborn-dark-palette')
