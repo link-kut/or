@@ -10,7 +10,7 @@ read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))
 SLACK_API_TOKEN = config_parser['GENERAL']['SLACK_API_TOKEN']
 
 #The arithmetic mean of the ten instances is recorded as the final result.
-NUM_RUNS = 1
+NUM_RUNS = 10
 
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
 GLOBAL_MAX_STEPS = 56000
