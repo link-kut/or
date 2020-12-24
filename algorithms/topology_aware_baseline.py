@@ -23,8 +23,7 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
         subset_S_per_v_node = {}
         embedding_s_nodes = {}
         sorted_vnrs_with_node_ranking = []
-
-        # already_embedding_s_nodes = []
+        already_embedding_s_nodes = []
 
         # calcuate the vnr node ranking
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
@@ -44,7 +43,9 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
 
             # Find the subset S of substrate nodes that satisfy restrictions and
             # available CPU capacity (larger than that specified by the request.)
-            subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(copied_substrate, v_cpu_demand)
+            subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
+                copied_substrate, v_cpu_demand, already_embedding_s_nodes
+            )
 
             if len(subset_S_per_v_node[v_node_id]) == 0:
                 self.num_rejected_by_node_embedding += 1
@@ -57,10 +58,6 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
             max_node_ranking = -1.0 * 1e10
             embedding_s_nodes[v_node_id] = None
             for s_node_id in subset_S_per_v_node[v_node_id]:
-
-                # if s_node_id in already_embedding_s_nodes:
-                #     continue
-
                 node_ranking = self.calcuated_node_ranking(
                     copied_substrate.net.nodes[s_node_id]['CPU'],
                     copied_substrate.net[s_node_id]
@@ -69,12 +66,8 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
                 if node_ranking > max_node_ranking:
                     max_node_ranking = node_ranking
                     embedding_s_nodes[v_node_id] = (s_node_id, v_cpu_demand)
-                    #already_embedding_s_nodes.append(s_node_id)
-
-            # if embedding_s_nodes[v_node_id] is None:
-            #     msg = "!!!!!!!!!!!!!!!!!!!! - 2"
-            #     self.logger.info(msg), print(msg)
-            #     return None
+                    if config.ALLOW_SAME_NODE_EMBEDDING:
+                        already_embedding_s_nodes.append(s_node_id)
 
             assert copied_substrate.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] -= v_cpu_demand

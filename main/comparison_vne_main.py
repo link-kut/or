@@ -81,7 +81,8 @@ def main():
         while not done:
             time_step += 1
             for agent_id in range(len(agents)):
-                before_action_msg = "state {0} | ".format(states[agent_id])
+                before_action_msg = "state {0} | ".format(repr(states[agent_id]))
+                before_action_simple_msg = "state {0} | ".format(states[agent_id])
                 logger.info("{0} {1}".format(utils.agent_step_prefix(agent_id, time_step), before_action_msg))
 
                 # action = bl_agent.get_action(state)
@@ -100,7 +101,7 @@ def main():
                 logger.info("{0} {1}".format(utils.agent_step_prefix(agent_id, time_step), after_action_msg))
 
                 print("{0} {1} {2} {3}".format(
-                    utils.agent_step_prefix(agent_id, time_step), before_action_msg, action_msg, after_action_msg
+                    utils.agent_step_prefix(agent_id, time_step), before_action_simple_msg, action_msg, after_action_msg
                 ))
 
                 states[agent_id] = next_state
@@ -179,8 +180,10 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
     plt.grid(True)
 
     plt.tight_layout()
+    plt.suptitle('EXECUTED RUNS: {0}'.format(config.NUM_RUNS))
     plt.savefig(os.path.join(graph_save_path, "results.png"))
     plt.clf()
+
 
 if __name__ == "__main__":
     main()

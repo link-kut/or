@@ -29,7 +29,7 @@ class BaselineVNEAgent:
         self.time_step = 0
         self.next_embedding_epoch = config.TIME_WINDOW_SIZE
 
-    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand):
+    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, already_embedding_s_nodes):
         '''
         find the subset S of the substrate nodes that satisfy restrictions and available CPU capacity
         :param substrate: substrate network
@@ -38,7 +38,7 @@ class BaselineVNEAgent:
         '''
         subset_S = []
         for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True):
-            if s_cpu_capacity['CPU'] >= v_cpu_demand:
+            if s_cpu_capacity['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes:
                 subset_S.append(s_node_id)
         return subset_S
 
@@ -51,19 +51,20 @@ class BaselineVNEAgent:
         '''
         subset_S_per_v_node = {}
         embedding_s_nodes = {}
-
-        # already_embedding_s_nodes = []
+        already_embedding_s_nodes = []
 
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             v_cpu_demand = v_node_data['CPU']
 
             # Find the subset S of substrate nodes that satisfy restrictions and
             # available CPU capacity (larger than that specified by the request.)
-            subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(copied_substrate, v_cpu_demand)
+            subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
+                copied_substrate, v_cpu_demand, already_embedding_s_nodes
+            )
 
             if len(subset_S_per_v_node[v_node_id]) == 0:
                 self.num_rejected_by_node_embedding += 1
-                msg = "VNR REJECTED ({0}): 'no subset S' - {1}".format(
+                msg = "VNR REJECTED ({0}): 'no subset S' {1}".format(
                     self.num_rejected_by_node_embedding, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
@@ -72,10 +73,6 @@ class BaselineVNEAgent:
             max_h_value = -1.0 * 1e10
             embedding_s_nodes[v_node_id] = None
             for s_node_id in subset_S_per_v_node[v_node_id]:
-
-                # if s_node_id in already_embedding_s_nodes:
-                #     continue
-
                 h_value = self.calculate_H_value(
                     copied_substrate.net.nodes[s_node_id]['CPU'],
                     copied_substrate.net[s_node_id]
@@ -84,12 +81,8 @@ class BaselineVNEAgent:
                 if h_value > max_h_value:
                     max_h_value = h_value
                     embedding_s_nodes[v_node_id] = (s_node_id, v_cpu_demand)
-                    #already_embedding_s_nodes.append(s_node_id)
-
-            # if embedding_s_nodes[v_node_id] is None:
-            #     msg = "!!!!!!!!!!!!!!!!!!!! - 2"
-            #     self.logger.info(msg), print(msg)
-            #     return None
+                    if config.ALLOW_SAME_NODE_EMBEDDING:
+                        already_embedding_s_nodes.append(s_node_id)
 
             assert copied_substrate.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] -= v_cpu_demand
@@ -122,7 +115,7 @@ class BaselineVNEAgent:
 
                 if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
                     self.num_rejected_by_link_embedding += 1
-                    msg = "VNR REJECTED ({0}): 'no suitable link' - {1}".format(
+                    msg = "VNR REJECTED ({0}): 'no suitable link' {1}".format(
                         self.num_rejected_by_link_embedding, vnr
                     )
                     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))

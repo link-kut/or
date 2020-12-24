@@ -1,6 +1,5 @@
 import gym
 import networkx as nx
-import numpy as np
 from random import randint, expovariate
 
 from algorithms.baseline import Action
@@ -12,35 +11,121 @@ class Substrate:
     def __init__(self):
         self.net = nx.gnm_random_graph(n=config.SUBSTRATE_NODES, m=config.SUBSTRATE_LINKS)
 
-        self.initial_total_cpu_capacity = 0.0
-        self.initial_total_bandwidth_capacity = 0.0
+        self.initial_total_cpu_capacity = 0
+        self.initial_total_bandwidth_capacity = 0
 
         # corresponding CPU and bandwidth resources of it are real numbers uniformly distributed from 50 to 100
+        self.min_cpu_capacity = 1.0e10
+        self.max_cpu_capacity = 0.0
         for node_id in self.net.nodes:
             self.net.nodes[node_id]['CPU'] = randint(50, 100)
             self.initial_total_cpu_capacity += self.net.nodes[node_id]['CPU']
+            if self.net.nodes[node_id]['CPU'] < self.min_cpu_capacity:
+                self.min_cpu_capacity = self.net.nodes[node_id]['CPU']
+            if self.net.nodes[node_id]['CPU'] > self.max_cpu_capacity:
+                self.max_cpu_capacity = self.net.nodes[node_id]['CPU']
 
+        self.min_bandwidth_capacity = 1.0e10
+        self.max_bandwidth_capacity = 0.0
         for edge_id in self.net.edges:
             self.net.edges[edge_id]['bandwidth'] = randint(50, 100)
             self.initial_total_bandwidth_capacity += self.net.edges[edge_id]['bandwidth']
+            if self.net.edges[edge_id]['bandwidth'] < self.min_bandwidth_capacity:
+                self.min_bandwidth_capacity = self.net.edges[edge_id]['bandwidth']
+            if self.net.edges[edge_id]['bandwidth'] > self.max_bandwidth_capacity:
+                self.max_bandwidth_capacity = self.net.edges[edge_id]['bandwidth']
 
     def __str__(self):
         remaining_cpu_resource = sum([node_data['CPU'] for _, node_data in self.net.nodes(data=True)])
         remaining_bandwidth_resource = sum([link_data['bandwidth'] for _, _, link_data in self.net.edges(data=True)])
 
-        # substrate_str = "[SUBSTRATE - CPU: {0:4} ({1:4.2f}%), BAND: {2:5} ({3:4.2f}%)]".format(
-        #     remaining_cpu_resource,
-        #     100 * remaining_cpu_resource / self.initial_total_cpu_capacity,
-        #     remaining_bandwidth_resource,
-        #     100 * remaining_bandwidth_resource / self.initial_total_bandwidth_capacity
-        # )
-
         substrate_str = "[SUBSTRATE CPU: {0:6.2f}%, BAND: {1:6.2f}%]".format(
             100 * remaining_cpu_resource / self.initial_total_cpu_capacity,
-            100 * remaining_bandwidth_resource / self.initial_total_bandwidth_capacity
+            100 * remaining_bandwidth_resource / self.initial_total_bandwidth_capacity,
         )
 
         return substrate_str
+
+    def __repr__(self):
+        remaining_cpu_resource = sum([node_data['CPU'] for _, node_data in self.net.nodes(data=True)])
+        remaining_bandwidth_resource = sum([link_data['bandwidth'] for _, _, link_data in self.net.edges(data=True)])
+
+        substrate_str = "[SUBSTRATE cpu: {0:4}/{1:4}={2:6.2f}% ({3:2}~{4:3}), " \
+                        "bandwidth: {5:4}/{6:4}={7:6.2f}% ({8:2}~{9:3})]".format(
+            remaining_cpu_resource, self.initial_total_cpu_capacity, 100 * remaining_cpu_resource / self.initial_total_cpu_capacity,
+            self.min_cpu_capacity, self.max_cpu_capacity,
+            remaining_bandwidth_resource, self.initial_total_bandwidth_capacity, 100 * remaining_bandwidth_resource / self.initial_total_bandwidth_capacity,
+            self.min_bandwidth_capacity, self.max_bandwidth_capacity
+        )
+
+        return substrate_str
+
+class VNR:
+    def __init__(self, id, vnr_duration_mean_rate, delay, time_step_arrival):
+        self.id = id
+
+        self.duration = int(expovariate(vnr_duration_mean_rate) + 1.0)
+
+        self.delay = delay
+
+        self.num_nodes = randint(config.VNR_NODES_MIN, config.VNR_NODES_MAX)
+
+        self.net = nx.gnp_random_graph(n=self.num_nodes, p=config.VNR_LINK_PROBABILITY)
+
+        self.num_of_edges = len(self.net.edges)
+        self.num_of_edges_complete_graph = int(self.num_nodes * (self.num_nodes - 1) / 2)
+
+        self.min_cpu_demand = 1.0e10
+        self.max_cpu_demand = 0.0
+        for node_id in self.net.nodes:
+            self.net.nodes[node_id]['CPU'] = randint(
+                config.VNR_CPU_DEMAND_MIN, config.VNR_CPU_DEMAND_MAX
+            )
+            if self.net.nodes[node_id]['CPU'] < self.min_cpu_demand:
+                self.min_cpu_demand = self.net.nodes[node_id]['CPU']
+            if self.net.nodes[node_id]['CPU'] > self.max_cpu_demand:
+                self.max_cpu_demand = self.net.nodes[node_id]['CPU']
+
+        self.min_bandwidth_demand = 1.0e10
+        self.max_bandwidth_demand = 0.0
+        for edge_id in self.net.edges:
+            self.net.edges[edge_id]['bandwidth'] = randint(
+                config.VNR_BANDWIDTH_DEMAND_MIN, config.VNR_BANDWIDTH_DEMAND_MAX
+            )
+            if self.net.edges[edge_id]['bandwidth'] < self.min_bandwidth_demand:
+                self.min_bandwidth_demand = self.net.edges[edge_id]['bandwidth']
+            if self.net.edges[edge_id]['bandwidth'] > self.max_bandwidth_demand:
+                self.max_bandwidth_demand = self.net.edges[edge_id]['bandwidth']
+
+        self.time_step_arrival = time_step_arrival
+        self.time_step_leave_from_queue = self.time_step_arrival + self.delay
+
+        self.time_step_serving_started = None
+        self.time_step_serving_completed = None
+
+        self.revenue = utils.get_revenue_VNR(self)
+
+        self.cost = None
+
+    def __lt__(self, other_vnr):
+        return 1.0 / self.revenue < 1.0 / other_vnr.revenue
+
+    def __str__(self):
+        vnr_stat_str = "nodes: {0}, edges: {1}|{2}, revenue: {3:6.1f}({4:1}~{5:2}, {6:1}~{7:2})".format(
+            self.num_nodes, self.num_of_edges, self.num_of_edges_complete_graph,
+            self.revenue,
+            self.min_cpu_demand, self.max_cpu_demand,
+            self.min_bandwidth_demand, self.max_bandwidth_demand
+        )
+
+        vnr_str = "[id: {0}, {1}, arrival: {2}, left out: {3}, duration: {4}, started: {5}, completed out: {6}]".format(
+            self.id, vnr_stat_str,
+            self.time_step_arrival, self.time_step_leave_from_queue, self.duration,
+            self.time_step_serving_started if self.time_step_serving_started else "N/A",
+            self.time_step_serving_completed if self.time_step_serving_completed else "N/A"
+        )
+
+        return vnr_str
 
 
 class State:
@@ -58,54 +143,14 @@ class State:
 
         return state_str
 
+    def __repr__(self):
+        state_str = repr(self.substrate)
+        vnrs_collected_str = "[{0:2} VNR COLLECTED]".format(len(self.vnrs_collected))
+        vnrs_serving_str = "[{0:2} VNR SERVING]".format(len(self.vnrs_serving))
 
-class VNR:
-    def __init__(self, id, vnr_duration_mean_rate, delay, time_step_arrival):
-        self.id = id
+        state_str = " ".join([state_str, vnrs_collected_str, vnrs_serving_str])
 
-        self.duration = int(expovariate(vnr_duration_mean_rate) + 1.0)
-
-        self.delay = delay
-
-        self.num_nodes = randint(config.VNR_NODES_MIN, config.VNR_NODES_MAX)
-
-        self.net = nx.gnp_random_graph(n=self.num_nodes, p=config.VNR_LINK_PROBABILITY)
-
-        for node_id in self.net.nodes:
-            self.net.nodes[node_id]['CPU'] = randint(
-                config.VNR_CPU_DEMAND_MIN, config.VNR_CPU_DEMAND_MAX
-            )
-
-        for edge_id in self.net.edges:
-            self.net.edges[edge_id]['bandwidth'] = randint(
-                config.VNR_BANDWIDTH_DEMAND_MIN, config.VNR_BANDWIDTH_DEMAND_MAX
-            )
-        self.time_step_arrival = time_step_arrival
-        self.time_step_leave_from_queue = self.time_step_arrival + self.delay
-
-        self.time_step_serving_started = None
-        self.time_step_serving_completed = None
-
-        self.revenue = utils.get_revenue_VNR(self)
-
-        self.cost = None
-
-    def __lt__(self, other_vnr):
-        return 1.0 / self.revenue < 1.0 / other_vnr.revenue
-
-    def __str__(self):
-        vnr_str = '[id: {0}, revenue: {1:6.1f}, arrival: {2}, left out: {3}, duration: {4}, started: {5}, completed out: {6}]'.format(
-            self.id, self.revenue,
-            self.time_step_arrival, self.time_step_leave_from_queue, self.duration,
-            self.time_step_serving_started if self.time_step_serving_started else "N/A",
-            self.time_step_serving_completed if self.time_step_serving_completed else "N/A"
-        )
-
-        # vnr_str = '{0}'.format(
-        #     self.id
-        # )
-
-        return vnr_str
+        return state_str
 
 
 class VNEEnvironment(gym.Env):
@@ -235,7 +280,7 @@ class VNEEnvironment(gym.Env):
 
         for vnr in vnrs_left_from_queue:
             del self.VNRs_COLLECTED[vnr.id]
-            self.logger.info("{0} VNR LEFT OUT - {1}".format(utils.step_prefix(self.time_step), vnr))
+            self.logger.info("{0} VNR LEFT OUT {1}".format(utils.step_prefix(self.time_step), vnr))
 
         return vnrs_left_from_queue
 
@@ -252,7 +297,7 @@ class VNEEnvironment(gym.Env):
         vnr.cost = utils.get_cost_VNR(vnr, embedding_s_paths)
 
         self.VNRs_SERVING[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
-        self.logger.info("{0} VNR SERVING STARTED - {1}".format(utils.step_prefix(self.time_step), vnr))
+        self.logger.info("{0} VNR SERVING STARTED {1}".format(utils.step_prefix(self.time_step), vnr))
         self.total_embedded_vnrs += 1
 
         del self.VNRs_COLLECTED[vnr.id]
@@ -277,7 +322,7 @@ class VNEEnvironment(gym.Env):
         for vnr in vnrs_serving_completed:
             assert vnr.id in self.VNRs_SERVING
             del self.VNRs_SERVING[vnr.id]
-            self.logger.info("{0} VNR SERVING COMPLETED - {1}".format(utils.step_prefix(self.time_step), vnr))
+            self.logger.info("{0} VNR SERVING COMPLETED {1}".format(utils.step_prefix(self.time_step), vnr))
 
         return vnrs_serving_completed
 
@@ -286,4 +331,4 @@ class VNEEnvironment(gym.Env):
             if vnr.time_step_arrival == self.time_step:
                 self.VNRs_COLLECTED[vnr.id] = vnr
                 self.total_arrival_vnrs += 1
-                self.logger.info("{0} NEW VNR ARRIVED - {1}".format(utils.step_prefix(self.time_step), vnr))
+                self.logger.info("{0} NEW VNR ARRIVED {1}".format(utils.step_prefix(self.time_step), vnr))

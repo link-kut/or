@@ -61,7 +61,8 @@ def main():
         while not done:
             time_step += 1
 
-            before_action_msg = "state {0} | ".format(state)
+            before_action_msg = "state {0} | ".format(repr(state))
+            before_action_simple_msg = "state {0} | ".format(state)
             logger.info("{0} {1}".format(utils.step_prefix(time_step), before_action_msg))
 
             action = bl_agent.get_action(state)
@@ -77,7 +78,12 @@ def main():
             )
             logger.info("{0} {1}".format(utils.step_prefix(time_step), after_action_msg))
 
-            print("{0} {1} {2} {3}".format(utils.step_prefix(time_step), before_action_msg, action_msg, after_action_msg))
+            print("{0} {1} {2} {3}".format(
+                utils.step_prefix(time_step),
+                before_action_simple_msg,
+                action_msg,
+                after_action_msg
+            ))
 
             state = next_state
 
