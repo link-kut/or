@@ -41,18 +41,12 @@ logger = get_logger("vne")
 
 plt.figure(figsize=(20, 8))
 
-bl_env = VNEEnvironment(logger)
-ta_0_9_env = copy.deepcopy(bl_env)
-ta_0_3_env = copy.deepcopy(bl_env)
-
-envs = [
-    bl_env, ta_0_9_env, ta_0_3_env
-]
 agents = [
     BaselineVNEAgent(logger),
     TopologyAwareBaselineVNEAgent(0.9, logger),
     TopologyAwareBaselineVNEAgent(0.3, logger)
 ]
+
 agent_labels = [
     "BL", "TA_0.9", "TA_0.3"
 ]
@@ -61,15 +55,21 @@ performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 
-states = []
-
-
 def main():
     for run in range(config.NUM_RUNS):
+        bl_env = VNEEnvironment(logger)
+        ta_0_9_env = copy.deepcopy(bl_env)
+        ta_0_3_env = copy.deepcopy(bl_env)
+        envs = [
+            bl_env, ta_0_9_env, ta_0_3_env
+        ]
+
         start_ts = time.time()
 
         msg = "RUN: {0}".format(run)
         logger.info(msg), print(msg)
+
+        states = []
 
         for agent_id in range(len(agents)):
             states.append(envs[agent_id].reset())
@@ -113,30 +113,24 @@ def main():
 
             if time_step > config.FIGURE_START_TIME_STEP - 1 and time_step % 100 == 0:
                 draw_performance(
+                    run, time_step,
                     performance_revenue / config.NUM_RUNS,
                     performance_acceptance_ratio / config.NUM_RUNS,
                     performance_rc_ratio / config.NUM_RUNS,
-                    time_step,
                 )
 
         draw_performance(
+            run, time_step,
             performance_revenue / config.NUM_RUNS,
             performance_acceptance_ratio / config.NUM_RUNS,
             performance_rc_ratio / config.NUM_RUNS,
-            time_step
+            send_image_to_slack=True
         )
 
 
-def draw_performance(performance_revenue, performance_acceptance_ratio, performance_rc_ratio, time_step):
-    '''
-    save the revenue and acceptance_ratios graph
-    :param performance_revenue:
-    :param performance_acceptance_ratio:
-    :param performance_rc_ratio:
-    :param time_step:
-    :return:
-    '''
-
+def draw_performance(
+        run, time_step, performance_revenue, performance_acceptance_ratio, performance_rc_ratio, send_image_to_slack=False
+):
     files = glob.glob(os.path.join(graph_save_path, "*"))
     for f in files:
         os.remove(f)
@@ -192,13 +186,15 @@ def draw_performance(performance_revenue, performance_acceptance_ratio, performa
 
     plt.subplots_adjust(top=0.9)
 
-    plt.suptitle('EXECUTED RUNS: {0}'.format(config.NUM_RUNS))
+    plt.suptitle('EXECUTED RUNS: {0}/{1}'.format(run, config.NUM_RUNS))
 
     now = datetime.datetime.now()
 
     new_file_path = os.path.join(graph_save_path, "results_{0}.png".format(now.strftime("%Y_%m_%d_%H_%M")))
     plt.savefig(new_file_path)
-    utils.send_file_to_slack(new_file_path)
+
+    if send_image_to_slack:
+        utils.send_file_to_slack(new_file_path)
 
     plt.clf()
 
