@@ -1,11 +1,5 @@
-import networkx as nx
-import copy
-
-
-# Baseline Agent
 from algorithms.baseline import BaselineVNEAgent
 from common import utils
-from main import config
 
 
 class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
@@ -26,7 +20,7 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
 
         # already_embedding_s_nodes = []
 
-        # calcuate the vnr node ranking
+        # calculate the vnr node ranking
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             vnr_node_ranking = self.calcuated_node_ranking(
                 vnr.net.nodes[v_node_id]['CPU'],
@@ -61,7 +55,7 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
                 # if s_node_id in already_embedding_s_nodes:
                 #     continue
 
-                node_ranking = self.calcuated_node_ranking(
+                node_ranking = self.calculate_node_ranking(
                     copied_substrate.net.nodes[s_node_id]['CPU'],
                     copied_substrate.net[s_node_id]
                 )
@@ -81,7 +75,7 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
 
         return embedding_s_nodes
 
-    def calcuated_node_ranking(self, node_cpu_capacity, adjacent_links):
+    def calculate_node_ranking(self, node_cpu_capacity, adjacent_links):
         total_node_bandwidth = 0
 
         for link_id in adjacent_links:
