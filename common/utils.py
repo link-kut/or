@@ -1,7 +1,12 @@
 import networkx as nx
 from itertools import islice
+import os, sys
 
-import os
+idx = os.getcwd().index("or")
+PROJECT_HOME = os.getcwd()[:idx] + "or"
+if PROJECT_HOME not in sys.path:
+    sys.path.append(PROJECT_HOME)
+
 from slack import WebClient
 from slack.errors import SlackApiError
 
