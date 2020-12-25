@@ -19,7 +19,6 @@ if PROJECT_HOME not in sys.path:
 
 from common import utils
 from main import config
-
 from common.logger import get_logger
 from environments.vne_env import VNEEnvironment
 from algorithms.baseline import BaselineVNEAgent
@@ -58,7 +57,10 @@ performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_ST
 performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 
 def main():
+    start_ts = time.time()
     for run in range(config.NUM_RUNS):
+        run_start_ts = time.time()
+
         env = VNEEnvironment(logger)
         envs = []
         for agent_id in range(len(agents)):
@@ -66,8 +68,6 @@ def main():
                 envs.append(env)
             else:
                 envs.append(copy.deepcopy(env))
-
-        start_ts = time.time()
 
         msg = "RUN: {0} STARTED".format(run + 1)
         logger.info(msg), print(msg)
@@ -92,18 +92,22 @@ def main():
                 # action = bl_agent.get_action(state)
                 action = agents[agent_id].get_action(states[agent_id])
 
-                action_msg = "action {0:30} |".format(str(action) if action else " - ")
+                action_msg = "act. {0:30} |".format(str(action) if action else " - ")
                 logger.info("{0} {1}".format(
                     utils.run_agent_step_prefix(run + 1, agent_id, time_step), action_msg
                 ))
 
                 next_state, reward, done, info = envs[agent_id].step(action)
 
-                after_action_msg = "reward {0:7.1f} | revenue {1:9.1f} | accept ratio {2:4.2f} | " \
+                after_action_msg = "reward {0:7.1f} | revenue {1:7.1f} | acc. ratio {2:4.2f} | " \
                                    "r/c ratio {3:4.2f} | {4}".format(
                     reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio'],
-                    time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_ts))
+                    time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - run_start_ts)),
                 )
+
+                if config.NUM_RUNS > 1:
+                    after_action_msg += "| {0}".format(time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_ts)))
+
                 logger.info("{0} {1}".format(
                     utils.run_agent_step_prefix(run + 1, agent_id, time_step), after_action_msg
                 ))
@@ -146,7 +150,8 @@ def main():
 
 
 def draw_performance(
-        run, time_step, performance_revenue, performance_acceptance_ratio, performance_rc_ratio, send_image_to_slack=False
+        run, time_step, performance_revenue, performance_acceptance_ratio, performance_rc_ratio,
+        send_image_to_slack=False
 ):
     files = glob.glob(os.path.join(graph_save_path, "*"))
     for f in files:
