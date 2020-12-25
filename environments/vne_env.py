@@ -39,7 +39,7 @@ class Substrate:
         remaining_cpu_resource = sum([node_data['CPU'] for _, node_data in self.net.nodes(data=True)])
         remaining_bandwidth_resource = sum([link_data['bandwidth'] for _, _, link_data in self.net.edges(data=True)])
 
-        substrate_str = "[SUBSTRATE CPU: {0:6.2f}%, BAND: {1:6.2f}%]".format(
+        substrate_str = "[SUBST. CPU: {0:6.2f}%, BAND: {1:6.2f}%]".format(
             100 * remaining_cpu_resource / self.initial_total_cpu_capacity,
             100 * remaining_bandwidth_resource / self.initial_total_bandwidth_capacity,
         )
@@ -59,6 +59,7 @@ class Substrate:
         )
 
         return substrate_str
+
 
 class VNR:
     def __init__(self, id, vnr_duration_mean_rate, delay, time_step_arrival):
@@ -111,14 +112,15 @@ class VNR:
         return 1.0 / self.revenue < 1.0 / other_vnr.revenue
 
     def __str__(self):
-        vnr_stat_str = "nodes: {0}, edges: {1}|{2}, revenue: {3:6.1f}({4:1}~{5:2}, {6:1}~{7:2})".format(
+        vnr_stat_str = "nodes: {0:>2}, edges: {1:>2}|{2:>3}, revenue: {3:6.1f}({4:1}~{5:2}, {6:1}~{7:2})".format(
             self.num_nodes, self.num_of_edges, self.num_of_edges_complete_graph,
             self.revenue,
             self.min_cpu_demand, self.max_cpu_demand,
             self.min_bandwidth_demand, self.max_bandwidth_demand
         )
 
-        vnr_str = "[id: {0}, {1}, arrival: {2}, left out: {3}, duration: {4}, started: {5}, completed out: {6}]".format(
+        vnr_str = "[id: {0:2}, {1:>2}, arrival: {2:>4}, expired out: {3:>4}, " \
+                  "duration: {4:>4}, started: {5:>4}, completed out: {6:>4}]".format(
             self.id, vnr_stat_str,
             self.time_step_arrival, self.time_step_leave_from_queue, self.duration,
             self.time_step_serving_started if self.time_step_serving_started else "N/A",
@@ -180,7 +182,9 @@ class VNEEnvironment(gym.Env):
             self.VNRs_INFO[vnr.id] = vnr
             vnr_id += 1
         msg = "TOTAL NUMBER OF VNRs: {0}\n".format(len(self.VNRs_INFO))
-        self.logger.info(msg), print(msg)
+        if self.logger:
+            self.logger.info(msg)
+        print(msg)
 
         self.VNRs_SERVING = None
         self.VNRs_COLLECTED = None
@@ -194,6 +198,7 @@ class VNEEnvironment(gym.Env):
         self.revenue = None
         self.acceptance_ratio = None
         self.rc_ratio = None
+        self.link_embedding_fails_against_total_fails_ratio= None
 
     def reset(self):
         self.VNRs_SERVING = {}
@@ -208,6 +213,7 @@ class VNEEnvironment(gym.Env):
         self.revenue = 0.0
         self.acceptance_ratio = 0.0
         self.rc_ratio = 0.0
+        self.link_embedding_fails_against_total_fails_ratio = 0.0
 
         self.collect_vnrs_new_arrival()
 
@@ -222,13 +228,13 @@ class VNEEnvironment(gym.Env):
         self.time_step += 1
 
         vnrs_left_from_queue = self.release_vnrs_expired_from_collected(
-            action.vnrs_embedding if action else []
+            action.vnrs_embedding if action.vnrs_postponement is not None and action.vnrs_embedding is not None else []
         )
 
         vnrs_serving_completed = self.complete_vnrs_serving()
 
         # processing of embedding & postponement
-        if action:
+        if action.vnrs_postponement is not None and action.vnrs_embedding is not None:
             for vnr, embedding_s_nodes, embedding_s_paths in action.vnrs_embedding.values():
                 assert vnr not in vnrs_left_from_queue
                 assert vnr not in vnrs_serving_completed
@@ -258,11 +264,15 @@ class VNEEnvironment(gym.Env):
         self.revenue = self.episode_reward / self.time_step
         self.acceptance_ratio = self.total_embedded_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
         self.rc_ratio = reward / cost if cost else 0.0
+        self.link_embedding_fails_against_total_fails_ratio = \
+            action.num_link_embedding_fails / (action.num_node_embedding_fails + action.num_link_embedding_fails) \
+            if action and action.num_link_embedding_fails + action.num_node_embedding_fails else 0.0
 
         info = {
             "revenue": self.revenue,
             "acceptance_ratio": self.acceptance_ratio,
-            "rc_ratio": self.rc_ratio
+            "rc_ratio": self.rc_ratio,
+            "link_embedding_fails_against_total_fails_ratio": self.link_embedding_fails_against_total_fails_ratio
         }
 
         return next_state, reward, done, info
@@ -280,7 +290,8 @@ class VNEEnvironment(gym.Env):
 
         for vnr in vnrs_left_from_queue:
             del self.VNRs_COLLECTED[vnr.id]
-            self.logger.info("{0} VNR LEFT OUT {1}".format(utils.step_prefix(self.time_step), vnr))
+            if self.logger:
+                self.logger.info("{0} VNR LEFT OUT {1}".format(utils.step_prefix(self.time_step), vnr))
 
         return vnrs_left_from_queue
 
@@ -297,7 +308,8 @@ class VNEEnvironment(gym.Env):
         vnr.cost = utils.get_cost_VNR(vnr, embedding_s_paths)
 
         self.VNRs_SERVING[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
-        self.logger.info("{0} VNR SERVING STARTED {1}".format(utils.step_prefix(self.time_step), vnr))
+        if self.logger:
+            self.logger.info("{0} VNR SERVING STARTED {1}".format(utils.step_prefix(self.time_step), vnr))
         self.total_embedded_vnrs += 1
 
         del self.VNRs_COLLECTED[vnr.id]
@@ -322,7 +334,8 @@ class VNEEnvironment(gym.Env):
         for vnr in vnrs_serving_completed:
             assert vnr.id in self.VNRs_SERVING
             del self.VNRs_SERVING[vnr.id]
-            self.logger.info("{0} VNR SERVING COMPLETED {1}".format(utils.step_prefix(self.time_step), vnr))
+            if self.logger:
+                self.logger.info("{0} VNR SERVING COMPLETED {1}".format(utils.step_prefix(self.time_step), vnr))
 
         return vnrs_serving_completed
 
@@ -331,4 +344,5 @@ class VNEEnvironment(gym.Env):
             if vnr.time_step_arrival == self.time_step:
                 self.VNRs_COLLECTED[vnr.id] = vnr
                 self.total_arrival_vnrs += 1
-                self.logger.info("{0} NEW VNR ARRIVED {1}".format(utils.step_prefix(self.time_step), vnr))
+                if self.logger:
+                    self.logger.info("{0} NEW VNR ARRIVED {1}".format(utils.step_prefix(self.time_step), vnr))

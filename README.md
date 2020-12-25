@@ -8,3 +8,5 @@ operations research
 3. pip install networkx
 
 4. pip install slackclient
+
+5. pip install pytest

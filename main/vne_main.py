@@ -38,6 +38,7 @@ logger = get_logger("vne")
 
 plt.figure(figsize=(20, 8))
 
+
 def main():
     env = VNEEnvironment(logger)
     bl_agent = BaselineVNEAgent(logger)

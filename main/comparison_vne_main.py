@@ -38,7 +38,7 @@ else:
 
 logger = get_logger("vne")
 
-plt.figure(figsize=(20, 8))
+plt.figure(figsize=(20, 10))
 
 agents = [
     BaselineVNEAgent(logger),
@@ -55,6 +55,8 @@ agent_labels = [
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
+performance_link_fail_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
+
 
 def main():
     start_ts = time.time()
@@ -92,21 +94,23 @@ def main():
                 # action = bl_agent.get_action(state)
                 action = agents[agent_id].get_action(states[agent_id])
 
-                action_msg = "act. {0:30} |".format(str(action) if action else " - ")
+                action_msg = "act. {0:30} |".format(
+                    str(action) if action.vnrs_embedding is not None and action.vnrs_postponement is not None else " - "
+                )
                 logger.info("{0} {1}".format(
                     utils.run_agent_step_prefix(run + 1, agent_id, time_step), action_msg
                 ))
 
                 next_state, reward, done, info = envs[agent_id].step(action)
 
-                after_action_msg = "reward {0:7.1f} | revenue {1:7.1f} | acc. ratio {2:4.2f} | " \
+                elapsed_time = time.time() - run_start_ts
+                after_action_msg = "reward {0:6.1f} | revenue {1:6.1f} | acc. ratio {2:4.2f} | " \
                                    "r/c ratio {3:4.2f} | {4}".format(
                     reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio'],
-                    time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - run_start_ts)),
+                    time.strftime("%Hh %Mm %Ss", time.gmtime(elapsed_time)),
                 )
 
-                if config.NUM_RUNS > 1:
-                    after_action_msg += "| {0}".format(time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_ts)))
+                after_action_msg += " | {0:3.1f} steps/sec.".format(time_step / elapsed_time)
 
                 logger.info("{0} {1}".format(
                     utils.run_agent_step_prefix(run + 1, agent_id, time_step), after_action_msg
@@ -124,22 +128,26 @@ def main():
                 performance_revenue[agent_id, time_step] += info['revenue']
                 performance_acceptance_ratio[agent_id, time_step] += info['acceptance_ratio']
                 performance_rc_ratio[agent_id, time_step] += info['rc_ratio']
+                performance_link_fail_ratio[agent_id, time_step] += \
+                    info['link_embedding_fails_against_total_fails_ratio']
 
                 logger.info("")
 
             if time_step > config.FIGURE_START_TIME_STEP - 1 and time_step % 100 == 0:
                 draw_performance(
                     run, time_step,
-                    performance_revenue / config.NUM_RUNS,
-                    performance_acceptance_ratio / config.NUM_RUNS,
-                    performance_rc_ratio / config.NUM_RUNS,
+                    performance_revenue / (run + 1),
+                    performance_acceptance_ratio / (run + 1),
+                    performance_rc_ratio / (run + 1),
+                    performance_link_fail_ratio / (run + 1)
                 )
 
         draw_performance(
             run, time_step,
-            performance_revenue / config.NUM_RUNS,
-            performance_acceptance_ratio / config.NUM_RUNS,
-            performance_rc_ratio / config.NUM_RUNS,
+            performance_revenue / (run + 1),
+            performance_acceptance_ratio / (run + 1),
+            performance_rc_ratio / (run + 1),
+            performance_link_fail_ratio / (run + 1),
             send_image_to_slack=True
         )
 
@@ -150,8 +158,8 @@ def main():
 
 
 def draw_performance(
-        run, time_step, performance_revenue, performance_acceptance_ratio, performance_rc_ratio,
-        send_image_to_slack=False
+        run, time_step, performance_revenue, performance_acceptance_ratio,
+        performance_rc_ratio, performance_link_fail_ratio, send_image_to_slack=False
 ):
     files = glob.glob(os.path.join(graph_save_path, "*"))
     for f in files:
@@ -161,7 +169,7 @@ def draw_performance(
 
     x_range = range(config.FIGURE_START_TIME_STEP, time_step + 1, config.TIME_WINDOW_SIZE)
 
-    plt.subplot(311)
+    plt.subplot(411)
 
     for agent_id in range(len(agents)):
         plt.plot(
@@ -172,11 +180,11 @@ def draw_performance(
 
     plt.ylabel("Revenue")
     plt.xlabel("Time unit")
-    plt.title("Baseline Agent Revenue")
+    plt.title("Revenue")
     plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
     plt.grid(True)
 
-    plt.subplot(312)
+    plt.subplot(412)
     for agent_id in range(len(agents)):
         plt.plot(
             x_range,
@@ -186,11 +194,11 @@ def draw_performance(
 
     plt.ylabel("Acceptance Ratio")
     plt.xlabel("Time unit")
-    plt.title("Baseline Agent Acceptance Ratio")
+    plt.title("Acceptance Ratio")
     plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
     plt.grid(True)
 
-    plt.subplot(313)
+    plt.subplot(413)
     for agent_id in range(len(agents)):
         plt.plot(
             x_range,
@@ -200,7 +208,21 @@ def draw_performance(
 
     plt.ylabel("R/C Ratio")
     plt.xlabel("Time unit")
-    plt.title("Baseline Agent R/C Ratio")
+    plt.title("R/C Ratio")
+    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
+    plt.grid(True)
+
+    plt.subplot(414)
+    for agent_id in range(len(agents)):
+        plt.plot(
+            x_range,
+            performance_link_fail_ratio[agent_id, config.FIGURE_START_TIME_STEP: time_step + 1: config.TIME_WINDOW_SIZE],
+            label=agent_labels[agent_id]
+        )
+
+    plt.ylabel("Link Fails Ratio")
+    plt.xlabel("Time unit")
+    plt.title("Link Embedding Fails / Total Fails Ratio")
     plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
     plt.grid(True)
 
@@ -208,7 +230,7 @@ def draw_performance(
 
     plt.subplots_adjust(top=0.9)
 
-    plt.suptitle('EXECUTED RUNS: {0}/{1} FROM HOST: {2}'.format(
+    plt.suptitle('EXECUTING RUNS: {0}/{1} FROM HOST: {2}'.format(
         run + 1, config.NUM_RUNS, config.HOST
     ))
 

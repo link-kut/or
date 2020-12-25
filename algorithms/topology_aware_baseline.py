@@ -43,15 +43,15 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
             )
 
             if len(subset_S_per_v_node[v_node_id]) == 0:
-                self.num_rejected_by_node_embedding += 1
-                msg = "VNR REJECTED ({0}): 'no subset S' - {1}".format(
-                    self.num_rejected_by_node_embedding, vnr
-                )
+                self.num_node_embedding_fails += 1
+                msg = "VNR REJECTED ({0}): 'no subset S' - {1}".format(self.num_node_embedding_fails, vnr)
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
 
             max_node_ranking = -1.0 * 1e10
+            selected_s_node_id = -1
             embedding_s_nodes[v_node_id] = None
+
             for s_node_id in subset_S_per_v_node[v_node_id]:
                 node_ranking = self.calculate_node_ranking(
                     copied_substrate.net.nodes[s_node_id]['CPU'],
@@ -60,19 +60,23 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
 
                 if node_ranking > max_node_ranking:
                     max_node_ranking = node_ranking
-                    embedding_s_nodes[v_node_id] = (s_node_id, v_cpu_demand)
-                    if not config.ALLOW_SAME_NODE_EMBEDDING:
-                        already_embedding_s_nodes.append(s_node_id)
+                    selected_s_node_id = s_node_id
 
-            assert copied_substrate.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] >= v_cpu_demand
-            copied_substrate.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] -= v_cpu_demand
+            assert selected_s_node_id != -1
+            embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
+            if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+                already_embedding_s_nodes.append(selected_s_node_id)
+
+            assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
+            copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
 
         return embedding_s_nodes
 
     def calculate_node_ranking(self, node_cpu_capacity, adjacent_links):
-        total_node_bandwidth = 0
+        total_node_bandwidth = sum((adjacent_links[link_id]['bandwidth'] for link_id in adjacent_links))
 
-        for link_id in adjacent_links:
-            total_node_bandwidth += adjacent_links[link_id]['bandwidth']
+        # total_node_bandwidth = 0.0
+        # for link_id in adjacent_links:
+        #     total_node_bandwidth += adjacent_links[link_id]['bandwidth']
 
         return self.beta * node_cpu_capacity + (1.0 - self.beta) * len(adjacent_links) * total_node_bandwidth

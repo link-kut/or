@@ -17,14 +17,17 @@ client = WebClient(token=config.SLACK_API_TOKEN)
 
 
 def get_revenue_VNR(vnr):
-    revenue_cpu = 0.0
+    revenue_cpu = sum((v_cpu_demand['CPU'] for _, v_cpu_demand in vnr.net.nodes(data=True)))
 
-    for _, v_cpu_demand in vnr.net.nodes(data=True):
-        revenue_cpu += v_cpu_demand['CPU']
+    revenue_bandwidth = sum((v_bandwidth_demand['bandwidth'] for _, _, v_bandwidth_demand in vnr.net.edges(data=True)))
 
-    revenue_bandwidth = 0.0
-    for _, _, v_bandwidth_demand in vnr.net.edges(data=True):
-        revenue_bandwidth += v_bandwidth_demand['bandwidth']
+    # revenue_cpu = 0.0
+    # for _, v_cpu_demand in vnr.net.nodes(data=True):
+    #     revenue_cpu += v_cpu_demand['CPU']
+    #
+    # revenue_bandwidth = 0.0
+    # for _, _, v_bandwidth_demand in vnr.net.edges(data=True):
+    #     revenue_bandwidth += v_bandwidth_demand['bandwidth']
 
     revenue = revenue_cpu + config.ALPHA * revenue_bandwidth
 
@@ -32,13 +35,20 @@ def get_revenue_VNR(vnr):
 
 
 def get_cost_VNR(vnr, embedding_s_paths):
-    cost_cpu = 0.0
-    for _, v_cpu_demand in vnr.net.nodes(data=True):
-        cost_cpu += v_cpu_demand['CPU']
+    cost_cpu = sum((v_cpu_demand['CPU'] for _, v_cpu_demand in vnr.net.nodes(data=True)))
 
-    cost_embedded_s_path = 0.0
-    for v_link_id, (s_links_in_path, v_bandwidth_demand) in embedding_s_paths.items():
-        cost_embedded_s_path += len(s_links_in_path) * v_bandwidth_demand
+    cost_embedded_s_path = sum(
+        (len(s_links_in_path) * v_bandwidth_demand
+         for _, (s_links_in_path, v_bandwidth_demand) in embedding_s_paths.items())
+    )
+
+    # cost_cpu = 0.0
+    # for _, v_cpu_demand in vnr.net.nodes(data=True):
+    #     cost_cpu += v_cpu_demand['CPU']
+
+    # cost_embedded_s_path = 0.0
+    # for v_link_id, (s_links_in_path, v_bandwidth_demand) in embedding_s_paths.items():
+    #     cost_embedded_s_path += len(s_links_in_path) * v_bandwidth_demand
 
     cost = cost_cpu + config.ALPHA * cost_embedded_s_path
 

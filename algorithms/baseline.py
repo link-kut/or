@@ -1,7 +1,6 @@
 import networkx as nx
 import copy
 
-
 # Baseline Agent
 from common import utils
 from main import config
@@ -11,6 +10,8 @@ class Action:
     def __init__(self):
         self.vnrs_postponement = None
         self.vnrs_embedding = None
+        self.num_node_embedding_fails = 0
+        self.num_link_embedding_fails = 0
 
     def __str__(self):
         action_str = "[{0:2} VNR POST.] [{1:2} VNR EMBED.]".format(
@@ -24,8 +25,8 @@ class Action:
 class BaselineVNEAgent:
     def __init__(self, logger):
         self.logger = logger
-        self.num_rejected_by_node_embedding = 0
-        self.num_rejected_by_link_embedding = 0
+        self.num_node_embedding_fails = 0
+        self.num_link_embedding_fails = 0
         self.time_step = 0
         self.next_embedding_epoch = config.TIME_WINDOW_SIZE
 
@@ -63,15 +64,17 @@ class BaselineVNEAgent:
             )
 
             if len(subset_S_per_v_node[v_node_id]) == 0:
-                self.num_rejected_by_node_embedding += 1
-                msg = "VNR REJECTED ({0}): 'no subset S' {1}".format(
-                    self.num_rejected_by_node_embedding, vnr
+                self.num_node_embedding_fails += 1
+                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                    self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
 
             max_h_value = -1.0 * 1e10
+            selected_s_node_id = -1
             embedding_s_nodes[v_node_id] = None
+
             for s_node_id in subset_S_per_v_node[v_node_id]:
                 h_value = self.calculate_H_value(
                     copied_substrate.net.nodes[s_node_id]['CPU'],
@@ -80,12 +83,16 @@ class BaselineVNEAgent:
 
                 if h_value > max_h_value:
                     max_h_value = h_value
-                    embedding_s_nodes[v_node_id] = (s_node_id, v_cpu_demand)
-                    if not config.ALLOW_SAME_NODE_EMBEDDING:
-                        already_embedding_s_nodes.append(s_node_id)
+                    selected_s_node_id = s_node_id
 
-            assert copied_substrate.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] >= v_cpu_demand
-            copied_substrate.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] -= v_cpu_demand
+            assert selected_s_node_id != -1
+            embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
+
+            if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+                already_embedding_s_nodes.append(selected_s_node_id)
+
+            assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
+            copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
 
         return embedding_s_nodes
 
@@ -110,13 +117,13 @@ class BaselineVNEAgent:
                 )
 
                 # Just for assertion
-                for u, v, a in subnet.edges(data=True):
-                    assert a["bandwidth"] >= v_bandwidth_demand
+                # for u, v, a in subnet.edges(data=True):
+                #     assert a["bandwidth"] >= v_bandwidth_demand
 
                 if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
-                    self.num_rejected_by_link_embedding += 1
-                    msg = "VNR REJECTED ({0}): 'no suitable link' {1}".format(
-                        self.num_rejected_by_link_embedding, vnr
+                    self.num_link_embedding_fails += 1
+                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
+                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
                     )
                     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                     return None
@@ -139,10 +146,12 @@ class BaselineVNEAgent:
 
     # calculate the H value
     def calculate_H_value(self, s_cpu_capacity, adjacent_links):
-        total_node_bandwidth = 0
+        total_node_bandwidth = sum((adjacent_links[link_id]['bandwidth'] for link_id in adjacent_links))
 
-        for link_id in adjacent_links:
-            total_node_bandwidth += adjacent_links[link_id]['bandwidth']
+        # total_node_bandwidth = 0.0
+        #
+        # for link_id in adjacent_links:
+        #     total_node_bandwidth += adjacent_links[link_id]['bandwidth']
 
         return s_cpu_capacity * total_node_bandwidth
 
@@ -184,10 +193,13 @@ class BaselineVNEAgent:
     def get_action(self, state):
         self.time_step += 1
 
-        if self.time_step < self.next_embedding_epoch:
-            return None
-
         action = Action()
+
+        if self.time_step < self.next_embedding_epoch:
+            action.num_node_embedding_fails = self.num_node_embedding_fails
+            action.num_link_embedding_fails = self.num_link_embedding_fails
+            return action
+
         action.vnrs_postponement = {}
         action.vnrs_embedding = {}
 
@@ -208,4 +220,7 @@ class BaselineVNEAgent:
 
         self.next_embedding_epoch += config.TIME_WINDOW_SIZE
 
+        action.num_node_embedding_fails = self.num_node_embedding_fails
+        action.num_link_embedding_fails = self.num_link_embedding_fails
+        
         return action
