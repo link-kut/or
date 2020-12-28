@@ -9,6 +9,8 @@ import warnings
 from matplotlib import MatplotlibDeprecationWarning
 import datetime
 
+from main.config import HOST
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 
@@ -250,6 +252,9 @@ def draw_performance(
     if send_image_to_slack:
         utils.send_file_to_slack(new_file_path)
         print("SEND IMAGE FILE {0} TO SLACK !!!".format(new_file_path))
+
+    if HOST.startswith("COLAB"):
+        plt.show()
 
     plt.clf()
 
