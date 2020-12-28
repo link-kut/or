@@ -12,8 +12,8 @@ import datetime
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 
-idx = os.getcwd().index("or")
-PROJECT_HOME = os.getcwd()[:idx] + "or"
+current_path = os.path.dirname(os.path.realpath(__file__))
+PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
 if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
 
