@@ -40,16 +40,24 @@ logger = get_logger("vne")
 
 plt.figure(figsize=(20, 10))
 
+# agents = [
+#     BaselineVNEAgent(logger),
+#     TopologyAwareBaselineVNEAgent(0.9, logger),
+#     TopologyAwareBaselineVNEAgent(0.3, logger)
+# ]
+#
+# agent_labels = [
+#     "BL",
+#     "TA_0.9",
+#     "TA_0.3"
+# ]
+
 agents = [
     BaselineVNEAgent(logger),
-    TopologyAwareBaselineVNEAgent(0.9, logger),
-    TopologyAwareBaselineVNEAgent(0.3, logger)
 ]
 
 agent_labels = [
     "BL",
-    "TA_0.9",
-    "TA_0.3"
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
