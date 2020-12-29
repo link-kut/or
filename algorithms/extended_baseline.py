@@ -92,7 +92,8 @@ class ExtendedBaselineVNEAgent(BaselineVNEAgent):
 
             elif vnr_num_node != 0 and selected_s_node_id is not None:
                 radius = 1
-                while radius - 1 != len(copied_substrate.net.nodes):
+                while len(sub_ego_graph.nodes) != len(copied_substrate.net.nodes):
+                    # make the previous selected node's ego graph
                     sub_ego_graph = nx.ego_graph(copied_substrate.net, selected_s_node_id, radius=radius)
 
                     subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
