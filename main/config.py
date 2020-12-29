@@ -20,10 +20,10 @@ else:
     HOST = 'Default Host'
 
 #The arithmetic mean of the ten instances is recorded as the final result.
-NUM_RUNS = 10
+NUM_RUNS = 1
 
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
-GLOBAL_MAX_STEPS = 56000
+GLOBAL_MAX_STEPS = 5600
 
 TIME_WINDOW_SIZE = 10
 
@@ -59,4 +59,4 @@ ALPHA = 0.8
 
 ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE = True
 
-FIGURE_START_TIME_STEP = 5000
+FIGURE_START_TIME_STEP = 500
