@@ -23,7 +23,7 @@ else:
 NUM_RUNS = 2
 
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
-GLOBAL_MAX_STEPS = 560
+GLOBAL_MAX_STEPS = 56000
 
 TIME_WINDOW_SIZE = 10
 
@@ -38,8 +38,8 @@ VNR_INTER_ARRIVAL_RATE = 0.05
 
 # Each substrate network is configured to have 100 nodes with over 500 links,
 # which is about the scale of a medium-sized ISP.
-SUBSTRATE_NODES = 10
-SUBSTRATE_LINKS = 50
+SUBSTRATE_NODES = 100
+SUBSTRATE_LINKS = 500
 
 # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
 VNR_NODES_MIN = 5
@@ -59,4 +59,4 @@ ALPHA = 0.8
 
 ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE = True
 
-FIGURE_START_TIME_STEP = 100
+FIGURE_START_TIME_STEP = 5000
