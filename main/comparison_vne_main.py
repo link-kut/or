@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import os, sys
 import glob
 import numpy as np
+import pandas as pd
 import warnings
 from matplotlib import MatplotlibDeprecationWarning
 import datetime
@@ -30,6 +31,7 @@ from algorithms.topology_aware_baseline import TopologyAwareBaselineVNEAgent
 PROJECT_HOME = os.getcwd()[:-5]
 graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
 log_save_path = os.path.join(PROJECT_HOME, "out", "logs")
+csv_save_path = os.path.join(PROJECT_HOME, "out", "parameters")
 
 if not os.path.exists(graph_save_path):
     os.makedirs(graph_save_path)
@@ -38,6 +40,9 @@ if not os.path.exists(log_save_path):
     os.makedirs(log_save_path)
 else:
     shutil.rmtree(log_save_path)
+
+if not os.path.exists(csv_save_path):
+    os.makedirs(csv_save_path)
 
 logger = get_logger("vne")
 
@@ -246,9 +251,24 @@ def draw_performance(
     new_file_path = os.path.join(graph_save_path, "results_{0}.png".format(now.strftime("%Y_%m_%d_%H_%M")))
     plt.savefig(new_file_path)
 
+    new_csv_file_path_revenue = os.path.join(csv_save_path, "performance_revenue_results_{0}.csv".format(run))
+    new_csv_file_path_acceptance_ratio = os.path.join(csv_save_path, "performance_acceptance_ratio_results_{0}.csv".format(run))
+    new_csv_file_path_rc_ratio = os.path.join(csv_save_path, "performance_rc_ratio_results_{0}.csv".format(run))
+    new_csv_file_path_link_fail_ratio = os.path.join(csv_save_path, "performance_link_ratio_results_{0}.csv".format(run))
+
     if send_image_to_slack:
         utils.send_file_to_slack(new_file_path)
         print("SEND IMAGE FILE {0} TO SLACK !!!".format(new_file_path))
+
+        df_revenue = pd.DataFrame(performance_revenue)
+        df_revenue.to_csv(new_csv_file_path_revenue, header=None, index=None)
+        df_acceptance_ratio = pd.DataFrame(performance_acceptance_ratio)
+        df_acceptance_ratio.to_csv(new_csv_file_path_acceptance_ratio, header=None, index=None)
+        df_rc_ratio = pd.DataFrame(performance_rc_ratio)
+        df_rc_ratio.to_csv(new_csv_file_path_rc_ratio, header=None, index=None)
+        df_link_fail_ratio = pd.DataFrame(performance_link_fail_ratio)
+        df_link_fail_ratio.to_csv(new_csv_file_path_link_fail_ratio, header=None, index=None)
+
 
     if HOST.startswith("COLAB"):
         plt.show()
