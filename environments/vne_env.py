@@ -19,6 +19,7 @@ class Substrate:
         self.max_cpu_capacity = 0.0
         for node_id in self.net.nodes:
             self.net.nodes[node_id]['CPU'] = randint(50, 100)
+            self.net.nodes[node_id]['LOCATION'] = randint(0, config.NUM_LOCATION)
             self.initial_total_cpu_capacity += self.net.nodes[node_id]['CPU']
             if self.net.nodes[node_id]['CPU'] < self.min_cpu_capacity:
                 self.min_cpu_capacity = self.net.nodes[node_id]['CPU']
@@ -82,6 +83,7 @@ class VNR:
             self.net.nodes[node_id]['CPU'] = randint(
                 config.VNR_CPU_DEMAND_MIN, config.VNR_CPU_DEMAND_MAX
             )
+            self.net.nodes[node_id]['LOCATION'] = randint(0, config.NUM_LOCATION)
             if self.net.nodes[node_id]['CPU'] < self.min_cpu_demand:
                 self.min_cpu_demand = self.net.nodes[node_id]['CPU']
             if self.net.nodes[node_id]['CPU'] > self.max_cpu_demand:
