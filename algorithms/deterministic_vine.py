@@ -1,6 +1,7 @@
 from algorithms.baseline import BaselineVNEAgent
 from common import utils
 from main import config
+import copy
 
 
 class DeterministicVNEAgent(BaselineVNEAgent):
@@ -31,6 +32,28 @@ class DeterministicVNEAgent(BaselineVNEAgent):
         subset_S_per_v_node = {}
         embedding_s_nodes = {}
         already_embedding_s_nodes = []
+
+        # Generate the augmented substrate network with location info.
+        augmented_substrate = copy.deepcopy(copied_substrate)
+        for v_node_id, v_node_data in vnr.net.nodes(data=True):
+            v_cpu_demand = v_node_data['CPU']
+            v_node_location = v_node_data['LOCATION']
+            # Meta node add
+            augmented_substrate.net.add_node(v_node_id + 100)
+            augmented_substrate.net.nodes[v_node_id + 100]['CPU'] = v_cpu_demand
+            augmented_substrate.net.nodes[v_node_id + 100]['LOCATION'] = v_node_location
+            # Meta edge add
+            for a_node_id, a_node_data, in augmented_substrate.net.nodes(data=True):
+                a_cpu_demand = a_node_data['CPU']
+                a_node_location = a_node_data['LOCATION']
+                if v_node_location == a_node_location and a_node_id < config.SUBSTRATE_NODES:
+                    augmented_substrate.net.add_edge(v_node_id + 100, a_node_id)
+                    augmented_substrate.net.edges[v_node_id + 100, a_node_id].update({'bandwidth': 1000000})
+
+        flow_variables, node_variables = self.calculate_LP_variables(augmented_substrate)
+
+
+
 
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             v_cpu_demand = v_node_data['CPU']
@@ -87,3 +110,7 @@ class DeterministicVNEAgent(BaselineVNEAgent):
         #     total_node_bandwidth += adjacent_links[link_id]['bandwidth']
 
         return self.beta * node_cpu_capacity + (1.0 - self.beta) * len(adjacent_links) * total_node_bandwidth
+
+    def calculate_LP_variables(self, augmented_substrate):
+        flow_variables, node_variables = 0
+        return flow_variables, node_variables
