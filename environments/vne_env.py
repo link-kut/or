@@ -72,7 +72,7 @@ class VNR:
 
         self.num_nodes = randint(config.VNR_NODES_MIN, config.VNR_NODES_MAX)
 
-        self.net = nx.gnp_random_graph(n=self.num_nodes, p=config.VNR_LINK_PROBABILITY)
+        self.net = nx.gnp_random_graph(n=self.num_nodes, p=config.VNR_LINK_PROBABILITY, directed=True)
 
         self.num_of_edges = len(self.net.edges)
         self.num_of_edges_complete_graph = int(self.num_nodes * (self.num_nodes - 1) / 2)

@@ -54,8 +54,7 @@ agents = [
     TopologyAwareBaselineVNEAgent(0.9, logger),
     TopologyAwareBaselineVNEAgent(0.3, logger),
     ExtendedBaselineVNEAgent(0.9, logger),
-    ExtendedBaselineVNEAgent(0.3, logger),
-    DeterministicVNEAgent(logger)
+    ExtendedBaselineVNEAgent(0.3, logger)
 ]
 
 agent_labels = [
@@ -64,7 +63,6 @@ agent_labels = [
     "TA_0.3",
     "EX_0.9",
     "EX_0.3",
-    "D-ViNE-LB"
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))

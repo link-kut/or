@@ -138,6 +138,8 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             if a_node_id < config.SUBSTRATE_NODES:
                 set_w.append(a_node_id)
                 remain_CPU_w[a_node_id] = a_node_data['CPU']
+                if min_CPU >= a_node_data['CPU']:
+                    min_CPU = a_node_data['CPU']
             else:
                 set_m.append(a_node_id)
                 remain_CPU_m[a_node_id] = a_node_data['CPU']
@@ -160,18 +162,18 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             constraints[uv] = opt_model.addConstraint(
                     plp.LpConstraint(
                         e=plp.lpSum(f_vars[i,uv] for i in set_i),
-                        sense=plp.LpConstraintGE,
+                        sense=plp.LpConstraintLE,
                         rhs=min_bandwidth,
                         name="constraint_1_{0}".format(uv)
                     )
                 )
 
         # Constraints 2
-        for w in set_w:
-            constraints[w] = opt_model.addConstraint(
+        for m in set_m:
+            constraints[m] = opt_model.addConstraint(
                 plp.LpConstraint(
-                    e=plp.lpSum(remain_CPU_m[m] * x_vars[w, m] for m in set_m),
-                    sense=plp.LpConstraintLE,
+                    e=(remain_CPU_m[m] * x_vars[w, m] for w in set_w),
+                    sense=plp.LpConstraintGE,
                     rhs=remain_CPU_w[w],
                     name="constraint_2_{0}".format(w)
                 )
