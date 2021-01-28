@@ -56,16 +56,6 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
         opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(augmented_substrate, vnr)
 
-        # t = opt_lp_f_vars['uv'][0]
-        # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        # print(type(sum(opt_lp_f_vars[opt_lp_f_vars['uv'] == t]['solution_value']) *
-        #             opt_lp_x_vars[(opt_lp_x_vars['w'] == 0) &
-        #                           (opt_lp_x_vars['m'] == 0 + 100)]['solution_value'].values))
-        #
-        # print(sum(opt_lp_f_vars[opt_lp_f_vars['uv'] == t]['solution_value']) *
-        #             opt_lp_x_vars[(opt_lp_x_vars['w'] == 0) &
-        #                           (opt_lp_x_vars['m'] == 0 + 100)]['solution_value'].values)
-
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             v_cpu_demand = v_node_data['CPU']
             v_node_location = v_node_data['LOCATION']
@@ -79,9 +69,9 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             selected_s_node_id = max(
                 subset_S_per_v_node[v_node_id],
                 key=lambda s_node_id:
-                    sum(opt_lp_f_vars[opt_lp_f_vars['uv'] == (s_node_id, v_node_id + 100)]['solution_value']) *
+                    sum(opt_lp_f_vars[opt_lp_f_vars['uv'] == (s_node_id, v_node_id + config.SUBSTRATE_NODES)]['solution_value']) *
                     opt_lp_x_vars[(opt_lp_x_vars['w'] == s_node_id) &
-                                  (opt_lp_x_vars['m'] == v_node_id + 100)]['solution_value'].values,
+                                  (opt_lp_x_vars['m'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values,
                 default=None
             )
 
@@ -103,6 +93,15 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
         return embedding_s_nodes
 
+    def calculate_node_ranking(self, node_cpu_capacity, adjacent_links):
+        total_node_bandwidth = sum((adjacent_links[link_id]['bandwidth'] for link_id in adjacent_links))
+
+        # total_node_bandwidth = 0.0
+        # for link_id in adjacent_links:
+        #     total_node_bandwidth += adjacent_links[link_id]['bandwidth']
+
+        return 0.3 * node_cpu_capacity + (1.0 - 0.3) * len(adjacent_links) * total_node_bandwidth
+
     def calculate_LP_variables(self, augmented_substrate, vnr):
         set_i = range(len(list(vnr.net.edges)))
         set_uv = list(augmented_substrate.net.edges)
@@ -118,15 +117,18 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             a_remain_bandwidth[(a_edge_src, a_edge_dst)] = a_edge_data['bandwidth']
 
         count = 0
+        min_bandwidth = 100
         for v_edge_src, v_edge_dst, v_edge_data in vnr.net.edges(data=True):
             v_remain_bandwidth[count] = v_edge_data['bandwidth']
+            if min_bandwidth >= v_edge_data['bandwidth']:
+                min_bandwidth = v_edge_data['bandwidth']
             count += 1
 
         # f_vars
         f_vars = {
             (i,uv): plp.LpVariable(
                 cat=plp.LpContinuous,
-                lowBound=0, upBound=a_remain_bandwidth[uv],
+                lowBound=0,
                 name="f_{0}_{1}".format(i, uv)
             )
             for i in set_i for uv in set_uv
@@ -154,40 +156,41 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
         # Constraints 1
         constraints = {}
-        for i in set_i:
-            constraints[i] = opt_model.addConstraint(
+        for uv in set_uv:
+            constraints[uv] = opt_model.addConstraint(
                     plp.LpConstraint(
-                        e=plp.lpSum(f_vars[i,uv] for uv in set_uv),
+                        e=plp.lpSum(f_vars[i,uv] for i in set_i),
                         sense=plp.LpConstraintGE,
-                        rhs=v_remain_bandwidth[i],
-                        name="constraint_1_{0}".format(i)
+                        rhs=min_bandwidth,
+                        name="constraint_1_{0}".format(uv)
                     )
                 )
 
         # Constraints 2
-        for m in set_m:
-            constraints[m] = opt_model.addConstraint(
+        for w in set_w:
+            constraints[w] = opt_model.addConstraint(
                 plp.LpConstraint(
-                    e=plp.lpSum(x_vars[w, m] for w in set_w),
-                    sense=plp.LpConstraintGE,
-                    rhs=remain_CPU_m[m],
-                    name="constraint_2_{0}".format(m)
+                    e=plp.lpSum(remain_CPU_m[m] * x_vars[w, m] for m in set_m),
+                    sense=plp.LpConstraintLE,
+                    rhs=remain_CPU_w[w],
+                    name="constraint_2_{0}".format(w)
                 )
             )
 
         # Objective function
-        # objective = plp.lpSum(
-        #     f_vars[i, uv] * 1 / (a_remain_bandwidth[uv] + 0.000001) for i in set_i for uv in set_uv
-        # )
-        # objective += plp.lpSum(
-        #     x_vars[(w, m)] * remain_CPU_m[m] * 1 / (remain_CPU_w[w] + 0.000001) for w in set_w for m in set_m
-        # )
         objective = plp.lpSum(
-            f_vars[i, uv] for i in set_i for uv in set_uv
+            f_vars[i, uv] * 1 / (a_remain_bandwidth[uv] + 0.000001) for i in set_i for uv in set_uv
         )
         objective += plp.lpSum(
-            x_vars[(w, m)] * remain_CPU_m[m] for w in set_w for m in set_m
+            x_vars[(w, m)] * remain_CPU_m[m] * 1 / (remain_CPU_w[w] + 0.000001) for w in set_w for m in set_m
         )
+        # objective = plp.lpSum(
+        #     f_vars[i, uv] for i in set_i for uv in set_uv
+        # )
+        # objective += plp.lpSum(
+        #     x_vars[(w, m)] * remain_CPU_m[m] for w in set_w for m in set_m
+        # )
+
         # for minimization
         # solve VNE_LP_RELAX
         opt_model.sense = plp.LpMinimize
