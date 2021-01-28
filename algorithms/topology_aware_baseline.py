@@ -35,11 +35,12 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
 
         for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
+            v_node_location = v_node_data['LOCATION']
 
             # Find the subset S of substrate nodes that satisfy restrictions and
             # available CPU capacity (larger than that specified by the request.)
             subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
-                copied_substrate, v_cpu_demand, already_embedding_s_nodes
+                copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
             )
 
             # if len(subset_S_per_v_node[v_node_id]) == 0:

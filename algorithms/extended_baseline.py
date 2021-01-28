@@ -27,7 +27,7 @@ class ExtendedBaselineVNEAgent(BaselineVNEAgent):
         super(ExtendedBaselineVNEAgent, self).__init__(logger)
         self.beta = beta
 
-    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, already_embedding_s_nodes):
+    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
         '''
         find the subset S of the substrate nodes that satisfy restrictions and available CPU capacity
         :param substrate: substrate network
@@ -40,7 +40,9 @@ class ExtendedBaselineVNEAgent(BaselineVNEAgent):
 
         subset_S = []
         for s_node_id, s_cpu_capacity in copied_substrate.nodes(data=True):
-            if s_cpu_capacity['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes:
+            if s_cpu_capacity['CPU'] >= v_cpu_demand and \
+                    s_node_id not in already_embedding_s_nodes and \
+                    s_cpu_capacity['LOCATION'] == v_node_location:
                 subset_S.append(s_node_id)
 
         return subset_S
@@ -73,12 +75,13 @@ class ExtendedBaselineVNEAgent(BaselineVNEAgent):
         vnr_num_node = 0
         for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
+            v_node_location = v_node_data['LOCATION']
 
             if vnr_num_node == 0:
                 # Find the subset S of substrate nodes that satisfy restrictions and
                 # available CPU capacity (larger than that specified by the request.)
                 subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
-                    copied_substrate.net, v_cpu_demand, already_embedding_s_nodes
+                    copied_substrate.net, v_cpu_demand, v_node_location, already_embedding_s_nodes
                 )
 
                 selected_s_node_id = max(
@@ -99,7 +102,7 @@ class ExtendedBaselineVNEAgent(BaselineVNEAgent):
                     sub_ego_graph_length = len(sub_ego_graph.nodes)
 
                     subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
-                        sub_ego_graph, v_cpu_demand, already_embedding_s_nodes
+                        sub_ego_graph, v_cpu_demand, v_node_location, already_embedding_s_nodes
                     )
                     if len(subset_S_per_v_node[v_node_id]) == 0:
                         if sub_ego_graph_length == len(copied_substrate.net.nodes):

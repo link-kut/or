@@ -30,7 +30,7 @@ class BaselineVNEAgent:
         self.time_step = 0
         self.next_embedding_epoch = config.TIME_WINDOW_SIZE
 
-    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, already_embedding_s_nodes):
+    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
         '''
         find the subset S of the substrate nodes that satisfy restrictions and available CPU capacity
         :param substrate: substrate network
@@ -38,9 +38,13 @@ class BaselineVNEAgent:
         :return:
         '''
 
-        subset_S = (s_node_id for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True)
-                    if s_cpu_capacity['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes)
-
+        if config.ALLOW_LOCATION == False:
+            subset_S = (s_node_id for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True)
+                        if s_cpu_capacity['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes)
+        else:
+            subset_S = (s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
+                        if s_node_data['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes and
+                        s_node_data['LOCATION'] == v_node_location)
         # subset_S = []
         # for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True):
         #     if s_cpu_capacity['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes:
@@ -61,11 +65,12 @@ class BaselineVNEAgent:
 
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             v_cpu_demand = v_node_data['CPU']
+            v_node_location = v_node_data['LOCATION']
 
             # Find the subset S of substrate nodes that satisfy restrictions and
             # available CPU capacity (larger than that specified by the request.)
             subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
-                copied_substrate, v_cpu_demand, already_embedding_s_nodes
+                copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
             )
 
             # if len(subset_S_per_v_node[v_node_id]) == 0:

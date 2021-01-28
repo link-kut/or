@@ -6,12 +6,11 @@ import networkx as nx
 import pulp as plp
 import pandas as pd
 
-import warnings
-warnings.filterwarnings(action='ignore')
 
 class DeterministicVNEAgent(BaselineVNEAgent):
-    def __init__(self, logger):
+    def __init__(self, beta, logger):
         super(DeterministicVNEAgent, self).__init__(logger)
+        self.beta = beta
 
     def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
         '''
@@ -93,6 +92,16 @@ class DeterministicVNEAgent(BaselineVNEAgent):
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
 
+            # for s_node_id in subset_S_per_v_node[v_node_id]:
+            #     node_ranking = self.calculate_node_ranking(
+            #         copied_substrate.net.nodes[s_node_id]['CPU'],
+            #         copied_substrate.net[s_node_id]
+            #     )
+            #
+            #     if node_ranking > max_node_ranking:
+            #         max_node_ranking = node_ranking
+            #         selected_s_node_id = s_node_id
+
             assert selected_s_node_id != -1
             embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
             if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
@@ -102,6 +111,15 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
 
         return embedding_s_nodes
+
+    def calculate_node_ranking(self, node_cpu_capacity, adjacent_links):
+        total_node_bandwidth = sum((adjacent_links[link_id]['bandwidth'] for link_id in adjacent_links))
+
+        # total_node_bandwidth = 0.0
+        # for link_id in adjacent_links:
+        #     total_node_bandwidth += adjacent_links[link_id]['bandwidth']
+
+        return self.beta * node_cpu_capacity + (1.0 - self.beta) * len(adjacent_links) * total_node_bandwidth
 
     def calculate_LP_variables(self, augmented_substrate, vnr):
         set_i = range(len(list(vnr.net.edges)))
@@ -176,23 +194,17 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             )
 
         # Objective function
-        # objective = plp.lpSum(
-        #     f_vars[i, uv] * 1 / (a_remain_bandwidth[uv] + 0.000001) for i in set_i for uv in set_uv
-        # )
-        # objective += plp.lpSum(
-        #     x_vars[(w, m)] * remain_CPU_m[m] * 1 / (remain_CPU_w[w] + 0.000001) for w in set_w for m in set_m
-        # )
         objective = plp.lpSum(
-            f_vars[i, uv] for i in set_i for uv in set_uv
+            f_vars[i, uv] * 1 / (a_remain_bandwidth[uv] + 0.000001) for i in set_i for uv in set_uv
         )
         objective += plp.lpSum(
-            x_vars[(w, m)] * remain_CPU_m[m] for w in set_w for m in set_m
+            x_vars[(w, m)] * remain_CPU_m[m] * 1 / (remain_CPU_w[w] + 0.000001) for w in set_w for m in set_m
         )
         # for minimization
         # solve VNE_LP_RELAX
         opt_model.sense = plp.LpMinimize
         opt_model.setObjective(objective)
-        opt_model.solve(plp.GLPK_CMD(msg=0))
+        opt_model.solve()
 
         # make the DataFrame for f_vars and x_vars
         opt_lp_f_vars = pd.DataFrame.from_dict(f_vars, orient="index", columns=['variable_object'])
