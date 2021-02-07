@@ -118,7 +118,7 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
     def find_substrate_path(self, copied_substrate, vnr, embedding_s_nodes):
         embedding_s_paths = {}
-        temp_copied_substrate = copied_substrate.net.to_directed()
+        directed_copied_substrate = copied_substrate.net.to_directed()
 
         # mapping the virtual nodes and substrate_net nodes
         for src_v_node, dst_v_node, edge_data in vnr.net.edges(data=True):
@@ -153,8 +153,7 @@ class DeterministicVNEAgent(BaselineVNEAgent):
                 MAX_K = 1
 
                 # shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
-
-                residual_network = shortest_augmenting_path(temp_copied_substrate, src_s_node, dst_s_node,
+                residual_network = shortest_augmenting_path(directed_copied_substrate, src_s_node, dst_s_node,
                                                             capacity='bandwidth',
                                                             cutoff=v_bandwidth_demand)
                 s_links_in_path = []
@@ -277,7 +276,6 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
         # for minimization
         # solve VNE_LP_RELAX
-        # opt_model.solve(plp.GLPK_CMD(msg=1))
         opt_model.solve(plp.PULP_CBC_CMD(msg=0))
 
         # for v in opt_model.variables():

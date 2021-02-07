@@ -133,7 +133,7 @@ class RandomizedVNEAgent(BaselineVNEAgent):
 
     def find_substrate_path(self, copied_substrate, vnr, embedding_s_nodes):
         embedding_s_paths = {}
-        temp_copied_substrate = copied_substrate.net.to_directed()
+        directed_copied_substrate = copied_substrate.net.to_directed()
 
         # mapping the virtual nodes and substrate_net nodes
         for src_v_node, dst_v_node, edge_data in vnr.net.edges(data=True):
@@ -168,8 +168,7 @@ class RandomizedVNEAgent(BaselineVNEAgent):
                 MAX_K = 1
 
                 # shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
-
-                residual_network = shortest_augmenting_path(temp_copied_substrate, src_s_node, dst_s_node,
+                residual_network = shortest_augmenting_path(directed_copied_substrate, src_s_node, dst_s_node,
                                                             capacity='bandwidth',
                                                             cutoff=v_bandwidth_demand)
                 s_links_in_path = []
@@ -224,7 +223,7 @@ class RandomizedVNEAgent(BaselineVNEAgent):
 
         # f_vars
         f_vars = {
-            (i,u,v): plp.LpVariable(
+            (i, u, v): plp.LpVariable(
                 cat=plp.LpContinuous,
                 lowBound=0,
                 name="f_{0}_{1}_{2}".format(i, u, v)
@@ -233,30 +232,29 @@ class RandomizedVNEAgent(BaselineVNEAgent):
         }
 
         # x_vars
-        x_vars = {(u,v):
-                plp.LpVariable(
-                    cat=plp.LpContinuous,
-                    lowBound=0, upBound=1,
-                    name="x_{0}_{1}".format(u, v)
-                )
-                for u in a_nodes_id for v in a_nodes_id
+        x_vars = {(u, v):
+            plp.LpVariable(
+                cat=plp.LpContinuous,
+                lowBound=0, upBound=1,
+                name="x_{0}_{1}".format(u, v)
+            )
+            for u in a_nodes_id for v in a_nodes_id
         }
 
         opt_model = plp.LpProblem(name="MIP Model", sense=plp.LpMinimize)
 
-
         # Objective function
-        opt_model += sum(edges_bandwidth[u][v] / (edges_bandwidth[u][v] + 0.000001) *
-                              sum(f_vars[i,u,v] for i in v_flow_id)
-                              for u in s_nodes_id for v in s_nodes_id) + \
-                     sum(nodes_CPU[w] / (nodes_CPU[w] + 0.000001) *
-                              sum(x_vars[m, w] * nodes_CPU[m]
-                              for m in meta_nodes_id) for w in s_nodes_id)
+        opt_model += sum(1 / (edges_bandwidth[u][v] + 0.000001) *
+                         sum(f_vars[i, u, v] for i in v_flow_id)
+                         for u in s_nodes_id for v in s_nodes_id) + \
+                     sum(1 / (nodes_CPU[w] + 0.000001) *
+                         sum(x_vars[m, w] * nodes_CPU[m]
+                             for m in meta_nodes_id) for w in s_nodes_id)
 
         # Capacity constraint 1
         for u in a_nodes_id:
             for v in a_nodes_id:
-                opt_model += sum(f_vars[i,u,v] + f_vars[i,v,u] for i in v_flow_id) <= edges_bandwidth[u][v]
+                opt_model += sum(f_vars[i, u, v] + f_vars[i, v, u] for i in v_flow_id) <= edges_bandwidth[u][v]
 
         # Capacity constraint 2
         for m in meta_nodes_id:
@@ -266,29 +264,29 @@ class RandomizedVNEAgent(BaselineVNEAgent):
         # Flow constraints 1
         for i in v_flow_id:
             for u in s_nodes_id:
-                opt_model += sum(f_vars[i,u,w] for w in a_nodes_id) - \
-                             sum(f_vars[i,w,u] for w in a_nodes_id) == 0
+                opt_model += sum(f_vars[i, u, w] for w in a_nodes_id) - \
+                             sum(f_vars[i, w, u] for w in a_nodes_id) == 0
 
         # Flow constraints 2
         for i in v_flow_id:
             for fs in v_flow_start:
-                opt_model += sum(f_vars[i,fs,w] for w in a_nodes_id) - \
-                             sum(f_vars[i,w,fs] for w in a_nodes_id) == v_flow_demand[i]
+                opt_model += sum(f_vars[i, fs, w] for w in a_nodes_id) - \
+                             sum(f_vars[i, w, fs] for w in a_nodes_id) == v_flow_demand[i]
 
         # Flow constraints 3
         for i in v_flow_id:
             for fe in v_flow_end:
-                opt_model += sum(f_vars[i,fe,w] for w in a_nodes_id) - \
-                             sum(f_vars[i,w,fe] for w in a_nodes_id) == -1 * v_flow_demand[i]
+                opt_model += sum(f_vars[i, fe, w] for w in a_nodes_id) - \
+                             sum(f_vars[i, w, fe] for w in a_nodes_id) == -1 * v_flow_demand[i]
 
         # Meta constraint 1
         for w in s_nodes_id:
-            opt_model += sum(x_vars[m,w] for m in meta_nodes_id) <= 1
+            opt_model += sum(x_vars[m, w] for m in meta_nodes_id) <= 1
 
         # Meta constraint 2
         for u in a_nodes_id:
             for v in a_nodes_id:
-                opt_model += x_vars[u,v] == x_vars[v,u]
+                opt_model += x_vars[u, v] == x_vars[v, u]
 
         # for minimization
         # solve VNE_LP_RELAX
