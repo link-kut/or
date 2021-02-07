@@ -3,6 +3,7 @@ from common import utils
 from main import config
 import copy
 import networkx as nx
+from networkx.algorithms.flow import shortest_augmenting_path
 import pulp as plp
 import pandas as pd
 import numpy as np
@@ -110,14 +111,6 @@ class RandomizedVNEAgent(BaselineVNEAgent):
                 return None
             else:
                 probability = selected_s_node_p_value / total_p_value
-                for p in probability:
-                    if p < 0:
-                        self.num_node_embedding_fails += 1
-                        msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
-                            self.num_node_embedding_fails, v_cpu_demand, vnr
-                        )
-                        self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-                        return None
                 selected_s_node_id = np.random.choice(candidate_s_node_id, p=probability)
 
             if selected_s_node_id is None:
@@ -149,8 +142,6 @@ class RandomizedVNEAgent(BaselineVNEAgent):
             dst_s_node = embedding_s_nodes[dst_v_node][0]
             v_bandwidth_demand = edge_data['bandwidth']
 
-            flowValue, flowDict = nx.maximum_flow(temp_copied_substrate, src_s_node, dst_s_node, capacity='bandwidth')
-
             if src_s_node == dst_s_node:
                 s_links_in_path = []
                 embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
@@ -176,14 +167,23 @@ class RandomizedVNEAgent(BaselineVNEAgent):
 
                 MAX_K = 1
 
-                shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
+                # shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
 
+                residual_network = shortest_augmenting_path(temp_copied_substrate, src_s_node, dst_s_node,
+                                                            capacity='bandwidth',
+                                                            cutoff=v_bandwidth_demand)
                 s_links_in_path = []
-                for node_idx in range(len(shortest_s_path) - 1):
-                    s_links_in_path.append((shortest_s_path[node_idx], shortest_s_path[node_idx + 1]))
+                path = []
+                for src_r_node, dst_r_node, r_edge_data in residual_network.edges(data=True):
+                    if r_edge_data['flow'] > 0:
+                        s_links_in_path.append((src_r_node, dst_r_node))
+
+                # s_links_in_path = []
+                # for node_idx in range(len(shortest_s_path) - 1):
+                #     s_links_in_path.append((shortest_s_path[node_idx], shortest_s_path[node_idx + 1]))
 
                 for s_link in s_links_in_path:
-                    assert copied_substrate.net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
+                    # assert copied_substrate.net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
                     copied_substrate.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
 
                 embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
