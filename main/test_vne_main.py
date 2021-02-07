@@ -27,6 +27,7 @@ from algorithms.baseline import BaselineVNEAgent
 from algorithms.topology_aware_baseline import TopologyAwareBaselineVNEAgent
 from algorithms.extended_baseline import ExtendedBaselineVNEAgent
 from algorithms.deterministic_vine import DeterministicVNEAgent
+from algorithms.randomized_vine import RandomizedVNEAgent
 
 PROJECT_HOME = os.getcwd()[:-5]
 graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
@@ -57,11 +58,13 @@ plt.figure(figsize=(20, 10))
 # ]
 
 agents = [
-    DeterministicVNEAgent(0.3, logger),
+    # DeterministicVNEAgent(logger),
+    RandomizedVNEAgent(logger)
 ]
 
 agent_labels = [
-    "D-ViNE",
+    # "D-ViNE",
+    "R-ViNE"
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))

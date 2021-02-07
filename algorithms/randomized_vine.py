@@ -5,12 +5,15 @@ import copy
 import networkx as nx
 import pulp as plp
 import pandas as pd
+import numpy as np
+import sys
 
+import warnings
+warnings.filterwarnings(action='ignore')
 
-class DeterministicVNEAgent(BaselineVNEAgent):
-    def __init__(self, beta, logger):
-        super(DeterministicVNEAgent, self).__init__(logger)
-        self.beta = beta
+class RandomizedVNEAgent(BaselineVNEAgent):
+    def __init__(self, logger):
+        super(RandomizedVNEAgent, self).__init__(logger)
 
     def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
         '''
@@ -22,6 +25,13 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
         subset_S = (s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
                     if s_node_data['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes and s_node_data['LOCATION'] == v_node_location)
+
+        # subset_S = []
+        # for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True):
+        #     if s_cpu_capacity['CPU'] >= v_cpu_demand and \
+        #             s_node_id not in already_embedding_s_nodes and \
+        #             s_cpu_capacity['LOCATION'] == v_node_location:
+        #         subset_S.append(s_node_id)
 
         return subset_S
 
@@ -55,16 +65,6 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
         opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(augmented_substrate, vnr)
 
-        # t = opt_lp_f_vars['uv'][0]
-        # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        # print(type(sum(opt_lp_f_vars[opt_lp_f_vars['uv'] == t]['solution_value']) *
-        #             opt_lp_x_vars[(opt_lp_x_vars['w'] == 0) &
-        #                           (opt_lp_x_vars['m'] == 0 + 100)]['solution_value'].values))
-        #
-        # print(sum(opt_lp_f_vars[opt_lp_f_vars['uv'] == t]['solution_value']) *
-        #             opt_lp_x_vars[(opt_lp_x_vars['w'] == 0) &
-        #                           (opt_lp_x_vars['m'] == 0 + 100)]['solution_value'].values)
-
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             v_cpu_demand = v_node_data['CPU']
             v_node_location = v_node_data['LOCATION']
@@ -75,14 +75,50 @@ class DeterministicVNEAgent(BaselineVNEAgent):
                 copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
             )
 
-            selected_s_node_id = max(
-                subset_S_per_v_node[v_node_id],
-                key=lambda s_node_id:
-                    sum(opt_lp_f_vars[opt_lp_f_vars['uv'] == (s_node_id, v_node_id + 100)]['solution_value']) *
-                    opt_lp_x_vars[(opt_lp_x_vars['w'] == s_node_id) &
-                                  (opt_lp_x_vars['m'] == v_node_id + 100)]['solution_value'].values,
-                default=None
-            )
+            # selected_s_node_id = max(
+            #     subset_S_per_v_node[v_node_id],
+            #     key=lambda s_node_id:
+            #         sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
+            #                           (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
+            #             opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+            #                           (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values
+            #             ) *
+            #         opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
+            #                       (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values,
+            #     default=None
+            # )
+
+            # for calculating p_value
+            selected_s_node_p_value = []
+            candidate_s_node_id = []
+            for s_node_id in subset_S_per_v_node[v_node_id]:
+                candidate_s_node_id.append(s_node_id)
+                selected_s_node_p_value.append(
+                    sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
+                                  (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
+                    opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+                                  (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values))
+
+            # Calculate the probability
+            total_p_value = sum(selected_s_node_p_value)
+            if total_p_value == 0:
+                self.num_node_embedding_fails += 1
+                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                    self.num_node_embedding_fails, v_cpu_demand, vnr
+                )
+                self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                return None
+            else:
+                probability = selected_s_node_p_value / total_p_value
+                for p in probability:
+                    if p < 0:
+                        self.num_node_embedding_fails += 1
+                        msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                            self.num_node_embedding_fails, v_cpu_demand, vnr
+                        )
+                        self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                        return None
+                selected_s_node_id = np.random.choice(candidate_s_node_id, p=probability)
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
@@ -91,16 +127,6 @@ class DeterministicVNEAgent(BaselineVNEAgent):
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
-
-            # for s_node_id in subset_S_per_v_node[v_node_id]:
-            #     node_ranking = self.calculate_node_ranking(
-            #         copied_substrate.net.nodes[s_node_id]['CPU'],
-            #         copied_substrate.net[s_node_id]
-            #     )
-            #
-            #     if node_ranking > max_node_ranking:
-            #         max_node_ranking = node_ranking
-            #         selected_s_node_id = s_node_id
 
             assert selected_s_node_id != -1
             embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
@@ -112,109 +138,176 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
         return embedding_s_nodes
 
-    def calculate_node_ranking(self, node_cpu_capacity, adjacent_links):
-        total_node_bandwidth = sum((adjacent_links[link_id]['bandwidth'] for link_id in adjacent_links))
+    def find_substrate_path(self, copied_substrate, vnr, embedding_s_nodes):
+        embedding_s_paths = {}
+        temp_copied_substrate = copied_substrate.net.to_directed()
 
-        # total_node_bandwidth = 0.0
-        # for link_id in adjacent_links:
-        #     total_node_bandwidth += adjacent_links[link_id]['bandwidth']
+        # mapping the virtual nodes and substrate_net nodes
+        for src_v_node, dst_v_node, edge_data in vnr.net.edges(data=True):
+            v_link = (src_v_node, dst_v_node)
+            src_s_node = embedding_s_nodes[src_v_node][0]
+            dst_s_node = embedding_s_nodes[dst_v_node][0]
+            v_bandwidth_demand = edge_data['bandwidth']
 
-        return self.beta * node_cpu_capacity + (1.0 - self.beta) * len(adjacent_links) * total_node_bandwidth
+            flowValue, flowDict = nx.maximum_flow(temp_copied_substrate, src_s_node, dst_s_node, capacity='bandwidth')
+
+            if src_s_node == dst_s_node:
+                s_links_in_path = []
+                embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
+            else:
+                subnet = nx.subgraph_view(
+                    copied_substrate.net,
+                    filter_edge=lambda node_1_id, node_2_id: \
+                        True if copied_substrate.net.edges[(node_1_id, node_2_id)][
+                                    'bandwidth'] >= v_bandwidth_demand else False
+                )
+
+                # Just for assertion
+                # for u, v, a in subnet.edges(data=True):
+                #     assert a["bandwidth"] >= v_bandwidth_demand
+
+                if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
+                    self.num_link_embedding_fails += 1
+                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
+                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    )
+                    self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                    return None
+
+                MAX_K = 1
+
+                shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
+
+                s_links_in_path = []
+                for node_idx in range(len(shortest_s_path) - 1):
+                    s_links_in_path.append((shortest_s_path[node_idx], shortest_s_path[node_idx + 1]))
+
+                for s_link in s_links_in_path:
+                    assert copied_substrate.net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
+                    copied_substrate.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+
+                embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
+
+        return embedding_s_paths
 
     def calculate_LP_variables(self, augmented_substrate, vnr):
-        set_i = range(len(list(vnr.net.edges)))
-        set_uv = list(augmented_substrate.net.edges)
-        set_w = []
-        set_m = []
-
-        a_remain_bandwidth = {}
-        v_remain_bandwidth = {}
-        remain_CPU_w = {}
-        remain_CPU_m = {}
+        num_nodes = len(list(augmented_substrate.net.nodes))
+        edges_bandwidth = [[0] * num_nodes for _ in range(num_nodes)]
+        a_nodes_id = []
+        s_nodes_id = []
+        meta_nodes_id = []
+        nodes_CPU = []
+        v_flow_id = []
+        v_flow_start = []
+        v_flow_end = []
+        v_flow_demand = []
 
         for a_edge_src, a_edge_dst, a_edge_data in augmented_substrate.net.edges(data=True):
-            a_remain_bandwidth[(a_edge_src, a_edge_dst)] = a_edge_data['bandwidth']
+            edges_bandwidth[a_edge_src][a_edge_dst] = a_edge_data['bandwidth']
+            edges_bandwidth[a_edge_dst][a_edge_src] = a_edge_data['bandwidth']
 
-        count = 0
+        for a_node_id, a_node_data in augmented_substrate.net.nodes(data=True):
+            a_nodes_id.append(a_node_id)
+            nodes_CPU.append(a_node_data['CPU'])
+            if a_node_id >= config.SUBSTRATE_NODES:
+                meta_nodes_id.append(a_node_id)
+            else:
+                s_nodes_id.append(a_node_id)
+
+        id_idx = 0
         for v_edge_src, v_edge_dst, v_edge_data in vnr.net.edges(data=True):
-            v_remain_bandwidth[count] = v_edge_data['bandwidth']
-            count += 1
+            v_flow_id.append(id_idx)
+            v_flow_start.append(v_edge_src + config.SUBSTRATE_NODES)
+            v_flow_end.append(v_edge_dst + config.SUBSTRATE_NODES)
+            v_flow_demand.append(v_edge_data['bandwidth'])
+            id_idx += 1
 
         # f_vars
         f_vars = {
-            (i,uv): plp.LpVariable(
+            (i,u,v): plp.LpVariable(
                 cat=plp.LpContinuous,
-                lowBound=0, upBound=a_remain_bandwidth[uv],
-                name="f_{0}_{1}".format(i, uv)
+                lowBound=0,
+                name="f_{0}_{1}_{2}".format(i, u, v)
             )
-            for i in set_i for uv in set_uv
+            for i in v_flow_id for u in a_nodes_id for v in a_nodes_id
         }
 
-        for a_node_id, a_node_data in augmented_substrate.net.nodes(data=True):
-            if a_node_id < config.SUBSTRATE_NODES:
-                set_w.append(a_node_id)
-                remain_CPU_w[a_node_id] = a_node_data['CPU']
-            else:
-                set_m.append(a_node_id)
-                remain_CPU_m[a_node_id] = a_node_data['CPU']
-
         # x_vars
-        x_vars = {(w,m):
+        x_vars = {(u,v):
                 plp.LpVariable(
                     cat=plp.LpContinuous,
                     lowBound=0, upBound=1,
-                    name="x_{0}_{1}".format(w, m)
+                    name="x_{0}_{1}".format(u, v)
                 )
-                for w in set_w for m in set_m
+                for u in a_nodes_id for v in a_nodes_id
         }
 
-        opt_model = plp.LpProblem(name="MIP Model")
+        opt_model = plp.LpProblem(name="MIP Model", sense=plp.LpMinimize)
 
-        # Constraints 1
-        constraints = {}
-        for i in set_i:
-            constraints[i] = opt_model.addConstraint(
-                    plp.LpConstraint(
-                        e=plp.lpSum(f_vars[i,uv] for uv in set_uv),
-                        sense=plp.LpConstraintGE,
-                        rhs=v_remain_bandwidth[i],
-                        name="constraint_1_{0}".format(i)
-                    )
-                )
-
-        # Constraints 2
-        for m in set_m:
-            constraints[m] = opt_model.addConstraint(
-                plp.LpConstraint(
-                    e=plp.lpSum(x_vars[w, m] for w in set_w),
-                    sense=plp.LpConstraintGE,
-                    rhs=remain_CPU_m[m],
-                    name="constraint_2_{0}".format(m)
-                )
-            )
 
         # Objective function
-        objective = plp.lpSum(
-            f_vars[i, uv] * 1 / (a_remain_bandwidth[uv] + 0.000001) for i in set_i for uv in set_uv
-        )
-        objective += plp.lpSum(
-            x_vars[(w, m)] * remain_CPU_m[m] * 1 / (remain_CPU_w[w] + 0.000001) for w in set_w for m in set_m
-        )
+        opt_model += sum(edges_bandwidth[u][v] / (edges_bandwidth[u][v] + 0.000001) *
+                              sum(f_vars[i,u,v] for i in v_flow_id)
+                              for u in s_nodes_id for v in s_nodes_id) + \
+                     sum(nodes_CPU[w] / (nodes_CPU[w] + 0.000001) *
+                              sum(x_vars[m, w] * nodes_CPU[m]
+                              for m in meta_nodes_id) for w in s_nodes_id)
+
+        # Capacity constraint 1
+        for u in a_nodes_id:
+            for v in a_nodes_id:
+                opt_model += sum(f_vars[i,u,v] + f_vars[i,v,u] for i in v_flow_id) <= edges_bandwidth[u][v]
+
+        # Capacity constraint 2
+        for m in meta_nodes_id:
+            for w in s_nodes_id:
+                opt_model += nodes_CPU[w] >= x_vars[m, w] * nodes_CPU[m]
+
+        # Flow constraints 1
+        for i in v_flow_id:
+            for u in s_nodes_id:
+                opt_model += sum(f_vars[i,u,w] for w in a_nodes_id) - \
+                             sum(f_vars[i,w,u] for w in a_nodes_id) == 0
+
+        # Flow constraints 2
+        for i in v_flow_id:
+            for fs in v_flow_start:
+                opt_model += sum(f_vars[i,fs,w] for w in a_nodes_id) - \
+                             sum(f_vars[i,w,fs] for w in a_nodes_id) == v_flow_demand[i]
+
+        # Flow constraints 3
+        for i in v_flow_id:
+            for fe in v_flow_end:
+                opt_model += sum(f_vars[i,fe,w] for w in a_nodes_id) - \
+                             sum(f_vars[i,w,fe] for w in a_nodes_id) == -1 * v_flow_demand[i]
+
+        # Meta constraint 1
+        for w in s_nodes_id:
+            opt_model += sum(x_vars[m,w] for m in meta_nodes_id) <= 1
+
+        # Meta constraint 2
+        for u in a_nodes_id:
+            for v in a_nodes_id:
+                opt_model += x_vars[u,v] == x_vars[v,u]
+
         # for minimization
         # solve VNE_LP_RELAX
-        opt_model.sense = plp.LpMinimize
-        opt_model.setObjective(objective)
-        opt_model.solve()
+        # opt_model.solve(plp.GLPK_CMD(msg=1))
+        opt_model.solve(plp.PULP_CBC_CMD(msg=0))
+
+        # for v in opt_model.variables():
+        #     if v.varValue > 0:
+        #         print(v.name, "=", v.varValue)
 
         # make the DataFrame for f_vars and x_vars
         opt_lp_f_vars = pd.DataFrame.from_dict(f_vars, orient="index", columns=['variable_object'])
-        opt_lp_f_vars.index = pd.MultiIndex.from_tuples(opt_lp_f_vars.index, names=["i", "uv"])
+        opt_lp_f_vars.index = pd.MultiIndex.from_tuples(opt_lp_f_vars.index, names=["i", "u", "v"])
         opt_lp_f_vars.reset_index(inplace=True)
         opt_lp_f_vars["solution_value"] = opt_lp_f_vars["variable_object"].apply(lambda item: item.varValue)
         opt_lp_f_vars.drop(columns=["variable_object"], inplace=True)
 
         opt_lp_x_vars = pd.DataFrame.from_dict(x_vars, orient="index", columns=['variable_object'])
-        opt_lp_x_vars.index = pd.MultiIndex.from_tuples(opt_lp_x_vars.index, names=["w", "m"])
+        opt_lp_x_vars.index = pd.MultiIndex.from_tuples(opt_lp_x_vars.index, names=["u", "v"])
         opt_lp_x_vars.reset_index(inplace=True)
         opt_lp_x_vars["solution_value"] = opt_lp_x_vars["variable_object"].apply(lambda item: item.varValue)
         opt_lp_x_vars.drop(columns=["variable_object"], inplace=True)
