@@ -58,13 +58,13 @@ plt.figure(figsize=(20, 10))
 # ]
 
 agents = [
-    # DeterministicVNEAgent(logger),
-    RandomizedVNEAgent(logger)
+    DeterministicVNEAgent(logger),
+    # RandomizedVNEAgent(logger)
 ]
 
 agent_labels = [
-    # "D-ViNE",
-    "R-ViNE"
+    "D-ViNE",
+    # "R-ViNE"
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))

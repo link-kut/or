@@ -5,6 +5,8 @@ import copy
 import networkx as nx
 from networkx.algorithms.flow import shortest_augmenting_path
 import pulp as plp
+from collections import defaultdict
+
 import pandas as pd
 import sys
 
@@ -94,7 +96,9 @@ class DeterministicVNEAgent(BaselineVNEAgent):
                 sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
                                   (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
                     opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
-                                  (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values),
+                                  (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values) *
+                    opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
+                                  (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values,
                 default=None
             )
 
@@ -185,6 +189,8 @@ class DeterministicVNEAgent(BaselineVNEAgent):
         v_flow_start = []
         v_flow_end = []
         v_flow_demand = []
+        location_ids = defaultdict(list)
+        meta_nodes_location = {}
 
         for a_edge_src, a_edge_dst, a_edge_data in augmented_substrate.net.edges(data=True):
             edges_bandwidth[a_edge_src][a_edge_dst] = a_edge_data['bandwidth']
@@ -195,8 +201,10 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             nodes_CPU.append(a_node_data['CPU'])
             if a_node_id >= config.SUBSTRATE_NODES:
                 meta_nodes_id.append(a_node_id)
+                meta_nodes_location[a_node_id] = a_node_data['LOCATION']
             else:
                 s_nodes_id.append(a_node_id)
+                location_ids[a_node_data['LOCATION']].append(a_node_id)
 
         id_idx = 0
         for v_edge_src, v_edge_dst, v_edge_data in vnr.net.edges(data=True):
@@ -273,6 +281,10 @@ class DeterministicVNEAgent(BaselineVNEAgent):
         for u in a_nodes_id:
             for v in a_nodes_id:
                 opt_model += x_vars[u,v] == x_vars[v,u]
+
+        # Meta constraint 3
+        for m in meta_nodes_id:
+            opt_model += sum(x_vars[m,w] for w in location_ids[meta_nodes_location[m]]) == 1
 
         # for minimization
         # solve VNE_LP_RELAX
