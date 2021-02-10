@@ -10,3 +10,5 @@ operations research
 4. pip install slackclient
 
 5. pip install pytest
+
+6. pip install pulp
