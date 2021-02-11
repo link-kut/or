@@ -1,0 +1,115 @@
+from algorithms.a_baseline import BaselineVNEAgent
+from algorithms.d_deterministic_vine import DeterministicVNEAgent
+from common import utils
+from main import config
+import copy
+import networkx as nx
+from networkx.algorithms.flow import shortest_augmenting_path
+import pulp as plp
+import pandas as pd
+import numpy as np
+import sys
+
+import warnings
+warnings.filterwarnings(action='ignore')
+
+class RandomizedVNEAgent(DeterministicVNEAgent):
+    def __init__(self, logger):
+        super(RandomizedVNEAgent, self).__init__(logger)
+
+    def find_substrate_nodes(self, copied_substrate, vnr):
+        '''
+        Execute Step 1
+        :param copied_substrate: copied substrate network
+        :param vnr: virtual network request
+        :return: embedded substrate nodes
+        '''
+        subset_S_per_v_node = {}
+        embedding_s_nodes = {}
+        already_embedding_s_nodes = []
+
+        # Generate the augmented substrate network with location info.
+        augmented_substrate = copy.deepcopy(copied_substrate)
+        for v_node_id, v_node_data in vnr.net.nodes(data=True):
+            v_cpu_demand = v_node_data['CPU']
+            v_node_location = v_node_data['LOCATION']
+            # Meta node add
+            augmented_substrate.net.add_node(v_node_id + config.SUBSTRATE_NODES)
+            augmented_substrate.net.nodes[v_node_id + config.SUBSTRATE_NODES]['CPU'] = v_cpu_demand
+            augmented_substrate.net.nodes[v_node_id + config.SUBSTRATE_NODES]['LOCATION'] = v_node_location
+            # Meta edge add
+            for a_node_id, a_node_data, in augmented_substrate.net.nodes(data=True):
+                a_cpu_demand = a_node_data['CPU']
+                a_node_location = a_node_data['LOCATION']
+                if v_node_location == a_node_location and a_node_id < config.SUBSTRATE_NODES:
+                    augmented_substrate.net.add_edge(v_node_id + config.SUBSTRATE_NODES, a_node_id)
+                    augmented_substrate.net.edges[v_node_id + config.SUBSTRATE_NODES, a_node_id].update({'bandwidth': 1000000})
+
+        opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(augmented_substrate, vnr)
+
+        for v_node_id, v_node_data in vnr.net.nodes(data=True):
+            v_cpu_demand = v_node_data['CPU']
+            v_node_location = v_node_data['LOCATION']
+
+            # Find the subset S of substrate nodes that satisfy restrictions and
+            # available CPU capacity (larger than that specified by the request.)
+            subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
+                copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
+            )
+
+            # selected_s_node_id = max(
+            #     subset_S_per_v_node[v_node_id],
+            #     key=lambda s_node_id:
+            #         sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
+            #                           (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
+            #             opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+            #                           (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values
+            #             ) *
+            #         opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
+            #                       (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values,
+            #     default=None
+            # )
+
+            # for calculating p_value
+            selected_s_node_p_value = []
+            candidate_s_node_id = []
+            for s_node_id in subset_S_per_v_node[v_node_id]:
+                candidate_s_node_id.append(s_node_id)
+                selected_s_node_p_value.append(
+                    sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
+                                  (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
+                    opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+                                  (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values))
+
+            # Calculate the probability
+            # scipy softmax 추가하여 이용하기
+            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.softmax.html
+            total_p_value = sum(selected_s_node_p_value)
+            if total_p_value == 0:
+                self.num_node_embedding_fails += 1
+                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                    self.num_node_embedding_fails, v_cpu_demand, vnr
+                )
+                self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                return None
+            else:
+                probability = selected_s_node_p_value / total_p_value
+                selected_s_node_id = np.random.choice(candidate_s_node_id, p=probability)
+
+            if selected_s_node_id is None:
+                self.num_node_embedding_fails += 1
+                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                    self.num_node_embedding_fails, v_cpu_demand, vnr
+                )
+                self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                return None
+
+            assert selected_s_node_id != -1
+            embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
+            if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+                already_embedding_s_nodes.append(selected_s_node_id)
+
+            assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
+            copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
+
+        return embedding_s_nodes

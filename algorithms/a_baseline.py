@@ -38,13 +38,20 @@ class BaselineVNEAgent:
         :return:
         '''
 
-        if config.ALLOW_LOCATION == False:
-            subset_S = (s_node_id for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True)
-                        if s_cpu_capacity['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes)
+        if config.LOCATION_CONSTRAINT:
+            subset_S = (
+                s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
+                if s_node_data['CPU'] >= v_cpu_demand and
+                   s_node_id not in already_embedding_s_nodes and
+                   s_node_data['LOCATION'] == v_node_location
+            )
         else:
-            subset_S = (s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
-                        if s_node_data['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes and
-                        s_node_data['LOCATION'] == v_node_location)
+            subset_S = (
+                s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
+                if s_node_data['CPU'] >= v_cpu_demand and
+                   s_node_id not in already_embedding_s_nodes
+            )
+
         # subset_S = []
         # for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True):
         #     if s_cpu_capacity['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes:

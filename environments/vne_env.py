@@ -2,7 +2,7 @@ import gym
 import networkx as nx
 from random import randint, expovariate
 
-from algorithms.baseline import Action
+from algorithms.a_baseline import Action
 from common import utils
 from main import config
 

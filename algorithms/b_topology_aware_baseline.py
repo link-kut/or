@@ -1,4 +1,4 @@
-from algorithms.baseline import BaselineVNEAgent
+from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
 from main import config
 

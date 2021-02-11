@@ -1,40 +1,52 @@
-from algorithms.baseline import BaselineVNEAgent
+import math
+
+from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
 from main import config
 import copy
 import networkx as nx
 from networkx.algorithms.flow import shortest_augmenting_path
 import pulp as plp
+from collections import defaultdict
+
 import pandas as pd
-import numpy as np
 import sys
 
 import warnings
+
 warnings.filterwarnings(action='ignore')
 
-class RandomizedVNEAgent(BaselineVNEAgent):
+
+class DeterministicVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
-        super(RandomizedVNEAgent, self).__init__(logger)
+        super(DeterministicVNEAgent, self).__init__(logger)
 
-    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
-        '''
-        find the subset S of the substrate nodes that satisfy restrictions and available CPU capacity
-        :param substrate: substrate network
-        :param v_cpu_demand: cpu demand of the given virtual node
-        :return:
-        '''
+    @staticmethod
+    def change_to_augmented_substrate(copied_substrate, vnr):
+        for v_node_id, v_node_data in vnr.net.nodes(data=True):
+            v_cpu_demand = v_node_data['CPU']
+            v_node_location = v_node_data['LOCATION']
 
-        subset_S = (s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
-                    if s_node_data['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes and s_node_data['LOCATION'] == v_node_location)
+            # Meta node add
+            meta_node_id = v_node_id + config.SUBSTRATE_NODES
+            copied_substrate.net.add_node(meta_node_id)
+            copied_substrate.net.nodes[meta_node_id]['CPU'] = v_cpu_demand
+            copied_substrate.net.nodes[meta_node_id]['LOCATION'] = v_node_location
 
-        # subset_S = []
-        # for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True):
-        #     if s_cpu_capacity['CPU'] >= v_cpu_demand and \
-        #             s_node_id not in already_embedding_s_nodes and \
-        #             s_cpu_capacity['LOCATION'] == v_node_location:
-        #         subset_S.append(s_node_id)
+            # Meta edge add
+            for a_node_id, a_node_data, in copied_substrate.net.nodes(data=True):
+                a_cpu_demand = a_node_data['CPU']
+                a_node_location = a_node_data['LOCATION']
+                if v_node_location == a_node_location and a_node_id < config.SUBSTRATE_NODES:
+                    copied_substrate.net.add_edge(meta_node_id, a_node_id)
+                    copied_substrate.net.edges[meta_node_id, a_node_id].update({'bandwidth': math.inf})
 
-        return subset_S
+    @staticmethod
+    def revoke_from_augmented_substrate(augmented_substrate, vnr):
+        for v_node_id, v_node_data in vnr.net.nodes(data=True):
+            # Meta node add
+            meta_node_id = v_node_id + config.SUBSTRATE_NODES
+            augmented_substrate.net.remove_node(meta_node_id)
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -48,23 +60,12 @@ class RandomizedVNEAgent(BaselineVNEAgent):
         already_embedding_s_nodes = []
 
         # Generate the augmented substrate network with location info.
-        augmented_substrate = copy.deepcopy(copied_substrate)
-        for v_node_id, v_node_data in vnr.net.nodes(data=True):
-            v_cpu_demand = v_node_data['CPU']
-            v_node_location = v_node_data['LOCATION']
-            # Meta node add
-            augmented_substrate.net.add_node(v_node_id + config.SUBSTRATE_NODES)
-            augmented_substrate.net.nodes[v_node_id + config.SUBSTRATE_NODES]['CPU'] = v_cpu_demand
-            augmented_substrate.net.nodes[v_node_id + config.SUBSTRATE_NODES]['LOCATION'] = v_node_location
-            # Meta edge add
-            for a_node_id, a_node_data, in augmented_substrate.net.nodes(data=True):
-                a_cpu_demand = a_node_data['CPU']
-                a_node_location = a_node_data['LOCATION']
-                if v_node_location == a_node_location and a_node_id < config.SUBSTRATE_NODES:
-                    augmented_substrate.net.add_edge(v_node_id + config.SUBSTRATE_NODES, a_node_id)
-                    augmented_substrate.net.edges[v_node_id + config.SUBSTRATE_NODES, a_node_id].update({'bandwidth': 1000000})
+        self.change_to_augmented_substrate(copied_substrate, vnr)
 
-        opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(augmented_substrate, vnr)
+        opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(copied_substrate, vnr)
+
+        print(opt_lp_f_vars[(opt_lp_f_vars['u'] == 0) &
+                                      (opt_lp_f_vars['v'] == 0)]['solution_value'].values)
 
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             v_cpu_demand = v_node_data['CPU']
@@ -76,42 +77,25 @@ class RandomizedVNEAgent(BaselineVNEAgent):
                 copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
             )
 
-            # selected_s_node_id = max(
-            #     subset_S_per_v_node[v_node_id],
-            #     key=lambda s_node_id:
-            #         sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
-            #                           (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
-            #             opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
-            #                           (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values
-            #             ) *
-            #         opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
-            #                       (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values,
-            #     default=None
-            # )
+            meta_node_id = v_node_id + config.SUBSTRATE_NODES
+            selected_s_node_id = max(
+                subset_S_per_v_node[v_node_id],
+                key=lambda s_node_id:
+                    # TODO
+                    # flow id 추가하기
+                    sum(
+                        opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
+                                      (opt_lp_f_vars['v'] == meta_node_id)]['solution_value'].values +
+                        opt_lp_f_vars[(opt_lp_f_vars['u'] == meta_node_id) &
+                                      (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values
+                    ) *
+                    opt_lp_x_vars[
+                        (opt_lp_x_vars['u'] == s_node_id) and (opt_lp_x_vars['v'] == meta_node_id)
+                    ]['solution_value'].values,
 
-            # for calculating p_value
-            selected_s_node_p_value = []
-            candidate_s_node_id = []
-            for s_node_id in subset_S_per_v_node[v_node_id]:
-                candidate_s_node_id.append(s_node_id)
-                selected_s_node_p_value.append(
-                    sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
-                                  (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
-                    opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
-                                  (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values))
-
-            # Calculate the probability
-            total_p_value = sum(selected_s_node_p_value)
-            if total_p_value == 0:
-                self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
-                    self.num_node_embedding_fails, v_cpu_demand, vnr
-                )
-                self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-                return None
-            else:
-                probability = selected_s_node_p_value / total_p_value
-                selected_s_node_id = np.random.choice(candidate_s_node_id, p=probability)
+                # [0] 추가 필요 다시 확인
+                default=None
+            )
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
@@ -128,6 +112,9 @@ class RandomizedVNEAgent(BaselineVNEAgent):
 
             assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
+
+        # Revoke the augmented substrate network and change to the original substrate
+        self.revoke_from_augmented_substrate(copied_substrate, vnr)
 
         return embedding_s_nodes
 
@@ -168,6 +155,7 @@ class RandomizedVNEAgent(BaselineVNEAgent):
                 MAX_K = 1
 
                 # shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
+                # https://networkx.org/documentation/stable//reference/algorithms/generated/networkx.algorithms.flow.shortest_augmenting_path.html
                 residual_network = shortest_augmenting_path(directed_copied_substrate, src_s_node, dst_s_node,
                                                             capacity='bandwidth',
                                                             cutoff=v_bandwidth_demand)
@@ -200,6 +188,8 @@ class RandomizedVNEAgent(BaselineVNEAgent):
         v_flow_start = []
         v_flow_end = []
         v_flow_demand = []
+        location_ids = defaultdict(list)
+        meta_nodes_location = {}
 
         for a_edge_src, a_edge_dst, a_edge_data in augmented_substrate.net.edges(data=True):
             edges_bandwidth[a_edge_src][a_edge_dst] = a_edge_data['bandwidth']
@@ -210,8 +200,10 @@ class RandomizedVNEAgent(BaselineVNEAgent):
             nodes_CPU.append(a_node_data['CPU'])
             if a_node_id >= config.SUBSTRATE_NODES:
                 meta_nodes_id.append(a_node_id)
+                meta_nodes_location[a_node_id] = a_node_data['LOCATION']
             else:
                 s_nodes_id.append(a_node_id)
+                location_ids[a_node_data['LOCATION']].append(a_node_id)
 
         id_idx = 0
         for v_edge_src, v_edge_dst, v_edge_data in vnr.net.edges(data=True):
@@ -222,8 +214,7 @@ class RandomizedVNEAgent(BaselineVNEAgent):
             id_idx += 1
 
         # f_vars
-        f_vars = {
-            (i, u, v): plp.LpVariable(
+        f_vars = {(i,u,v): plp.LpVariable(
                 cat=plp.LpContinuous,
                 lowBound=0,
                 name="f_{0}_{1}_{2}".format(i, u, v)
@@ -232,8 +223,7 @@ class RandomizedVNEAgent(BaselineVNEAgent):
         }
 
         # x_vars
-        x_vars = {(u, v):
-            plp.LpVariable(
+        x_vars = {(u,v): plp.LpVariable(
                 cat=plp.LpContinuous,
                 lowBound=0, upBound=1,
                 name="x_{0}_{1}".format(u, v)
@@ -288,10 +278,14 @@ class RandomizedVNEAgent(BaselineVNEAgent):
             for v in a_nodes_id:
                 opt_model += x_vars[u, v] == x_vars[v, u]
 
+        # Meta constraint 3
+        for m in meta_nodes_id:
+            opt_model += sum(x_vars[m, w] for w in location_ids[meta_nodes_location[m]]) == 1
+
         # for minimization
         # solve VNE_LP_RELAX
-        # opt_model.solve(plp.GLPK_CMD(msg=1))
-        opt_model.solve(plp.PULP_CBC_CMD(msg=0))
+        opt_model.solve(plp.PULP_CBC_CMD(msg=1))
+        # opt_model.solve()
 
         # for v in opt_model.variables():
         #     if v.varValue > 0:

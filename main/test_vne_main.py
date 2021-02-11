@@ -23,11 +23,11 @@ from common import utils
 from main import config
 from common.logger import get_logger
 from environments.vne_env import VNEEnvironment
-from algorithms.baseline import BaselineVNEAgent
-from algorithms.topology_aware_baseline import TopologyAwareBaselineVNEAgent
-from algorithms.extended_baseline import ExtendedBaselineVNEAgent
-from algorithms.deterministic_vine import DeterministicVNEAgent
-from algorithms.randomized_vine import RandomizedVNEAgent
+from algorithms.a_baseline import BaselineVNEAgent
+from algorithms.b_topology_aware_baseline import TopologyAwareBaselineVNEAgent
+from algorithms.c_ego_network_baseline import ExtendedBaselineVNEAgent
+from algorithms.d_deterministic_vine import DeterministicVNEAgent
+from algorithms.e_randomized_vine import RandomizedVNEAgent
 
 PROJECT_HOME = os.getcwd()[:-5]
 graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
