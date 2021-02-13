@@ -1,5 +1,3 @@
-import math
-
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
 from main import config
@@ -39,14 +37,14 @@ class DeterministicVNEAgent(BaselineVNEAgent):
                 a_node_location = a_node_data['LOCATION']
                 if v_node_location == a_node_location and a_node_id < config.SUBSTRATE_NODES:
                     copied_substrate.net.add_edge(meta_node_id, a_node_id)
-                    copied_substrate.net.edges[meta_node_id, a_node_id].update({'bandwidth': math.inf})
+                    copied_substrate.net.edges[meta_node_id, a_node_id].update({'bandwidth': 1000000})
 
     @staticmethod
-    def revoke_from_augmented_substrate(augmented_substrate, vnr):
+    def revoke_from_augmented_substrate(copied_substrate, vnr):
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             # Meta node add
             meta_node_id = v_node_id + config.SUBSTRATE_NODES
-            augmented_substrate.net.remove_node(meta_node_id)
+            copied_substrate.net.remove_node(meta_node_id)
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -65,7 +63,9 @@ class DeterministicVNEAgent(BaselineVNEAgent):
         opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(copied_substrate, vnr)
 
         print(opt_lp_f_vars[(opt_lp_f_vars['u'] == 0) &
-                                      (opt_lp_f_vars['v'] == 0)]['solution_value'].values)
+                                  (opt_lp_f_vars['v'] == 20)]['solution_value'].values +
+                    opt_lp_f_vars[(opt_lp_f_vars['u'] == 20) &
+                                  (opt_lp_f_vars['v'] == 0)]['solution_value'].values)
 
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             v_cpu_demand = v_node_data['CPU']
@@ -77,23 +77,28 @@ class DeterministicVNEAgent(BaselineVNEAgent):
                 copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
             )
 
-            meta_node_id = v_node_id + config.SUBSTRATE_NODES
+            # selected_s_node_id = max(
+            #     subset_S_per_v_node[v_node_id],
+            #     key=lambda s_node_id:
+            #         sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
+            #                           (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
+            #             opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+            #                           (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values
+            #             ) *
+            #         opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
+            #                       (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values,
+            #     default=None
+            # )
+
             selected_s_node_id = max(
                 subset_S_per_v_node[v_node_id],
                 key=lambda s_node_id:
-                    # TODO
-                    # flow id 추가하기
-                    sum(
-                        opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
-                                      (opt_lp_f_vars['v'] == meta_node_id)]['solution_value'].values +
-                        opt_lp_f_vars[(opt_lp_f_vars['u'] == meta_node_id) &
-                                      (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values
-                    ) *
-                    opt_lp_x_vars[
-                        (opt_lp_x_vars['u'] == s_node_id) and (opt_lp_x_vars['v'] == meta_node_id)
-                    ]['solution_value'].values,
-
-                # [0] 추가 필요 다시 확인
+                sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
+                                  (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
+                    opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+                                  (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values) *
+                    opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
+                                  (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values[0],
                 default=None
             )
 
@@ -103,6 +108,7 @@ class DeterministicVNEAgent(BaselineVNEAgent):
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                self.revoke_from_augmented_substrate(copied_substrate, vnr)
                 return None
 
             assert selected_s_node_id != -1
@@ -113,7 +119,6 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
 
-        # Revoke the augmented substrate network and change to the original substrate
         self.revoke_from_augmented_substrate(copied_substrate, vnr)
 
         return embedding_s_nodes
@@ -214,7 +219,8 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             id_idx += 1
 
         # f_vars
-        f_vars = {(i,u,v): plp.LpVariable(
+        f_vars = {
+            (i, u, v): plp.LpVariable(
                 cat=plp.LpContinuous,
                 lowBound=0,
                 name="f_{0}_{1}_{2}".format(i, u, v)
@@ -223,7 +229,8 @@ class DeterministicVNEAgent(BaselineVNEAgent):
         }
 
         # x_vars
-        x_vars = {(u,v): plp.LpVariable(
+        x_vars = {(u, v):
+            plp.LpVariable(
                 cat=plp.LpContinuous,
                 lowBound=0, upBound=1,
                 name="x_{0}_{1}".format(u, v)
@@ -284,8 +291,7 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
         # for minimization
         # solve VNE_LP_RELAX
-        opt_model.solve(plp.PULP_CBC_CMD(msg=1))
-        # opt_model.solve()
+        opt_model.solve(plp.PULP_CBC_CMD(msg=0))
 
         # for v in opt_model.variables():
         #     if v.varValue > 0:

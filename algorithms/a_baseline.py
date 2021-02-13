@@ -43,13 +43,15 @@ class BaselineVNEAgent:
                 s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
                 if s_node_data['CPU'] >= v_cpu_demand and
                    s_node_id not in already_embedding_s_nodes and
-                   s_node_data['LOCATION'] == v_node_location
+                   s_node_data['LOCATION'] == v_node_location and
+                   s_node_id < config.SUBSTRATE_NODES
             )
         else:
             subset_S = (
                 s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
                 if s_node_data['CPU'] >= v_cpu_demand and
-                   s_node_id not in already_embedding_s_nodes
+                   s_node_id not in already_embedding_s_nodes and
+                   s_node_id < config.SUBSTRATE_NODES
             )
 
         # subset_S = []

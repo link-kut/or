@@ -9,6 +9,7 @@ import pulp as plp
 import pandas as pd
 import numpy as np
 import sys
+from scipy.special import softmax
 
 import warnings
 warnings.filterwarnings(action='ignore')
@@ -16,6 +17,27 @@ warnings.filterwarnings(action='ignore')
 class RandomizedVNEAgent(DeterministicVNEAgent):
     def __init__(self, logger):
         super(RandomizedVNEAgent, self).__init__(logger)
+
+    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
+        '''
+        find the subset S of the substrate nodes that satisfy restrictions and available CPU capacity
+        :param substrate: substrate network
+        :param v_cpu_demand: cpu demand of the given virtual node
+        :return:
+        '''
+
+        # subset_S = (s_node_id for s_node_id, s_cpu_capacity in copied_substrate.nodes(data=True)
+        #             if s_cpu_capacity['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes)
+
+        subset_S = []
+        for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True):
+            if s_cpu_capacity['CPU'] >= v_cpu_demand and \
+                    s_node_id not in already_embedding_s_nodes and \
+                    s_cpu_capacity['LOCATION'] == v_node_location and \
+                    s_node_id < config.SUBSTRATE_NODES:
+                subset_S.append(s_node_id)
+
+        return subset_S
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -29,23 +51,9 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
         already_embedding_s_nodes = []
 
         # Generate the augmented substrate network with location info.
-        augmented_substrate = copy.deepcopy(copied_substrate)
-        for v_node_id, v_node_data in vnr.net.nodes(data=True):
-            v_cpu_demand = v_node_data['CPU']
-            v_node_location = v_node_data['LOCATION']
-            # Meta node add
-            augmented_substrate.net.add_node(v_node_id + config.SUBSTRATE_NODES)
-            augmented_substrate.net.nodes[v_node_id + config.SUBSTRATE_NODES]['CPU'] = v_cpu_demand
-            augmented_substrate.net.nodes[v_node_id + config.SUBSTRATE_NODES]['LOCATION'] = v_node_location
-            # Meta edge add
-            for a_node_id, a_node_data, in augmented_substrate.net.nodes(data=True):
-                a_cpu_demand = a_node_data['CPU']
-                a_node_location = a_node_data['LOCATION']
-                if v_node_location == a_node_location and a_node_id < config.SUBSTRATE_NODES:
-                    augmented_substrate.net.add_edge(v_node_id + config.SUBSTRATE_NODES, a_node_id)
-                    augmented_substrate.net.edges[v_node_id + config.SUBSTRATE_NODES, a_node_id].update({'bandwidth': 1000000})
+        self.change_to_augmented_substrate(copied_substrate, vnr)
 
-        opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(augmented_substrate, vnr)
+        opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(copied_substrate, vnr)
 
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             v_cpu_demand = v_node_data['CPU']
@@ -76,10 +84,12 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
             for s_node_id in subset_S_per_v_node[v_node_id]:
                 candidate_s_node_id.append(s_node_id)
                 selected_s_node_p_value.append(
-                    sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
-                                  (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
-                    opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
-                                  (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values))
+                    sum(opt_lp_f_vars[
+                            (opt_lp_f_vars['u'] == s_node_id) &
+                            (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
+                        opt_lp_f_vars[
+                            (opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+                            (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values))
 
             # Calculate the probability
             # scipy softmax 추가하여 이용하기
@@ -91,9 +101,10 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                self.revoke_from_augmented_substrate(copied_substrate, vnr)
                 return None
             else:
-                probability = selected_s_node_p_value / total_p_value
+                probability = softmax(selected_s_node_p_value)
                 selected_s_node_id = np.random.choice(candidate_s_node_id, p=probability)
 
             if selected_s_node_id is None:
@@ -102,6 +113,7 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                self.revoke_from_augmented_substrate(copied_substrate, vnr)
                 return None
 
             assert selected_s_node_id != -1
@@ -112,4 +124,5 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
             assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
 
+        self.revoke_from_augmented_substrate(copied_substrate, vnr)
         return embedding_s_nodes
