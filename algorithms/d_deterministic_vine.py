@@ -62,11 +62,6 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
         opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(copied_substrate, vnr)
 
-        print(opt_lp_f_vars[(opt_lp_f_vars['u'] == 0) &
-                                  (opt_lp_f_vars['v'] == 20)]['solution_value'].values +
-                    opt_lp_f_vars[(opt_lp_f_vars['u'] == 20) &
-                                  (opt_lp_f_vars['v'] == 0)]['solution_value'].values)
-
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             v_cpu_demand = v_node_data['CPU']
             v_node_location = v_node_data['LOCATION']
