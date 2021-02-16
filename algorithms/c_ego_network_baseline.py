@@ -22,9 +22,9 @@ class Action:
 
         return action_str
 
-class ExtendedBaselineVNEAgent(BaselineVNEAgent):
+class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
-        super(ExtendedBaselineVNEAgent, self).__init__(logger)
+        super(EgoNetworkBasedVNEAgent, self).__init__(logger)
         self.beta = beta
 
     def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):

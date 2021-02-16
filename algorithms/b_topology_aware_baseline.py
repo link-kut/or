@@ -13,7 +13,7 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
         Execute Step 1
         :param copied_substrate: copied substrate network
         :param vnr: virtual network request
-        :return: embedded substrate nodes
+        :return: embedded substrate nodesƒ
         '''
         subset_S_per_v_node = {}
         embedding_s_nodes = {}
