@@ -25,9 +25,10 @@ from common.logger import get_logger
 from environments.vne_env import VNEEnvironment
 from algorithms.a_baseline import BaselineVNEAgent
 from algorithms.b_topology_aware_baseline import TopologyAwareBaselineVNEAgent
-from algorithms.c_ego_network_baseline import ExtendedBaselineVNEAgent
+from algorithms.c_ego_network_baseline import EgoNetworkBasedVNEAgent
 from algorithms.d_deterministic_vine import DeterministicVNEAgent
 from algorithms.e_randomized_vine import RandomizedVNEAgent
+from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
 
 PROJECT_HOME = os.getcwd()[:-5]
 graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
@@ -58,12 +59,14 @@ plt.figure(figsize=(20, 10))
 # ]
 
 agents = [
-    DeterministicVNEAgent(logger),
+    # DeterministicVNEAgent(logger),
     # RandomizedVNEAgent(logger)
+    A3CGraphCNVNEAgent(0.3, logger)
 ]
 
 agent_labels = [
-    "D-ViNE",
+    "A3C-GCN",
+    # "D-ViNE"
     # "R-ViNE"
 ]
 
