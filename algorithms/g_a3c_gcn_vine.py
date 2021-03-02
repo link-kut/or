@@ -3,9 +3,11 @@ from common import utils
 from main import config
 
 import copy
-# import torch
+import torch
 # from torch.nn import Linear
 # from torch_geometric.nn import GCNConv
+from torch_geometric.data import Data
+from torch_geometric.utils import from_networkx
 
 
 class Action:
@@ -107,6 +109,9 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         print("S_BW_Free: ", s_bandwidth_remaining)
         print("Current_Embedding: ", current_embedding)
 
+        # GCN for Feature Extract
+        # data = from_networkx(copied_substrate.net)
+
         vnr_length_index = 0
         for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
@@ -116,6 +121,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             print("V_CPU_Request: ", v_cpu_demand)
             print("V_BW_Request: ", v_bandwidth_demand)
             print("Pending_V_Nodes: ", pending_nodes)
+            print("\n")
 
             # Find the subset S of substrate nodes that satisfy restrictions and
             # available CPU capacity (larger than that specified by the request.)
