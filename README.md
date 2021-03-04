@@ -12,3 +12,14 @@ operations research
 5. pip install pytest
 
 6. pip install pulp
+
+7. PyTorch
+  - Usually, run "pip install torch torchvision torchaudio"
+  - For details. refer to https://pytorch.org/
+  
+8. PyTorch Geometric (for pytorch 1.7.0, 1.7.1, ...)
+  - pip install --no-index torch-scatter -f https://pytorch-geometric.com/whl/torch-1.7.0+cpu.html
+  - pip install --no-index torch-sparse -f https://pytorch-geometric.com/whl/torch-1.7.0+cpu.html
+  - pip install --no-index torch-cluster -f https://pytorch-geometric.com/whl/torch-1.7.0+cpu.html
+  - pip install --no-index torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.7.0+cpu.html
+  - pip install torch-geometric

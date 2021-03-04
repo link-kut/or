@@ -3,7 +3,6 @@ from common import utils
 from main import config
 
 
-
 class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
         super(TopologyAwareBaselineVNEAgent, self).__init__(logger)
