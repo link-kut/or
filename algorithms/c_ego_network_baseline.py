@@ -172,12 +172,12 @@ class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
     #     #####################################
     #     # step 1 - Greedy Node Mapping      #
     #     #####################################
-    #     sorted_vnrs_and_node_embedding = self.greedy_node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
+    #     sorted_vnrs_and_node_embedding = self.node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
     #
     #     #####################################
     #     # step 2 - Link Mapping             #
     #     #####################################
-    #     self.greedy_link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
+    #     self.link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
     #
     #     assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
     #

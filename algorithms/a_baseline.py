@@ -190,7 +190,7 @@ class BaselineVNEAgent:
 
         return s_cpu_capacity * total_node_bandwidth
 
-    def greedy_node_mapping(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
+    def node_mapping(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
         # Sort the requests according to their revenues
         sorted_vnrs = sorted(
             VNRs_COLLECTED.values(), key=lambda vnr: vnr.revenue, reverse=True
@@ -209,7 +209,7 @@ class BaselineVNEAgent:
 
         return sorted_vnrs_and_node_embedding
 
-    def greedy_link_mapping(self, sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action):
+    def link_mapping(self, sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action):
         for vnr, embedding_s_nodes in sorted_vnrs_and_node_embedding:
             embedding_s_paths = self.find_substrate_path(COPIED_SUBSTRATE, vnr, embedding_s_nodes)
 
@@ -237,12 +237,12 @@ class BaselineVNEAgent:
         #####################################
         # step 1 - Greedy Node Mapping      #
         #####################################
-        sorted_vnrs_and_node_embedding = self.greedy_node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
+        sorted_vnrs_and_node_embedding = self.node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
 
         #####################################
         # step 2 - Link Mapping             #
         #####################################
-        self.greedy_link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
+        self.link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
 
         assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
 
