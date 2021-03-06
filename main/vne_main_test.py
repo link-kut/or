@@ -9,6 +9,7 @@ import warnings
 from matplotlib import MatplotlibDeprecationWarning
 import datetime
 
+from algorithms.h_ga_baseline import GABaselineVNEAgent
 from main.config import HOST
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -42,8 +43,8 @@ if not os.path.exists(log_save_path):
 else:
     shutil.rmtree(log_save_path)
 
-logger = get_logger("vne")
-
+logger = get_logger("vne_main_test")
+logger.info("!!!!!!!!!!!!!!!!11")
 plt.figure(figsize=(20, 10))
 
 # agents = [
@@ -61,13 +62,15 @@ plt.figure(figsize=(20, 10))
 agents = [
     # DeterministicVNEAgent(logger),
     # RandomizedVNEAgent(logger)
-    A3CGraphCNVNEAgent(0.3, logger)
+    # A3CGraphCNVNEAgent(0.3, logger)
+    GABaselineVNEAgent(logger)
 ]
 
 agent_labels = [
-    "A3C-GCN",
     # "D-ViNE"
     # "R-ViNE"
+    # "A3C-GCN",
+    "GA"
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))

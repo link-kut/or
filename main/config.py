@@ -25,7 +25,7 @@ NUM_RUNS = 1
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
 GLOBAL_MAX_STEPS = 5600
 
-TIME_WINDOW_SIZE = 10
+TIME_WINDOW_SIZE = 1
 
 # 0.002: Each VN has an exponentially distributed duration with an average of 500 time units
 VNR_DURATION_MEAN_RATE = 0.002

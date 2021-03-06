@@ -14,7 +14,7 @@ operations research
 6. pip install pulp
 
 7. PyTorch
-  - If you don't have GPU and CUDA, just run "pip install torch torchvision torchaudio"
+  - If you don't have GPU and CUDA, just run "pip install torch==1.7.1 torchvision torchaudio"
   - For details. refer to https://pytorch.org/
   
 8. PyTorch Geometric (for pytorch 1.7.0, 1.7.1, ...)
