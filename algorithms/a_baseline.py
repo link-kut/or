@@ -142,8 +142,7 @@ class BaselineVNEAgent:
             v_bandwidth_demand = edge_data['bandwidth']
 
             if src_s_node == dst_s_node:
-                s_links_in_path = []
-                embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
+                embedding_s_paths[v_link] = ([], v_bandwidth_demand)
             else:
                 subnet = nx.subgraph_view(
                     copied_substrate.net,
@@ -166,6 +165,14 @@ class BaselineVNEAgent:
                 MAX_K = 1
 
                 shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
+
+                # if hasattr(config, "MAX_EMBEDDING_PATH_LENGTH") and len(shortest_s_path) - 1 > config.MAX_EMBEDDING_PATH_LENGTH:
+                #     self.num_link_embedding_fails += 1
+                #     msg = "VNR REJECTED ({0}): 'Suitable LINK for bandwidth demand, however the path length {1} is higher than {2}".format(
+                #         self.num_link_embedding_fails, len(shortest_s_path) - 1, config.MAX_EMBEDDING_PATH_LENGTH
+                #     )
+                #     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                #     return None
 
                 s_links_in_path = []
                 for node_idx in range(len(shortest_s_path) - 1):

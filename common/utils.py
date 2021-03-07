@@ -55,6 +55,21 @@ def get_cost_VNR(vnr, embedding_s_paths):
     return cost
 
 
+def get_distance_factor_VNR(embedding_s_paths, copied_substrate):
+    return 0.0
+
+
+def get_attraction_strength_VNR(embedding_s_paths, copied_substrate):
+    return 0.0
+
+
+def get_total_hop_count_VNR(embedding_s_paths):
+    total_hop_count = 0
+    for _, (s_links_in_path, _) in embedding_s_paths.items():
+        total_hop_count += len(s_links_in_path)
+    return total_hop_count
+
+
 def k_shortest_paths(G, source, target, k, weight=None):
     return list(
         islice(nx.shortest_simple_paths(G, source, target, weight=weight), k)

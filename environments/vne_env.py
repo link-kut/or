@@ -9,7 +9,10 @@ from main import config
 
 class Substrate:
     def __init__(self):
-        self.net = nx.gnm_random_graph(n=config.SUBSTRATE_NODES, m=config.SUBSTRATE_LINKS)
+        all_connected = False
+        while not all_connected:
+            self.net = nx.gnm_random_graph(n=config.SUBSTRATE_NODES, m=config.SUBSTRATE_LINKS)
+            all_connected = nx.is_connected(self.net)
 
         self.initial_total_cpu_capacity = 0
         self.initial_total_bandwidth_capacity = 0
@@ -72,7 +75,10 @@ class VNR:
 
         self.num_nodes = randint(config.VNR_NODES_MIN, config.VNR_NODES_MAX)
 
-        self.net = nx.gnp_random_graph(n=self.num_nodes, p=config.VNR_LINK_PROBABILITY, directed=True)
+        all_connected = False
+        while not all_connected:
+            self.net = nx.gnp_random_graph(n=self.num_nodes, p=config.VNR_LINK_PROBABILITY, directed=True)
+            all_connected = nx.is_weakly_connected(self.net)
 
         self.num_of_edges = len(self.net.edges)
         self.num_of_edges_complete_graph = int(self.num_nodes * (self.num_nodes - 1) / 2)
@@ -183,7 +189,12 @@ class VNEEnvironment(gym.Env):
 
             self.VNRs_INFO[vnr.id] = vnr
             vnr_id += 1
-        msg = "TOTAL NUMBER OF VNRs: {0}\n".format(len(self.VNRs_INFO))
+
+        msg = "TOTAL NUMBER of SUBSTRATE nodes: {0}\n".format(len(self.SUBSTRATE.net.nodes()))
+        msg += "TOTAL NUMBER of SUBSTRATE edges: {0}\n".format(len(self.SUBSTRATE.net.edges()))
+        msg += "DIAMETER of SUBSTRATE: {0}\n".format(nx.diameter(self.SUBSTRATE.net))
+        msg += "TOTAL NUMBER of VNRs: {0}\n".format(len(self.VNRs_INFO))
+
         if self.logger:
             self.logger.info(msg)
         print(msg)

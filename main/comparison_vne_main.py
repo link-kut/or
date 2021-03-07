@@ -1,71 +1,23 @@
-import copy
-import shutil
-import time
-import matplotlib.pyplot as plt
-import os, sys
-import glob
-import numpy as np
-import pandas as pd
-import warnings
-from matplotlib import MatplotlibDeprecationWarning
-import datetime
-
-from algorithms.c_ego_network_baseline import EgoNetworkBasedVNEAgent
-from main.config import HOST
-
-warnings.filterwarnings("ignore", category=FutureWarning)
-warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
-
-current_path = os.path.dirname(os.path.realpath(__file__))
-PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
-if PROJECT_HOME not in sys.path:
-    sys.path.append(PROJECT_HOME)
-
-from common import utils
-from main import config
-from common.logger import get_logger
-from environments.vne_env import VNEEnvironment
-from algorithms.a_baseline import BaselineVNEAgent
-from algorithms.b_topology_aware_baseline import TopologyAwareBaselineVNEAgent
-from algorithms.d_deterministic_vine import DeterministicVNEAgent
-from algorithms.e_randomized_vine import RandomizedVNEAgent
-
-PROJECT_HOME = os.getcwd()[:-5]
-graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
-log_save_path = os.path.join(PROJECT_HOME, "out", "logs")
-csv_save_path = os.path.join(PROJECT_HOME, "out", "parameters")
-
-if not os.path.exists(graph_save_path):
-    os.makedirs(graph_save_path)
-
-if not os.path.exists(log_save_path):
-    os.makedirs(log_save_path)
-else:
-    shutil.rmtree(log_save_path)
-
-if not os.path.exists(csv_save_path):
-    os.makedirs(csv_save_path)
-
-logger = get_logger("vne")
-
-plt.figure(figsize=(20, 10))
+from main.common_main import *
 
 agents = [
     BaselineVNEAgent(logger),
-    TopologyAwareBaselineVNEAgent(0.3, logger),
-    # EgoNetworkBasedVNEAgent(0.9, logger),
-    EgoNetworkBasedVNEAgent(0.3, logger),
-    DeterministicVNEAgent(logger),
-    RandomizedVNEAgent(logger)
+    # TopologyAwareBaselineVNEAgent(0.3, logger),
+    # # EgoNetworkBasedVNEAgent(0.9, logger),
+    # EgoNetworkBasedVNEAgent(0.3, logger),
+    # DeterministicVNEAgent(logger),
+    # RandomizedVNEAgent(logger),
+    GABaselineVNEAgent(logger)
 ]
 
 agent_labels = [
     "BL",
-    "TA_0.3",
-    # "EN_0.9",
-    "EN_0.3",
-    "D-ViNE",
-    "R-ViNE"
+    # "TA_0.3",
+    # # "EN_0.9",
+    # "EN_0.3",
+    # "D-ViNE",
+    # "R-ViNE"
+    "GA"
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))

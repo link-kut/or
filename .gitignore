@@ -137,3 +137,4 @@ logs
 
 common/config.ini
 
+out/*
