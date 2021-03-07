@@ -12,51 +12,50 @@ class GABaselineVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
         super(GABaselineVNEAgent, self).__init__(logger)
 
-    def find_substrate_nodes(self, copied_substrate, vnr):
-        subset_S_per_v_node = {}
-        embedding_s_nodes = {}
-        already_embedding_s_nodes = []
-
-        for v_node_id, v_node_data in vnr.net.nodes(data=True):
-            v_cpu_demand = v_node_data['CPU']
-            v_node_location = v_node_data['LOCATION']
-
-            # Find the subset S of substrate nodes that satisfy restrictions and
-            # available CPU capacity (larger than that specified by the request.)
-            subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
-                copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
-            )
-
-            selected_s_node_id = max(
-                subset_S_per_v_node[v_node_id],
-                key=lambda s_node_id: copied_substrate.net.nodes[s_node_id]['CPU'],
-                default=None
-            )
-
-            if selected_s_node_id is None:
-                self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
-                    self.num_node_embedding_fails, v_cpu_demand, vnr
-                )
-                self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-                return None
-
-            assert selected_s_node_id != -1
-            embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
-
-            if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
-                already_embedding_s_nodes.append(selected_s_node_id)
-
-            assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
-            copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
-
-        return embedding_s_nodes
+    # def find_substrate_nodes(self, copied_substrate, vnr):
+    #     subset_S_per_v_node = {}
+    #     embedding_s_nodes = {}
+    #     already_embedding_s_nodes = []
+    #
+    #     for v_node_id, v_node_data in vnr.net.nodes(data=True):
+    #         v_cpu_demand = v_node_data['CPU']
+    #         v_node_location = v_node_data['LOCATION']
+    #
+    #         # Find the subset S of substrate nodes that satisfy restrictions and
+    #         # available CPU capacity (larger than that specified by the request.)
+    #         subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
+    #             copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
+    #         )
+    #
+    #         selected_s_node_id = max(
+    #             subset_S_per_v_node[v_node_id],
+    #             key=lambda s_node_id: copied_substrate.net.nodes[s_node_id]['CPU'],
+    #             default=None
+    #         )
+    #
+    #         if selected_s_node_id is None:
+    #             self.num_node_embedding_fails += 1
+    #             msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+    #                 self.num_node_embedding_fails, v_cpu_demand, vnr
+    #             )
+    #             self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+    #             return None
+    #
+    #         assert selected_s_node_id != -1
+    #         embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
+    #
+    #         if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+    #             already_embedding_s_nodes.append(selected_s_node_id)
+    #
+    #         assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
+    #         copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
+    #
+    #     return embedding_s_nodes
 
     def find_substrate_path(self, copied_substrate, vnr, embedding_s_nodes):
         all_s_paths = {}
-        embedding_s_paths = {}
 
-        # mapping the virtual nodes and substrate_net nodes
+        # 각 v_link 당 가능한 모든 s_path (set of s_link) 구성하여 all_s_paths에 저장
         for src_v_node, dst_v_node, edge_data in vnr.net.edges(data=True):
             v_link = (src_v_node, dst_v_node)
             src_s_node = embedding_s_nodes[src_v_node][0]
@@ -102,8 +101,10 @@ class GABaselineVNEAgent(BaselineVNEAgent):
                     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                     return None
 
-        # mapping the virtual nodes and substrate_net nodes
-        for idx, (src_v_node, dst_v_node, edge_data) in enumerate(vnr.net.edges(data=True)):
+        # GENETIC ALGORITHM START: mapping the virtual nodes and substrate_net nodes
+        embedding_s_paths = {}
+
+        for path_idx, (src_v_node, dst_v_node, edge_data) in enumerate(vnr.net.edges(data=True)):
             v_link = (src_v_node, dst_v_node)
             v_bandwidth_demand = edge_data['bandwidth']
 
@@ -129,7 +130,7 @@ class GABaselineVNEAgent(BaselineVNEAgent):
                     ga_operator.sort_population_and_set_elite()
                     generation_idx += 1
 
-            path_id = ga_operator.elite[0][idx]
+            path_id = ga_operator.elite[0][path_idx]
             embedding_s_paths[v_link] = all_s_paths[v_link][path_id]
 
         return embedding_s_paths
@@ -174,17 +175,39 @@ class GAOperator:
         # return 1 / (cost + 1e-05) + 1 / (total_hop_count + 1e-05) + attraction_strength + 1 / (distance_factor + 1e-05)
         return 1 / (cost + 1e-05) + 1 / (total_hop_count + 1e-05)
 
-    def selection(self):
-        # generate next population
+    def selection(self, tsize=10):
+        # https://en.wikipedia.org/wiki/Tournament_selection
+        # generate next population based on 'tournament selection'
         prev_population = self.population
         self.population = []
 
-        if self.elite:
-            self.population.append(self.elite)
+        for _ in range(config.POPULATION_SIZE):
+            candidates = random.sample(prev_population, tsize)
+            self.population.append(max(candidates, key=lambda p: p[1]))
 
-        for _ in range(config.POPULATION_SIZE - 1):
-            parent_idx = np.random.randint(0, config.COUNT_FROM_PARENTS)
-            self.population.append(prev_population[parent_idx])
+    # def selection(self):
+    #     # https://en.wikipedia.org/wiki/Fitness_proportionate_selection: Roulette wheel selection
+    #     # generate next population based on 'fitness proportionate selection'
+    #     total = sum(p[1] for p in self.population)
+    #     selection_probs = [p[1]/total for p in self.population]
+    #     new_population_idx = np.random.choice(len(self.population), size=config.POPULATION_SIZE, p=selection_probs)
+    #
+    #     prev_population = self.population
+    #     self.population = []
+    #     for idx in new_population_idx:
+    #         self.population.append(prev_population[idx])
+
+    # def selection(self):
+    #     # Suck: generate next population from only top "config.COUNT_FROM_PARENTS"
+    #     prev_population = self.population
+    #     self.population = []
+    #
+    #     if self.elite:
+    #         self.population.append(self.elite)
+    #
+    #     for _ in range(config.POPULATION_SIZE - 1):
+    #         parent_idx = np.random.randint(0, config.COUNT_FROM_PARENTS)
+    #         self.population.append(prev_population[parent_idx])
 
     def crossover(self):
         if self.length_chromosome < 2:
@@ -233,15 +256,15 @@ class GAOperator:
         for p_idx, (chromosome, _) in enumerate(self.population):
             embedding_s_paths = {}
             for idx, v_link in enumerate(self.all_s_paths.keys()):
-                is_mutation = random.uniform(0, 1) > config.MUTATION_RATE
-                v_link_path_ids = list(self.all_s_paths[v_link].keys())
+                is_mutation = random.uniform(0, 1) < config.MUTATION_RATE
                 if is_mutation:
-                    path_id = random.choice(v_link_path_ids)
+                    path_id = random.choice(list(self.all_s_paths[v_link].keys()))
                     embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
                     chromosome[idx] = path_id
                 else:
                     path_id = chromosome[idx]
                     embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
+
             self.population[p_idx] = (chromosome, self.evaluate_fitness(embedding_s_paths))
 
     def print_population(self):
