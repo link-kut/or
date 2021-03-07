@@ -175,39 +175,27 @@ class GAOperator:
         # return 1 / (cost + 1e-05) + 1 / (total_hop_count + 1e-05) + attraction_strength + 1 / (distance_factor + 1e-05)
         return 1 / (cost + 1e-05) + 1 / (total_hop_count + 1e-05)
 
-    def selection(self, tsize=10):
-        # https://en.wikipedia.org/wiki/Tournament_selection
-        # generate next population based on 'tournament selection'
+    # def selection(self, tsize=10):
+    #     # https://en.wikipedia.org/wiki/Tournament_selection
+    #     # generate next population based on 'tournament selection'
+    #     prev_population = self.population
+    #     self.population = []
+    #
+    #     for _ in range(config.POPULATION_SIZE):
+    #         candidates = random.sample(prev_population, tsize)
+    #         self.population.append(max(candidates, key=lambda p: p[1]))
+
+    def selection(self):
+        # https://en.wikipedia.org/wiki/Fitness_proportionate_selection: Roulette wheel selection
+        # generate next population based on 'fitness proportionate selection'
+        total = sum(p[1] for p in self.population)
+        selection_probs = [p[1]/total for p in self.population]
+        new_population_idx = np.random.choice(len(self.population), size=config.POPULATION_SIZE, p=selection_probs)
+
         prev_population = self.population
         self.population = []
-
-        for _ in range(config.POPULATION_SIZE):
-            candidates = random.sample(prev_population, tsize)
-            self.population.append(max(candidates, key=lambda p: p[1]))
-
-    # def selection(self):
-    #     # https://en.wikipedia.org/wiki/Fitness_proportionate_selection: Roulette wheel selection
-    #     # generate next population based on 'fitness proportionate selection'
-    #     total = sum(p[1] for p in self.population)
-    #     selection_probs = [p[1]/total for p in self.population]
-    #     new_population_idx = np.random.choice(len(self.population), size=config.POPULATION_SIZE, p=selection_probs)
-    #
-    #     prev_population = self.population
-    #     self.population = []
-    #     for idx in new_population_idx:
-    #         self.population.append(prev_population[idx])
-
-    # def selection(self):
-    #     # Suck: generate next population from only top "config.COUNT_FROM_PARENTS"
-    #     prev_population = self.population
-    #     self.population = []
-    #
-    #     if self.elite:
-    #         self.population.append(self.elite)
-    #
-    #     for _ in range(config.POPULATION_SIZE - 1):
-    #         parent_idx = np.random.randint(0, config.COUNT_FROM_PARENTS)
-    #         self.population.append(prev_population[parent_idx])
+        for idx in new_population_idx:
+            self.population.append(prev_population[idx])
 
     def crossover(self):
         if self.length_chromosome < 2:
