@@ -29,7 +29,7 @@ class GABaselineVNEAgent(BaselineVNEAgent):
 
             selected_s_node_id = max(
                 subset_S_per_v_node[v_node_id],
-                key=lambda s_node_id: copied_substrate.net.nodes[s_node_id]['CPU'],
+                key=lambda s_node_id: copied_substrate.net.nodes[s_node_id]['CPU'] - v_cpu_demand,
                 default=None
             )
 
