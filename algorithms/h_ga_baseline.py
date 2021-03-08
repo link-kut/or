@@ -261,7 +261,7 @@ class GAOperator:
 
 
 class EarlyStopping:
-    """Early stops the training if validation loss doesn't improve after a given patience."""
+    """Early stops the training if evaluation value doesn't improve after a given patience."""
     def __init__(self, patience=7, delta=0.0, verbose=False):
         """
         Args:
@@ -270,7 +270,7 @@ class EarlyStopping:
             verbose (bool): If True, prints a message for each validation loss improvement.
                             Default: False
             delta (float): Minimum change in the monitored quantity to qualify as an improvement.
-                            Default: 0
+                           Default: 0
         """
         self.patience = patience
         self.verbose = verbose
