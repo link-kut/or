@@ -53,6 +53,21 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         super(A3CGraphCNVNEAgent, self).__init__(logger)
         self.beta = beta
 
+    def get_initial_cpu_and_bandwidth_capacity(self, substrate):
+        initial_s_CPU = []
+        initial_s_bandwidth = []
+
+        for s_node_id, s_node_data in substrate.net.nodes(data=True):
+            initial_s_CPU.append(s_node_data['CPU'])
+
+        for s_node_id in range(len(substrate.net.nodes)):
+            total_node_bandwidth = 0.0
+            for link_id in substrate.net[s_node_id]:
+                total_node_bandwidth += substrate.net[s_node_id][link_id]['bandwidth']
+            initial_s_bandwidth.append(total_node_bandwidth)
+
+        return initial_s_CPU, initial_s_bandwidth
+
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
         Execute Step 1
@@ -91,8 +106,8 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         )
 
         # Input State s for GCN
-        s_CPU_capacity = self.initial_s_CPU    # S_CPU_MAX
-        s_bandwidth_capacity = self.initial_s_Bandwidth   # S_BW_MAX
+        s_CPU_capacity, s_bandwidth_capacity = self.get_initial_cpu_and_bandwidth_capacity(substrate=copied_substrate)
+
         # S_CPU_Free
         for s_node_id, s_node_data in copied_substrate.net.nodes(data=True):
             s_CPU_remaining.append(s_node_data['CPU'])

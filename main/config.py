@@ -25,7 +25,7 @@ NUM_RUNS = 1
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
 GLOBAL_MAX_STEPS = 5600
 
-TIME_WINDOW_SIZE = 10
+TIME_WINDOW_SIZE = 1
 
 # 0.002: Each VN has an exponentially distributed duration with an average of 500 time units
 VNR_DURATION_MEAN_RATE = 0.002
@@ -63,3 +63,13 @@ ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE = False
 LOCATION_CONSTRAINT = True
 
 FIGURE_START_TIME_STEP = 100
+<<<<<<< HEAD
+=======
+
+# FOR GENETIC ALGORITHM
+MAX_EMBEDDING_PATH_LENGTH = 8
+POPULATION_SIZE = 4096
+STOP_PATIENCE_COUNT = 7
+CROSSOVER_RATE = 0.8
+MUTATION_RATE = 0.7
+>>>>>>> 667292fd3fda44003f56954e8e7d744520422fd2

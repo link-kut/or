@@ -29,8 +29,6 @@ class BaselineVNEAgent:
         self.num_link_embedding_fails = 0
         self.time_step = 0
         self.next_embedding_epoch = config.TIME_WINDOW_SIZE
-        self.initial_s_CPU = []
-        self.initial_s_Bandwidth = []
 
     def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
         '''
@@ -144,8 +142,7 @@ class BaselineVNEAgent:
             v_bandwidth_demand = edge_data['bandwidth']
 
             if src_s_node == dst_s_node:
-                s_links_in_path = []
-                embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
+                embedding_s_paths[v_link] = ([], v_bandwidth_demand)
             else:
                 subnet = nx.subgraph_view(
                     copied_substrate.net,
@@ -168,6 +165,14 @@ class BaselineVNEAgent:
                 MAX_K = 1
 
                 shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
+
+                # if hasattr(config, "MAX_EMBEDDING_PATH_LENGTH") and len(shortest_s_path) - 1 > config.MAX_EMBEDDING_PATH_LENGTH:
+                #     self.num_link_embedding_fails += 1
+                #     msg = "VNR REJECTED ({0}): 'Suitable LINK for bandwidth demand, however the path length {1} is higher than {2}".format(
+                #         self.num_link_embedding_fails, len(shortest_s_path) - 1, config.MAX_EMBEDDING_PATH_LENGTH
+                #     )
+                #     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                #     return None
 
                 s_links_in_path = []
                 for node_idx in range(len(shortest_s_path) - 1):
@@ -192,7 +197,7 @@ class BaselineVNEAgent:
 
         return s_cpu_capacity * total_node_bandwidth
 
-    def greedy_node_mapping(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
+    def node_mapping(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
         # Sort the requests according to their revenues
         sorted_vnrs = sorted(
             VNRs_COLLECTED.values(), key=lambda vnr: vnr.revenue, reverse=True
@@ -211,7 +216,7 @@ class BaselineVNEAgent:
 
         return sorted_vnrs_and_node_embedding
 
-    def greedy_link_mapping(self, sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action):
+    def link_mapping(self, sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action):
         for vnr, embedding_s_nodes in sorted_vnrs_and_node_embedding:
             embedding_s_paths = self.find_substrate_path(COPIED_SUBSTRATE, vnr, embedding_s_nodes)
 
@@ -221,14 +226,6 @@ class BaselineVNEAgent:
                 action.vnrs_embedding[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
 
     def get_action(self, state):
-        if self.time_step == 0:
-            for s_node_id, s_node_data in state.substrate.net.nodes(data=True):
-                self.initial_s_CPU.append(s_node_data['CPU'])
-            for s_node_id in range(len(state.substrate.net.nodes)):
-                total_node_bandwidth = 0.0
-                for link_id in state.substrate.net[s_node_id]:
-                    total_node_bandwidth += state.substrate.net[s_node_id][link_id]['bandwidth']
-                self.initial_s_Bandwidth.append(total_node_bandwidth)
         self.time_step += 1
 
         action = Action()
@@ -247,12 +244,12 @@ class BaselineVNEAgent:
         #####################################
         # step 1 - Greedy Node Mapping      #
         #####################################
-        sorted_vnrs_and_node_embedding = self.greedy_node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
+        sorted_vnrs_and_node_embedding = self.node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
 
         #####################################
         # step 2 - Link Mapping             #
         #####################################
-        self.greedy_link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
+        self.link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
 
         assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
 

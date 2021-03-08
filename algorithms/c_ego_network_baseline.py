@@ -22,6 +22,7 @@ class Action:
 
         return action_str
 
+
 class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
         super(EgoNetworkBasedVNEAgent, self).__init__(logger)
@@ -154,33 +155,33 @@ class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
 
         return self.beta * node_cpu_capacity + (1.0 - self.beta) * len(adjacent_links) * total_node_bandwidth
 
-    def get_action(self, state):
-        self.time_step += 1
-
-        action = Action()
-
-        action.num_node_embedding_fails = self.num_node_embedding_fails
-        action.num_link_embedding_fails = self.num_link_embedding_fails
-
-        action.vnrs_postponement = {}
-        action.vnrs_embedding = {}
-
-        COPIED_SUBSTRATE = copy.deepcopy(state.substrate)
-        VNRs_COLLECTED = state.vnrs_collected
-
-        #####################################
-        # step 1 - Greedy Node Mapping      #
-        #####################################
-        sorted_vnrs_and_node_embedding = self.greedy_node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
-
-        #####################################
-        # step 2 - Link Mapping             #
-        #####################################
-        self.greedy_link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
-
-        assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
-
-        action.num_node_embedding_fails = self.num_node_embedding_fails
-        action.num_link_embedding_fails = self.num_link_embedding_fails
-
-        return action
+    # def get_action(self, state):
+    #     self.time_step += 1
+    #
+    #     action = Action()
+    #
+    #     action.num_node_embedding_fails = self.num_node_embedding_fails
+    #     action.num_link_embedding_fails = self.num_link_embedding_fails
+    #
+    #     action.vnrs_postponement = {}
+    #     action.vnrs_embedding = {}
+    #
+    #     COPIED_SUBSTRATE = copy.deepcopy(state.substrate)
+    #     VNRs_COLLECTED = state.vnrs_collected
+    #
+    #     #####################################
+    #     # step 1 - Greedy Node Mapping      #
+    #     #####################################
+    #     sorted_vnrs_and_node_embedding = self.node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
+    #
+    #     #####################################
+    #     # step 2 - Link Mapping             #
+    #     #####################################
+    #     self.link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
+    #
+    #     assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
+    #
+    #     action.num_node_embedding_fails = self.num_node_embedding_fails
+    #     action.num_link_embedding_fails = self.num_link_embedding_fails
+    #
+    #     return action
