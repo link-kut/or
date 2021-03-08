@@ -246,9 +246,9 @@ class GAOperator:
             for idx, v_link in enumerate(self.all_s_paths.keys()):
                 is_mutation = random.uniform(0, 1) < config.MUTATION_RATE
                 if is_mutation:
-                    path_id = random.choice(list(self.all_s_paths[v_link].keys()))
-                    embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
-                    chromosome[idx] = path_id
+                    new_path_id = random.choice(list(self.all_s_paths[v_link].keys()))
+                    embedding_s_paths[v_link] = self.all_s_paths[v_link][new_path_id]
+                    chromosome[idx] = new_path_id
                 else:
                     path_id = chromosome[idx]
                     embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
