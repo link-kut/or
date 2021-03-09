@@ -243,6 +243,7 @@ class GAOperator:
     def mutation(self):
         for p_idx, (chromosome, _) in enumerate(self.population):
             embedding_s_paths = {}
+            #print(chromosome, "!!!!! - before mutation")
             for idx, v_link in enumerate(self.all_s_paths.keys()):
                 is_mutation = random.uniform(0, 1) < config.MUTATION_RATE
                 if is_mutation:
@@ -252,6 +253,7 @@ class GAOperator:
                 else:
                     path_id = chromosome[idx]
                     embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
+            #print(chromosome, "!!!!! - after mutation")
 
             self.population[p_idx] = (chromosome, self.evaluate_fitness(embedding_s_paths))
 
