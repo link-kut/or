@@ -103,10 +103,13 @@ class GABaselineVNEAgent(BaselineVNEAgent):
 
         # GENETIC ALGORITHM START: mapping the virtual nodes and substrate_net nodes
         embedding_s_paths = {}
-
+        print("[[VNR {0}] GA Started for {1} Virtual Paths]".format(vnr.id, len(vnr.net.edges(data=True))))
         for path_idx, (src_v_node, dst_v_node, edge_data) in enumerate(vnr.net.edges(data=True)):
             v_link = (src_v_node, dst_v_node)
             v_bandwidth_demand = edge_data['bandwidth']
+            print("[VNR {0}, Virtual Path {1} {2}] GA Started: Bandwidth Demand {3}".format(
+                vnr.id, path_idx, v_link, v_bandwidth_demand
+            ))
 
             # LINK EMBEDDING VIA GENETIC ALGORITHM
             early_stopping = EarlyStopping(
@@ -121,7 +124,9 @@ class GABaselineVNEAgent(BaselineVNEAgent):
                 solved = early_stopping.evaluate(evaluation_value=ga_operator.elite[1])
 
                 if solved:
-                    print("[VNR {0}] Solved in {1} generations".format(vnr.id, generation_idx))
+                    print("[VNR {0}, Virtual Path {1} {2}] Solved in {3} generations".format(
+                        vnr.id, path_idx, v_link, generation_idx
+                    ))
                     break
                 else:
                     ga_operator.selection()
@@ -243,15 +248,17 @@ class GAOperator:
     def mutation(self):
         for p_idx, (chromosome, _) in enumerate(self.population):
             embedding_s_paths = {}
+            #print(chromosome, "!!!!! - before mutation")
             for idx, v_link in enumerate(self.all_s_paths.keys()):
                 is_mutation = random.uniform(0, 1) < config.MUTATION_RATE
                 if is_mutation:
-                    path_id = random.choice(list(self.all_s_paths[v_link].keys()))
-                    embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
-                    chromosome[idx] = path_id
+                    new_path_id = random.choice(list(self.all_s_paths[v_link].keys()))
+                    embedding_s_paths[v_link] = self.all_s_paths[v_link][new_path_id]
+                    chromosome[idx] = new_path_id
                 else:
                     path_id = chromosome[idx]
                     embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
+            #print(chromosome, "!!!!! - after mutation")
 
             self.population[p_idx] = (chromosome, self.evaluate_fitness(embedding_s_paths))
 
@@ -261,7 +268,7 @@ class GAOperator:
 
 
 class EarlyStopping:
-    """Early stops the training if validation loss doesn't improve after a given patience."""
+    """Early stops the training if evaluation value doesn't improve after a given patience."""
     def __init__(self, patience=7, delta=0.0, verbose=False):
         """
         Args:
@@ -270,7 +277,7 @@ class EarlyStopping:
             verbose (bool): If True, prints a message for each validation loss improvement.
                             Default: False
             delta (float): Minimum change in the monitored quantity to qualify as an improvement.
-                            Default: 0
+                           Default: 0
         """
         self.patience = patience
         self.verbose = verbose
