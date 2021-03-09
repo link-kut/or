@@ -121,7 +121,7 @@ class GABaselineVNEAgent(BaselineVNEAgent):
                 solved = early_stopping.evaluate(evaluation_value=ga_operator.elite[1])
 
                 if solved:
-                    print("[VNR {0}] Solved in {1} generations".format(vnr.id, generation_idx))
+                    print("[VNR {0}, Virtual Path {1}] Solved in {2} generations".format(vnr.id, path_idx, generation_idx))
                     break
                 else:
                     ga_operator.selection()
