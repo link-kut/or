@@ -103,10 +103,13 @@ class GABaselineVNEAgent(BaselineVNEAgent):
 
         # GENETIC ALGORITHM START: mapping the virtual nodes and substrate_net nodes
         embedding_s_paths = {}
-
+        print("[[VNR {0}] GA Started for {1} Virtual Paths]".format(vnr.id, len(vnr.net.edges(data=True))))
         for path_idx, (src_v_node, dst_v_node, edge_data) in enumerate(vnr.net.edges(data=True)):
             v_link = (src_v_node, dst_v_node)
             v_bandwidth_demand = edge_data['bandwidth']
+            print("[VNR {0}, Virtual Path {1} {2}] GA Started: Bandwidth Demand {3}".format(
+                vnr.id, path_idx, v_link, v_bandwidth_demand
+            ))
 
             # LINK EMBEDDING VIA GENETIC ALGORITHM
             early_stopping = EarlyStopping(
@@ -121,7 +124,9 @@ class GABaselineVNEAgent(BaselineVNEAgent):
                 solved = early_stopping.evaluate(evaluation_value=ga_operator.elite[1])
 
                 if solved:
-                    print("[VNR {0}, Virtual Path {1}] Solved in {2} generations".format(vnr.id, path_idx, generation_idx))
+                    print("[VNR {0}, Virtual Path {1} {2}] Solved in {3} generations".format(
+                        vnr.id, path_idx, v_link, generation_idx
+                    ))
                     break
                 else:
                     ga_operator.selection()
