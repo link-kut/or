@@ -168,6 +168,15 @@ class BaselineVNEAgent:
 
                 shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
 
+                # Check the path length
+                if len(shortest_s_path) == config.MAX_EMBEDDING_PATH_LENGTH:
+                    self.num_link_embedding_fails += 1
+                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
+                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    )
+                    self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                    return None
+
                 # if hasattr(config, "MAX_EMBEDDING_PATH_LENGTH") and len(shortest_s_path) - 1 > config.MAX_EMBEDDING_PATH_LENGTH:
                 #     self.num_link_embedding_fails += 1
                 #     msg = "VNR REJECTED ({0}): 'Suitable LINK for bandwidth demand, however the path length {1} is higher than {2}".format(

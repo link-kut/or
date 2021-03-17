@@ -3,7 +3,9 @@ operations research
 
 1. conda create -n or python=3.7
 
-2. pip install 
+2. pip install
+  - pip install matplotlib
+  - pip install pandas  
   - pip install gym
   - pip install networkx
   - pip install slackclient

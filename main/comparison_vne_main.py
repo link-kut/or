@@ -10,21 +10,21 @@ from main.common_main import *
 agents = [
     BaselineVNEAgent(logger),
     TopologyAwareBaselineVNEAgent(0.3, logger),
-    # EgoNetworkBasedVNEAgent(0.9, logger),
+    # # EgoNetworkBasedVNEAgent(0.9, logger),
     EgoNetworkBasedVNEAgent(0.3, logger),
-    DeterministicVNEAgent(logger),
-    RandomizedVNEAgent(logger),
+    # DeterministicVNEAgent(logger),
+    # RandomizedVNEAgent(logger),
     GABaselineVNEAgent(logger)
 ]
 
 agent_labels = [
-    "BaseLine",
-    "NodeRank",
+    "BL",
+    "TA_0.3",
     # # "EN_0.9",
-    "Ego-Network",
-    "D-ViNE",
-    "R-ViNE",
-    "Genetic Algorithm"
+    "EN_0.3",
+    # "D-ViNE",
+    # "R-ViNE"
+    "GA"
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
