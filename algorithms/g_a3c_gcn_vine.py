@@ -10,22 +10,6 @@ from torch_geometric.data import Data
 from torch_geometric.utils import from_networkx
 
 
-class Action:
-    def __init__(self):
-        self.vnrs_postponement = None
-        self.vnrs_embedding = None
-        self.num_node_embedding_fails = 0
-        self.num_link_embedding_fails = 0
-
-    def __str__(self):
-        action_str = "[{0:2} VNR POST.] [{1:2} VNR EMBED.]".format(
-            len(self.vnrs_postponement),
-            len(self.vnrs_embedding),
-        )
-
-        return action_str
-
-
 # class GCN(torch.nn.Module):
 #     def __init__(self):
 #         super(GCN, self).__init__()
@@ -54,19 +38,15 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         self.beta = beta
 
     def get_initial_cpu_and_bandwidth_capacity(self, substrate):
-        initial_s_CPU = []
-        initial_s_bandwidth = []
+        if self.time_step == 1:
+            for s_node_id, s_node_data in substrate.net.nodes(data=True):
+                self.initial_s_CPU.append(s_node_data['CPU'])
 
-        for s_node_id, s_node_data in substrate.net.nodes(data=True):
-            initial_s_CPU.append(s_node_data['CPU'])
-
-        for s_node_id in range(len(substrate.net.nodes)):
-            total_node_bandwidth = 0.0
-            for link_id in substrate.net[s_node_id]:
-                total_node_bandwidth += substrate.net[s_node_id][link_id]['bandwidth']
-            initial_s_bandwidth.append(total_node_bandwidth)
-
-        return initial_s_CPU, initial_s_bandwidth
+            for s_node_id in range(len(substrate.net.nodes)):
+                total_node_bandwidth = 0.0
+                for link_id in substrate.net[s_node_id]:
+                    total_node_bandwidth += substrate.net[s_node_id][link_id]['bandwidth']
+                self.initial_s_bandwidth.append(total_node_bandwidth)
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -106,7 +86,9 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         )
 
         # Input State s for GCN
-        s_CPU_capacity, s_bandwidth_capacity = self.get_initial_cpu_and_bandwidth_capacity(substrate=copied_substrate)
+        self.get_initial_cpu_and_bandwidth_capacity(substrate=copied_substrate)
+        s_CPU_capacity = self.initial_s_CPU
+        s_bandwidth_capacity = self.initial_s_bandwidth
 
         # S_CPU_Free
         for s_node_id, s_node_data in copied_substrate.net.nodes(data=True):
@@ -118,7 +100,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
                 total_node_bandwidth += copied_substrate.net[s_node_id][link_id]['bandwidth']
             s_bandwidth_remaining.append(total_node_bandwidth)
 
-        print("S_CPU_MAX: ", s_CPU_capacity)
+        print("S_CPU_MAX: ",s_CPU_capacity)
         print("S_BW_MAX: ", s_bandwidth_capacity)
         print("S_CPU_Free: ", s_CPU_remaining)
         print("S_BW_Free: ", s_bandwidth_remaining)
@@ -189,6 +171,9 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
             vnr_length_index += 1
+
+        print(sorted_vnrs_with_node_ranking)
+        print(embedding_s_nodes)
 
         return embedding_s_nodes
 

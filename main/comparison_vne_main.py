@@ -11,7 +11,7 @@ agents = [
     BaselineVNEAgent(logger),
     TopologyAwareBaselineVNEAgent(0.3, logger),
     # # EgoNetworkBasedVNEAgent(0.9, logger),
-    # EgoNetworkBasedVNEAgent(0.3, logger),
+    EgoNetworkBasedVNEAgent(0.3, logger),
     # DeterministicVNEAgent(logger),
     # RandomizedVNEAgent(logger),
     GABaselineVNEAgent(logger)
@@ -21,7 +21,7 @@ agent_labels = [
     "BL",
     "TA_0.3",
     # # "EN_0.9",
-    # "EN_0.3",
+    "EN_0.3",
     # "D-ViNE",
     # "R-ViNE"
     "GA"
