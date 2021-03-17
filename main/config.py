@@ -23,7 +23,7 @@ else:
 NUM_RUNS = 1
 
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
-GLOBAL_MAX_STEPS = 56000
+GLOBAL_MAX_STEPS = 5600
 
 TIME_WINDOW_SIZE = 1
 
@@ -38,12 +38,12 @@ VNR_INTER_ARRIVAL_RATE = 0.05
 
 # Each substrate network is configured to have 100 nodes with over 500 links,
 # which is about the scale of a medium-sized ISP.
-SUBSTRATE_NODES = 50
+SUBSTRATE_NODES = 20
 SUBSTRATE_LINKS = 100
 
 # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
 VNR_NODES_MIN = 2
-VNR_NODES_MAX = 8
+VNR_NODES_MAX = 3
 
 # Pairs of virtual nodes are randomly connected by links with the probability of 0.5.
 VNR_LINK_PROBABILITY = 0.5
@@ -55,7 +55,7 @@ VNR_CPU_DEMAND_MAX = 50
 VNR_BANDWIDTH_DEMAND_MIN = 1
 VNR_BANDWIDTH_DEMAND_MAX = 50
 
-NUM_LOCATION = 5
+NUM_LOCATION = 2
 
 ALPHA = 0.8
 
@@ -66,8 +66,8 @@ RT_TIME_STEP = 100
 FIGURE_START_TIME_STEP = int(GLOBAL_MAX_STEPS * 0.02)
 
 # FOR GENETIC ALGORITHM
-MAX_EMBEDDING_PATH_LENGTH = 10
-POPULATION_SIZE = 8192
+MAX_EMBEDDING_PATH_LENGTH = 5  # Default = 10
+POPULATION_SIZE = 2048  # Default = 8192
 STOP_PATIENCE_COUNT = 12
 CROSSOVER_RATE = 0.8
 MUTATION_RATE = 0.2

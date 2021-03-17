@@ -136,10 +136,11 @@ class GABaselineVNEAgent(BaselineVNEAgent):
                     generation_idx += 1
 
             path_id = ga_operator.elite[0][path_idx]
+            for s_link in all_s_paths[v_link][path_id][0]:
+                assert copied_substrate.net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
             embedding_s_paths[v_link] = all_s_paths[v_link][path_id]
 
         return embedding_s_paths
-
 
 class GAOperator:
     def __init__(self, vnr, all_s_paths, embedding_s_nodes, copied_substrate):

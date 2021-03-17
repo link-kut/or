@@ -65,31 +65,33 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
                 copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
             )
 
-            # selected_s_node_id = max(
-            #     subset_S_per_v_node[v_node_id],
-            #     key=lambda s_node_id:
-            #         sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
-            #                           (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
-            #             opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
-            #                           (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values
-            #             ) *
-            #         opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
-            #                       (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values,
-            #     default=None
-            # )
-
-            # for calculating p_value
             selected_s_node_p_value = []
             candidate_s_node_id = []
-            for s_node_id in subset_S_per_v_node[v_node_id]:
-                candidate_s_node_id.append(s_node_id)
-                selected_s_node_p_value.append(
-                    sum(opt_lp_f_vars[
-                            (opt_lp_f_vars['u'] == s_node_id) &
-                            (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
-                        opt_lp_f_vars[
-                            (opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
-                            (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values))
+            selected_s_node_id = max(
+                subset_S_per_v_node[v_node_id],
+                key=lambda s_node_id:
+                    sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
+                                      (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
+                        opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+                                      (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values
+                        ) *
+                    opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
+                                  (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values,
+                default=None
+            )
+
+            # for calculating p_value
+            # selected_s_node_p_value = []
+            # candidate_s_node_id = []
+            # for s_node_id in subset_S_per_v_node[v_node_id]:
+            #     candidate_s_node_id.append(s_node_id)
+            #     selected_s_node_p_value.append(
+            #         sum(opt_lp_f_vars[
+            #                 (opt_lp_f_vars['u'] == s_node_id) &
+            #                 (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
+            #             opt_lp_f_vars[
+            #                 (opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+            #                 (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values))
 
             # Calculate the probability
             # scipy softmax 추가하여 이용하기
