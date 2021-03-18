@@ -29,8 +29,6 @@ class BaselineVNEAgent:
         self.num_link_embedding_fails = 0
         self.time_step = 0
         self.next_embedding_epoch = config.TIME_WINDOW_SIZE
-        self.initial_s_CPU = []
-        self.initial_s_bandwidth = []
 
     def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
         '''

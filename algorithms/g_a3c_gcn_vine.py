@@ -36,17 +36,19 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
         super(A3CGraphCNVNEAgent, self).__init__(logger)
         self.beta = beta
+        self.initial_s_CPU = []
+        self.initial_s_bandwidth = []
+        self.count_node_mapping = 0
 
     def get_initial_cpu_and_bandwidth_capacity(self, substrate):
-        if self.time_step == 1:
-            for s_node_id, s_node_data in substrate.net.nodes(data=True):
-                self.initial_s_CPU.append(s_node_data['CPU'])
+        for s_node_id, s_node_data in substrate.net.nodes(data=True):
+            self.initial_s_CPU.append(s_node_data['CPU'])
 
-            for s_node_id in range(len(substrate.net.nodes)):
-                total_node_bandwidth = 0.0
-                for link_id in substrate.net[s_node_id]:
-                    total_node_bandwidth += substrate.net[s_node_id][link_id]['bandwidth']
-                self.initial_s_bandwidth.append(total_node_bandwidth)
+        for s_node_id in range(len(substrate.net.nodes)):
+            total_node_bandwidth = 0.0
+            for link_id in substrate.net[s_node_id]:
+                total_node_bandwidth += substrate.net[s_node_id][link_id]['bandwidth']
+            self.initial_s_bandwidth.append(total_node_bandwidth)
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -86,7 +88,8 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         )
 
         # Input State s for GCN
-        self.get_initial_cpu_and_bandwidth_capacity(substrate=copied_substrate)
+        if self.count_node_mapping == 0:
+            self.get_initial_cpu_and_bandwidth_capacity(substrate=copied_substrate)
         s_CPU_capacity = self.initial_s_CPU
         s_bandwidth_capacity = self.initial_s_bandwidth
 
@@ -172,8 +175,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
             vnr_length_index += 1
 
-        print(sorted_vnrs_with_node_ranking)
-        print(embedding_s_nodes)
+        self.count_node_mapping += 1
 
         return embedding_s_nodes
 
