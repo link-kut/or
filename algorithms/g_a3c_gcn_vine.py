@@ -109,8 +109,23 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         print("S_BW_Free: ", s_bandwidth_remaining)
         print("Current_Embedding: ", current_embedding)
 
+        # Generate substrate feature matrix
+        substrate_features = []
+        substrate_features.append(s_CPU_capacity)
+        substrate_features.append(s_bandwidth_capacity)
+        substrate_features.append(s_CPU_remaining)
+        substrate_features.append(s_bandwidth_remaining)
+        substrate_features.append(current_embedding)
+
+        # Convert to the torch.tensor
+        substrate_features = torch.tensor(substrate_features)
+        substrate_features = torch.transpose(substrate_features, 0, 1)
+        substrate_features = torch.reshape(substrate_features, (-1,))
+
         # GCN for Feature Extract
         # data = from_networkx(copied_substrate.net)
+        # model = GCN()
+        # out, embedding = model(substrate_features, data.edge_index)
 
         vnr_length_index = 0
         for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
