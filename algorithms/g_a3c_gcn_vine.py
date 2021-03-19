@@ -190,8 +190,8 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
                 already_embedding_s_nodes.append(selected_s_node_id)
                 current_embedding[selected_s_node_id] = 1
 
-            # assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
-            # copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
+            assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
+            copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
             vnr_length_index += 1
 
         self.count_node_mapping += 1

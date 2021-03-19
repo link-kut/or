@@ -11,25 +11,24 @@ from main.common_main import *
 
 agents = [
     BaselineVNEAgent(logger),
-    TopologyAwareBaselineVNEAgent(0.3, logger),
+    # TopologyAwareBaselineVNEAgent(0.3, logger),
     # # EgoNetworkBasedVNEAgent(0.9, logger),
     # EgoNetworkBasedVNEAgent(0.3, logger),
     # DeterministicVNEAgent(logger),
     # RandomizedVNEAgent(logger),
     # GABaselineVNEAgent(logger),
-    A3CGraphCNVNEAgent(0.3, logger)
+    A3CGraphCNVNEAgent(0.3, logger),
 ]
 
 agent_labels = [
     "BL",
-
+    # "TA_0.3",
     # # "EN_0.9",
     # "EN_0.3",
     # "D-ViNE",
     # "R-ViNE"
     # "GA"
     "A3C-GCN",
-    "TA_0.3",
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
