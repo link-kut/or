@@ -1,5 +1,7 @@
 import os, sys
 
+from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
+
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
 if PROJECT_HOME not in sys.path:
@@ -11,20 +13,23 @@ agents = [
     BaselineVNEAgent(logger),
     TopologyAwareBaselineVNEAgent(0.3, logger),
     # # EgoNetworkBasedVNEAgent(0.9, logger),
-    EgoNetworkBasedVNEAgent(0.3, logger),
+    # EgoNetworkBasedVNEAgent(0.3, logger),
     # DeterministicVNEAgent(logger),
     # RandomizedVNEAgent(logger),
-    GABaselineVNEAgent(logger)
+    # GABaselineVNEAgent(logger),
+    A3CGraphCNVNEAgent(0.3, logger)
 ]
 
 agent_labels = [
     "BL",
-    "TA_0.3",
+
     # # "EN_0.9",
-    "EN_0.3",
+    # "EN_0.3",
     # "D-ViNE",
     # "R-ViNE"
-    "GA"
+    # "GA"
+    "A3C-GCN",
+    "TA_0.3",
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))

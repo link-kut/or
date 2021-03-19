@@ -35,6 +35,7 @@ PROJECT_HOME = os.getcwd()[:-5]
 graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
 log_save_path = os.path.join(PROJECT_HOME, "out", "logs")
 csv_save_path = os.path.join(PROJECT_HOME, "out", "parameters")
+model_save_path = os.path.join(PROJECT_HOME, "out", "models")
 
 if not os.path.exists(graph_save_path):
     os.makedirs(graph_save_path)

@@ -1,3 +1,5 @@
+import glob
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,14 +10,14 @@ import os
 from algorithms.model.utils import set_init
 
 
-class Net(nn.Module):
+class A3C_Model(nn.Module):
     def __init__(self, state_dim, action_dim):
-        super(Net, self).__init__()
+        super(A3C_Model, self).__init__()
         self.s_dim = state_dim
         self.a_dim = action_dim
-        self.pi1 = nn.Linear(s_dim, 128)
-        self.pi2 = nn.Linear(128, a_dim)
-        self.v1 = nn.Linear(s_dim, 128)
+        self.pi1 = nn.Linear(state_dim, 128)
+        self.pi2 = nn.Linear(128, action_dim)
+        self.v1 = nn.Linear(state_dim, 128)
         self.v2 = nn.Linear(128, 1)
         set_init([self.pi1, self.pi2, self.v1, self.v2])
         self.distribution = torch.distributions.Categorical
@@ -27,7 +29,7 @@ class Net(nn.Module):
         values = self.v2(v1)
         return logits, values
 
-    def choose_action(self, s):
+    def select_node(self, s):
         self.eval()
         logits, _ = self.forward(s)
         prob = F.softmax(logits, dim=1).data
@@ -39,10 +41,10 @@ class Net(nn.Module):
         logits, values = self.forward(s)
         td = v_t - values
         c_loss = td.pow(2)
-
         probs = F.softmax(logits, dim=1)
         m = self.distribution(probs)
         exp_v = m.log_prob(a) * td.detach().squeeze()
         a_loss = -exp_v
         total_loss = (c_loss + a_loss).mean()
         return total_loss
+

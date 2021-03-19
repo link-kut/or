@@ -6,7 +6,7 @@ import torch.multiprocessing as mp
 
 from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
 from algorithms.model.utils import v_wrap, push_and_pull, record
-from algorithms.model.A3C import Net
+from algorithms.model.A3C import A3C_Model
 from environments.vne_env import VNEEnvironment
 from main import config
 from main.common_main import *
@@ -18,7 +18,7 @@ class Worker(mp.Process):
         self.name = 'w%02i' % name
         self.g_ep, self.g_ep_r, self.res_queue = global_ep, global_ep_r, res_queue
         self.gnet, self.opt = gnet, opt
-        self.lnet = Net(config.SUBSTRATE_NODES + 3, config.SUBSTRATE_NODES) # local network
+        self.lnet = A3C_Model(config.SUBSTRATE_NODES + 3, config.SUBSTRATE_NODES) # local network
         self.env = VNEEnvironment(logger)
         self.agent = A3CGraphCNVNEAgent(0.3, logger)
 

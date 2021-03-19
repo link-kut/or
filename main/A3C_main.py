@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torch.multiprocessing as mp
 
 from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
-from algorithms.model.A3C import Net
+from algorithms.model.A3C import A3C_Model
 from algorithms.model.utils import SharedAdam
 from main.A3C_worker import Worker
 
@@ -35,7 +35,7 @@ performance_link_fail_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STE
 
 
 def main():
-    gnet = Net(config.SUBSTRATE_NODES + 3, config.SUBSTRATE_NODES)  # global network Net(state_dim, action_dim)
+    gnet = A3C_Model(config.SUBSTRATE_NODES + 3, config.SUBSTRATE_NODES)  # global network Net(state_dim, action_dim)
     gnet.share_memory()  # share the global parameters in multiprocessing
     opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))  # global optimizer
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()

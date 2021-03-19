@@ -1,3 +1,6 @@
+import glob
+import os
+
 from torch import nn
 import torch
 import numpy as np
@@ -59,6 +62,12 @@ def record(global_ep, global_ep_r, ep_r, res_queue, name):
         "Ep:", global_ep.value,
         "| Ep_r: %.0f" % global_ep_r.value,
     )
+
+def load_model(self, model_save_path, model):
+    saved_models = glob.glob(os.path.join(model_save_path, "A3C_*.pth"))
+    model_params = torch.load(saved_models)
+
+    model.load_state_dict(model_params)
 
 class SharedAdam(torch.optim.Adam):
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.99), eps=1e-8,
