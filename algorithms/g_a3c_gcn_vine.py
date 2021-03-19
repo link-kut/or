@@ -50,6 +50,30 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
                 total_node_bandwidth += substrate.net[s_node_id][link_id]['bandwidth']
             self.initial_s_bandwidth.append(total_node_bandwidth)
 
+    # copied env for A3C
+    def reflect_copied_substrate(self, copied_substrate, vnr, selected_s_node_id,
+                                 num_v_node, v_cpu_demand, vnr_length_index):
+        reward = 0.0
+
+        r_a = 0.0
+        r_c = 0.0
+        r_s = 0.0
+        num_embedded_v_node = vnr_length_index + 1
+
+        if copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand:
+            copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
+            # r_a = 100*\gamma Positive reward
+            r_a = 100 * (num_embedded_v_node / num_v_node)
+        else:
+            r_a = -100 * (num_embedded_v_node / num_v_node)
+
+        r_c = vnr.revenue / vnr.cost
+        r_s = copied_substrate.net.nodes[selected_s_node_id]['CPU'] / self.initial_s_CPU[selected_s_node_id]
+
+        reward = r_a * r_c * r_s
+
+        return reward
+
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
         Execute Step 1
@@ -130,12 +154,14 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         vnr_length_index = 0
         for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
+            v_CPU_request = torch.tensor([v_node_data['CPU']])
             v_node_location = v_node_data['LOCATION']
-            v_bandwidth_demand = sum((vnr.net[v_node_id][link_id]['bandwidth'] for link_id in vnr.net[v_node_id]))
+            v_BW_demand = torch.tensor([sum((vnr.net[v_node_id][link_id]['bandwidth'] for link_id in vnr.net[v_node_id]))])
             pending_nodes = len(sorted_vnrs_with_node_ranking) - vnr_length_index
-            print("V_CPU_Request: ", v_cpu_demand)
-            print("V_BW_Request: ", v_bandwidth_demand)
-            print("Pending_V_Nodes: ", pending_nodes)
+            pending_v_nodes = torch.tensor([pending_nodes])
+            print("V_CPU_Request: ", v_CPU_request)
+            print("V_BW_Request: ", v_BW_demand)
+            print("Pending_V_Nodes: ", pending_v_nodes)
             print("\n")
 
             # Find the subset S of substrate nodes that satisfy restrictions and

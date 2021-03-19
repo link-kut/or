@@ -9,10 +9,10 @@ from algorithms.model.utils import set_init
 
 
 class Net(nn.Module):
-    def __init__(self, s_dim, a_dim):
+    def __init__(self, state_dim, action_dim):
         super(Net, self).__init__()
-        self.s_dim = s_dim
-        self.a_dim = a_dim
+        self.s_dim = state_dim
+        self.a_dim = action_dim
         self.pi1 = nn.Linear(s_dim, 128)
         self.pi2 = nn.Linear(128, a_dim)
         self.v1 = nn.Linear(s_dim, 128)

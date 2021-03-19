@@ -261,36 +261,11 @@ class VNEEnvironment(gym.Env):
         self.collect_vnrs_new_arrival()
 
         reward = 0.0
-        adjusted_reward = 0.0
         cost = 0.0
-
-        r_a = 0.0
-        r_c = 0.0
-        r_s = 0.0
-
-        # r_a = 100*\gamma
-        for vnr, embedding_s_nodes, embedding_s_paths in self.VNRs_SERVING.values():
-            num_vnr_nodes = 1
-            for s_node_id, cpu in embedding_s_nodes.values():
-                r_a += 100 * (num_vnr_nodes / len(embedding_s_nodes))
-                num_vnr_nodes += 1
 
         for vnr, _, embedding_s_paths in self.VNRs_SERVING.values():
             reward += vnr.revenue
             cost += vnr.cost
-            # r_c reward calculation
-            r_c += vnr.revenue / vnr.cost
-
-        # r_s reward calculation
-        for vnr, embedding_s_nodes, embedding_s_paths in self.VNRs_SERVING.values():
-            for s_node_id, cpu in embedding_s_nodes.values():
-                r_s += self.SUBSTRATE.net.nodes[s_node_id]['CPU'] / self.SUBSTRATE.initial_s_cpu_capacity[s_node_id]
-
-        adjusted_reward = r_a * r_c * r_s
-        print("r_a: ", r_a)
-        print("r_a: ", r_c)
-        print("r_a: ", r_s)
-        print("total reward: ", adjusted_reward)
 
         if self.time_step >= config.GLOBAL_MAX_STEPS:
             done = True
@@ -317,7 +292,7 @@ class VNEEnvironment(gym.Env):
             "link_embedding_fails_against_total_fails_ratio": self.link_embedding_fails_against_total_fails_ratio
         }
 
-        return next_state, reward, adjusted_reward, done, info
+        return next_state, reward, done, info
 
     def release_vnrs_expired_from_collected(self, vnrs_embedding):
         '''

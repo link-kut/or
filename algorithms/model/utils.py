@@ -75,39 +75,3 @@ class SharedAdam(torch.optim.Adam):
                 # share in memory
                 state['exp_avg'].share_memory_()
                 state['exp_avg_sq'].share_memory_()
-
-class Worker(mp.Process):
-    def __init__(self, gnet, opt, global_ep, global_ep_r, res_queue, name, env):
-        super(Worker, self).__init__()
-        self.name = 'w%02i' % name
-        self.g_ep, self.g_ep_r, self.res_queue = global_ep, global_ep_r, res_queue
-        self.gnet, self.opt = gnet, opt
-        # self.lnet = Net(N_S, N_A)           # local network
-        self.env = env
-
-    def run(self):
-        total_step = 1
-        while self.g_ep.value < config.MAX_EP:
-            s = self.env.reset()
-            buffer_s, buffer_a, buffer_r = [], [], []
-            ep_r = 0.
-            while True:
-                a = self.lnet.choose_action(v_wrap(s[None, :]))
-                s_, r, done, _ = self.env.step(a)
-                if done: r = -1
-                ep_r += r
-                buffer_a.append(a)
-                buffer_s.append(s)
-                buffer_r.append(r)
-
-                if total_step % config.UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
-                    # sync
-                    push_and_pull(self.opt, self.lnet, self.gnet, done, s_, buffer_s, buffer_a, buffer_r, config.GAMMA)
-                    buffer_s, buffer_a, buffer_r = [], [], []
-
-                    if done:  # done and print information
-                        record(self.g_ep, self.g_ep_r, ep_r, self.res_queue, self.name)
-                        break
-                s = s_
-                total_step += 1
-        self.res_queue.put(None)

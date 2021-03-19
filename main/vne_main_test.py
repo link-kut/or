@@ -72,7 +72,7 @@ def main():
                     utils.run_agent_step_prefix(run + 1, agent_id, time_step), action_msg
                 ))
 
-                next_state, reward, adjusted_reward, done, info = envs[agent_id].step(action)
+                next_state, reward, done, info = envs[agent_id].step(action)
 
                 elapsed_time = time.time() - run_start_ts
                 after_action_msg = "reward {0:6.1f} | revenue {1:6.1f} | acc. ratio {2:4.2f} | " \
