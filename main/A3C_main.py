@@ -35,13 +35,14 @@ performance_link_fail_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STE
 
 
 def main():
-    gnet = A3C_Model(config.SUBSTRATE_NODES + 3, config.SUBSTRATE_NODES)  # global network Net(state_dim, action_dim)
+    gnet = A3C_Model(503, config.SUBSTRATE_NODES)  # global network Net(state_dim, action_dim)
     gnet.share_memory()  # share the global parameters in multiprocessing
     opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))  # global optimizer
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
 
     # parallel training
-    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(mp.cpu_count())]
+    # workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(mp.cpu_count())]
+    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(2)]
     [w.start() for w in workers]
     res = []  # record episode reward to plot
     while True:

@@ -5,6 +5,7 @@ from main import config
 
 import copy
 import torch
+import networkx as nx
 
 # from torch.nn import Linear
 # from torch_geometric.nn import GCNConv
@@ -106,7 +107,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         sorted_vnrs_with_node_ranking = []
         already_embedding_s_nodes = []
         current_embedding = [0] * len(copied_substrate.net.nodes)
-        model = A3C_Model(103, config.SUBSTRATE_NODES)
+        model = A3C_Model(503, config.SUBSTRATE_NODES)
 
         # calculate the vnr node ranking
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
@@ -161,7 +162,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         # model = GCN()
         # out, embedding = model(substrate_features, data.edge_index)
 
-        # utils.load_model(model_save_path, model)
+        utils.load_model(model_save_path, model)
         vnr_length_index = 0
         for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
@@ -197,6 +198,62 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         self.count_node_mapping += 1
 
         return embedding_s_nodes
+
+    def find_substrate_path(self, copied_substrate, vnr, embedding_s_nodes):
+        embedding_s_paths = {}
+
+        # mapping the virtual nodes and substrate_net nodes
+        for src_v_node, dst_v_node, edge_data in vnr.net.edges(data=True):
+            v_link = (src_v_node, dst_v_node)
+            src_s_node = embedding_s_nodes[src_v_node][0]
+            dst_s_node = embedding_s_nodes[dst_v_node][0]
+            v_bandwidth_demand = edge_data['bandwidth']
+
+            if src_s_node == dst_s_node:
+                embedding_s_paths[v_link] = ([], v_bandwidth_demand)
+            else:
+                subnet = nx.subgraph_view(
+                    copied_substrate.net,
+                    filter_edge=lambda node_1_id, node_2_id: \
+                        True if copied_substrate.net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
+                )
+
+                # Just for assertion
+                # for u, v, a in subnet.edges(data=True):
+                #     assert a["bandwidth"] >= v_bandwidth_demand
+
+                if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
+                    self.num_link_embedding_fails += 1
+                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
+                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    )
+                    self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                    return None
+
+                MAX_K = 1
+
+                shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
+
+                # Check the path length
+                if len(shortest_s_path) == config.MAX_EMBEDDING_PATH_LENGTH:
+                    self.num_link_embedding_fails += 1
+                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
+                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    )
+                    self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                    return None
+
+                s_links_in_path = []
+                for node_idx in range(len(shortest_s_path) - 1):
+                    s_links_in_path.append((shortest_s_path[node_idx], shortest_s_path[node_idx + 1]))
+
+                for s_link in s_links_in_path:
+                    assert copied_substrate.net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
+                    copied_substrate.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+
+                embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
+
+        return embedding_s_paths
 
     def calculate_node_ranking(self, node_cpu_capacity, adjacent_links):
         total_node_bandwidth = sum((adjacent_links[link_id]['bandwidth'] for link_id in adjacent_links))
