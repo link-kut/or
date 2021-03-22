@@ -5,10 +5,15 @@ from random import randint, expovariate
 from algorithms.a_baseline import Action
 from common import utils
 from main import config
+import enum
+
+class EnvMode(enum.Enum):
+    plain = 0
+    a3c = 1
 
 
 class Substrate:
-    def __init__(self):
+    def __init__(self, mode=EnvMode.plain):
         all_connected = False
         while not all_connected:
             self.net = nx.gnm_random_graph(n=config.SUBSTRATE_NODES, m=config.SUBSTRATE_LINKS)
@@ -18,6 +23,11 @@ class Substrate:
         self.initial_s_bw_capacity = []
         self.initial_total_cpu_capacity = 0
         self.initial_total_bandwidth_capacity = 0
+
+        if mode == EnvMode.a3c:
+            pass
+        else:
+            pass
 
         # corresponding CPU and bandwidth resources of it are real numbers uniformly distributed from 50 to 100
         self.min_cpu_capacity = 1.0e10

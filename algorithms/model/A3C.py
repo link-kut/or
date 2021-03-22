@@ -15,6 +15,25 @@ class A3C_Model(nn.Module):
         super(A3C_Model, self).__init__()
         self.s_dim = state_dim
         self.a_dim = action_dim
+
+        self.actor_gcn_conv = nn.Sequential(
+            nn.Conv2d(in_channels=input_shape[0], out_channels=32, kernel_size=8, stride=4),
+            nn.LeakyReLU(),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
+            nn.LeakyReLU(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
+            nn.LeakyReLU()
+        )
+
+        self.critic_gcn_conv = nn.Sequential(
+            nn.Conv2d(in_channels=input_shape[0], out_channels=32, kernel_size=8, stride=4),
+            nn.LeakyReLU(),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
+            nn.LeakyReLU(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
+            nn.LeakyReLU()
+        )
+
         self.pi1 = nn.Linear(state_dim, 128)
         self.pi2 = nn.Linear(128, action_dim)
         self.v1 = nn.Linear(state_dim, 128)
@@ -23,15 +42,21 @@ class A3C_Model(nn.Module):
         self.distribution = torch.distributions.Categorical
 
     def forward(self, x):
+
+        gcn_embedding = self.actor_conv(substrate_features).view(substrate_features.size()[0], -1)
+
+        concatenated_state = torch.cat((gcn_embedding, v_CPU_request, v_BW_demand, pending_v_nodes), 0)
+        concatenated_state = torch.unsqueeze(concatenated_state, 0)
+
         pi1 = torch.tanh(self.pi1(x))
         logits = self.pi2(pi1)
         v1 = torch.tanh(self.v1(x))
         values = self.v2(v1)
         return logits, values
 
-    def select_node(self, s):
+    def select_node(self, substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes):
         self.eval()
-        logits, _ = self.forward(s)
+        logits, _ = self.forward(concatenated_state)
         prob = F.softmax(logits, dim=1).data
         m = self.distribution(prob)
         return m.sample().numpy()[0]

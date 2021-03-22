@@ -51,6 +51,9 @@ class Worker(mp.Process):
         time_step = 0
 
         total_step = 1
+
+        eligibility_trace = np.zeros(shape=(100,))
+
         while self.g_ep.value < config.MAX_EP:
             s = self.env.reset()
             buffer_s, buffer_a, buffer_r = [], [], []
@@ -61,6 +64,14 @@ class Worker(mp.Process):
                 action = self.lnet.select_node(state)
 
                 next_state, reward, adjusted_reward, done, info = self.env.step(action)
+
+                for idx in range(100,):
+                    if idx == action:
+                        eligibility_trace[idx] = 0.99 * (eligibility_trace[idx] + 1)
+                    else:
+                        eligibility_trace[idx] = 0.99 * eligibility_trace[idx]
+
+                adjusted_reward = adjusted_reward / (eligibility_trace[action] + 1e-05)
 
                 ep_r += adjusted_reward
                 buffer_a.append(action)
