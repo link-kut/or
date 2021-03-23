@@ -17,7 +17,7 @@ class A3C_Model(nn.Module):
         self.a_dim = action_dim
 
         self.actor_gcn_conv = nn.Sequential(
-            nn.Conv2d(in_channels=input_shape[0], out_channels=32, kernel_size=8, stride=4),
+            nn.Conv2d(in_channels=state_dim, out_channels=32, kernel_size=8, stride=4),
             nn.LeakyReLU(),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
             nn.LeakyReLU(),
@@ -26,7 +26,7 @@ class A3C_Model(nn.Module):
         )
 
         self.critic_gcn_conv = nn.Sequential(
-            nn.Conv2d(in_channels=input_shape[0], out_channels=32, kernel_size=8, stride=4),
+            nn.Conv2d(in_channels=state_dim, out_channels=32, kernel_size=8, stride=4),
             nn.LeakyReLU(),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
             nn.LeakyReLU(),
@@ -41,7 +41,19 @@ class A3C_Model(nn.Module):
         set_init([self.pi1, self.pi2, self.v1, self.v2])
         self.distribution = torch.distributions.Categorical
 
-    def forward(self, x):
+    def forward_actor(self, inputs):
+        fx = inputs.float() / 256
+        actor_conv_out = self.actor_conv(fx).view(fx.size()[0], -1)
+        probs = F.softmax(self.actor_fc(actor_conv_out), dim=-1)
+        return probs
+
+    def forward_critic(self, inputs):
+        fx = inputs.float() / 256
+        critic_conv_out = self.critic_conv(fx).view(fx.size()[0], -1)
+        critic_values = self.critic_fc(critic_conv_out)
+        return critic_values
+
+    def forward(self, substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes):
 
         gcn_embedding = self.actor_conv(substrate_features).view(substrate_features.size()[0], -1)
 
@@ -56,7 +68,7 @@ class A3C_Model(nn.Module):
 
     def select_node(self, substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes):
         self.eval()
-        logits, _ = self.forward(concatenated_state)
+        logits, _ = self.forward(substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes)
         prob = F.softmax(logits, dim=1).data
         m = self.distribution(prob)
         return m.sample().numpy()[0]
