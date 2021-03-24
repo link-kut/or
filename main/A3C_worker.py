@@ -55,13 +55,13 @@ class Worker(mp.Process):
         eligibility_trace = np.zeros(shape=(100,))
 
         while self.g_ep.value < config.MAX_EP:
-            s = self.env.reset()
+            state = self.env.reset()
             buffer_s, buffer_a, buffer_r = [], [], []
             ep_r = 0.0
             while not done:
                 time_step += 1
-                # action = self.agent.get_action(state)
-                action = self.lnet.select_node(state)
+                action = self.agent.get_action(state)
+                # action = self.lnet.select_node(state)
 
                 next_state, reward, adjusted_reward, done, info = self.env.step(action)
 
