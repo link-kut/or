@@ -42,7 +42,7 @@ def main():
 
     # parallel training
     # workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(mp.cpu_count())]
-    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(2)]
+    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(1)]
     [w.start() for w in workers]
     res = []  # record episode reward to plot
     while True:

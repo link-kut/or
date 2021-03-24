@@ -1,5 +1,6 @@
 import glob
-import os
+import os, sys
+import datetime
 
 from torch import nn
 import torch
@@ -8,6 +9,13 @@ import torch.nn.functional as F
 import torch.multiprocessing as mp
 
 from main import config
+from main.common_main import model_save_path
+
+current_path = os.path.dirname(os.path.realpath(__file__))
+PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
+if PROJECT_HOME not in sys.path:
+    sys.path.append(PROJECT_HOME)
+
 
 def v_wrap(np_array, dtype=np.float32):
     if np_array.dtype != dtype:
@@ -46,6 +54,10 @@ def push_and_pull(opt, lnet, gnet, done, s_, bs, ba, br, gamma):
 
     # pull global parameters
     lnet.load_state_dict(gnet.state_dict())
+
+    now = datetime.datetime.now()
+    new_model_path = os.path.join(model_save_path, "A3C_{0}.pth".format(now.strftime("%Y_%m_%d_%H_%M")))
+    torch.save(gnet.gnet.state_dict(),new_model_path)
 
 
 def record(global_ep, global_ep_r, ep_r, res_queue, name):

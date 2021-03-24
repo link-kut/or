@@ -8,6 +8,7 @@ import gym
 import os
 
 from algorithms.model.utils import set_init
+from torch_geometric.nn import GCNConv
 
 
 class A3C_Model(nn.Module):
@@ -15,62 +16,67 @@ class A3C_Model(nn.Module):
         super(A3C_Model, self).__init__()
         self.s_dim = state_dim
         self.a_dim = action_dim
+        self.substrate_state = 0
+        self.edge_index = 0
+        self.v_CPU_request = 0
+        self.v_BW_demand = 0
+        self.pending_v_nodes = 0
 
-        self.actor_gcn_conv = nn.Sequential(
-            nn.Conv2d(in_channels=state_dim, out_channels=32, kernel_size=8, stride=4),
-            nn.LeakyReLU(),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
-            nn.LeakyReLU(),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
-            nn.LeakyReLU()
-        )
+        self.conv1 = GCNConv(in_channels=state_dim, out_channels=60)
+        self.conv2 = GCNConv(in_channels=60, out_channels=60)
+        self.conv3 = GCNConv(in_channels=60, out_channels=1)
 
-        self.critic_gcn_conv = nn.Sequential(
-            nn.Conv2d(in_channels=state_dim, out_channels=32, kernel_size=8, stride=4),
-            nn.LeakyReLU(),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
-            nn.LeakyReLU(),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
-            nn.LeakyReLU()
-        )
+        self.actor_fc = nn.Linear(103, action_dim)
+        self.critic_fc = nn.Linear(103, 1)
 
-        self.pi1 = nn.Linear(state_dim, 128)
-        self.pi2 = nn.Linear(128, action_dim)
-        self.v1 = nn.Linear(state_dim, 128)
-        self.v2 = nn.Linear(128, 1)
-        set_init([self.pi1, self.pi2, self.v1, self.v2])
+        set_init([self.conv1, self.conv2, self.conv3, self.actor_fc, self.critic_fc])
         self.distribution = torch.distributions.Categorical
 
-    def forward_actor(self, inputs):
-        fx = inputs.float() / 256
-        actor_conv_out = self.actor_conv(fx).view(fx.size()[0], -1)
-        probs = F.softmax(self.actor_fc(actor_conv_out), dim=-1)
-        return probs
+    def forward_gcn(self, x, edge_index):
+        h = self.conv1(x, edge_index)
+        h = h.tanh()
+        h = self.conv2(h, edge_index)
+        h = h.tanh()
+        h = self.conv3(h, edge_index)
+        h = h.tanh()
 
-    def forward_critic(self, inputs):
-        fx = inputs.float() / 256
-        critic_conv_out = self.critic_conv(fx).view(fx.size()[0], -1)
-        critic_values = self.critic_fc(critic_conv_out)
+        return h
+
+    def forward_actor(self, x):
+        actor_out = self.actor_fc(x)
+        return actor_out
+
+    def forward_critic(self, x):
+        critic_values = self.critic_fc(x)
         return critic_values
 
-    def forward(self, substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes):
+    def forward(self, substrate_features, edge_index, v_CPU_request, v_BW_demand, pending_v_nodes):
+        gcn_embedding = self.forward_gcn(substrate_features, edge_index)
 
-        gcn_embedding = self.actor_conv(substrate_features).view(substrate_features.size()[0], -1)
+        gcn_embedding = torch.squeeze(gcn_embedding, 2)
+        v_CPU_request = torch.unsqueeze(v_CPU_request, 0)
+        v_BW_demand = torch.unsqueeze(v_BW_demand, 0)
+        pending_v_nodes = torch.unsqueeze(pending_v_nodes, 0)
 
-        concatenated_state = torch.cat((gcn_embedding, v_CPU_request, v_BW_demand, pending_v_nodes), 0)
-        concatenated_state = torch.unsqueeze(concatenated_state, 0)
+        self.concatenated_state = torch.cat((gcn_embedding, v_CPU_request, v_BW_demand, pending_v_nodes), dim=1)
 
-        pi1 = torch.tanh(self.pi1(x))
-        logits = self.pi2(pi1)
-        v1 = torch.tanh(self.v1(x))
-        values = self.v2(v1)
+        logits = self.forward_actor(self.concatenated_state)
+        values = self.forward_critic(self.concatenated_state)
+
         return logits, values
 
-    def select_node(self, substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes):
+    def select_node(self, substrate_features, edge_index, v_CPU_request, v_BW_demand, pending_v_nodes):
+        self.substrate_state = substrate_features
+        self.edge_index = edge_index
+        self.v_CPU_request = v_CPU_request
+        self.v_BW_demand = v_BW_demand
+        self.pending_v_nodes = pending_v_nodes
+
         self.eval()
-        logits, _ = self.forward(substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes)
+        logits, values = self.forward(substrate_features, edge_index, v_CPU_request, v_BW_demand, pending_v_nodes)
         prob = F.softmax(logits, dim=1).data
         m = self.distribution(prob)
+
         return m.sample().numpy()[0]
 
     def loss_func(self, s, a, v_t):
@@ -83,5 +89,9 @@ class A3C_Model(nn.Module):
         exp_v = m.log_prob(a) * td.detach().squeeze()
         a_loss = -exp_v
         total_loss = (c_loss + a_loss).mean()
+
         return total_loss
+
+    def get_state(self):
+        return self.substrate_state, self.edge_index, self.v_CPU_request, self.v_BW_demand, self.pending_v_nodes
 

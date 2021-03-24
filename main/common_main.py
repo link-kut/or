@@ -48,6 +48,9 @@ else:
 if not os.path.exists(csv_save_path):
     os.makedirs(csv_save_path)
 
+if not os.path.exists(model_save_path):
+    os.makedirs(model_save_path)
+
 logger = get_logger("vne")
 
 plt.figure(figsize=(20, 10))

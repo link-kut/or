@@ -23,7 +23,7 @@ else:
 NUM_RUNS = 1
 
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
-GLOBAL_MAX_STEPS = 56000
+GLOBAL_MAX_STEPS = 5600
 
 TIME_WINDOW_SIZE = 1
 

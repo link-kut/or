@@ -20,28 +20,6 @@ if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
 
 
-# class GCN(torch.nn.Module):
-#     def __init__(self):
-#         super(GCN, self).__init__()
-#         torch.manual_seed(12345)
-#         self.conv1 = GCNConv(in_channels=5, out_channels=4)
-#         self.conv2 = GCNConv(in_channels=4, out_channels=4)
-#         self.conv3 = GCNConv(in_channels=4, out_channels=2)
-#         self.classifier = Linear(2, 100)
-#
-#     def forward(self, x, edge_index):
-#         h = self.conv1(x, edge_index)
-#         h = h.tanh()
-#         h = self.conv2(h, edge_index)
-#         h = h.tanh()
-#         h = self.conv3(h, edge_index)
-#         h = h.tanh()  # Final GNN embedding space.
-#
-#         # Apply a final (linear) classifier.
-#         out = self.classifier(h)
-#
-#         return out, h
-
 class A3CGraphCNVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
         super(A3CGraphCNVNEAgent, self).__init__(logger)
@@ -107,7 +85,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         sorted_vnrs_with_node_ranking = []
         already_embedding_s_nodes = []
         current_embedding = [0] * len(copied_substrate.net.nodes)
-        model = A3C_Model(503, config.SUBSTRATE_NODES)
+        model = A3C_Model(5, config.SUBSTRATE_NODES)
 
         # calculate the vnr node ranking
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
@@ -122,7 +100,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             key=lambda sorted_vnrs_with_node_ranking: sorted_vnrs_with_node_ranking[2], reverse=True
         )
 
-        # Input State s for GCN
+        # Input State
         if self.count_node_mapping == 0:
             self.get_initial_cpu_and_bandwidth_capacity(substrate=copied_substrate)
         s_CPU_capacity = self.initial_s_CPU
@@ -155,14 +133,12 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         # Convert to the torch.tensor
         substrate_features = torch.tensor(substrate_features)
         substrate_features = torch.transpose(substrate_features, 0, 1)
-        substrate_features = torch.reshape(substrate_features, (-1,))
+        # substrate_features = torch.reshape(substrate_features, (-1,))
 
         # GCN for Feature Extract
-        # data = from_networkx(copied_substrate.net)
-        # model = GCN()
-        # out, embedding = model(substrate_features, data.edge_index)
+        data = from_networkx(copied_substrate.net)
 
-        utils.load_model(model_save_path, model)
+        # utils.load_model(model_save_path, model)
         vnr_length_index = 0
         for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
@@ -172,10 +148,11 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             pending_nodes = len(sorted_vnrs_with_node_ranking) - vnr_length_index
             pending_v_nodes = torch.tensor([pending_nodes])
 
-            state = torch.cat((substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes), 0)
-            state = torch.unsqueeze(state, 0)
+            state = torch.unsqueeze(substrate_features, 0)
+            # state = torch.cat((substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes), 0)
+            # state = torch.unsqueeze(state, 0)
 
-            selected_s_node_id = model.select_node(state)
+            selected_s_node_id = model.select_node(state, data.edge_index, v_CPU_request, v_BW_demand, pending_v_nodes)
 
             if copied_substrate.net.nodes[selected_s_node_id]['CPU'] <= v_cpu_demand:
                 self.num_node_embedding_fails += 1

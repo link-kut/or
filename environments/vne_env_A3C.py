@@ -17,6 +17,7 @@ class Substrate:
 
         self.initial_s_cpu_capacity = []
         self.initial_s_bw_capacity = []
+        self.initial_s_node_total_bandwidth = []
         self.initial_total_cpu_capacity = 0
         self.initial_total_bandwidth_capacity = 0
 
@@ -43,6 +44,12 @@ class Substrate:
                 self.min_bandwidth_capacity = self.net.edges[edge_id]['bandwidth']
             if self.net.edges[edge_id]['bandwidth'] > self.max_bandwidth_capacity:
                 self.max_bandwidth_capacity = self.net.edges[edge_id]['bandwidth']
+
+        for s_node_id in range(len(self.net.nodes)):
+            total_node_bandwidth = 0.0
+            for link_id in self.net[s_node_id]:
+                total_node_bandwidth += self.net[s_node_id][link_id]['bandwidth']
+            self.initial_s_node_total_bandwidth.append(total_node_bandwidth)
 
     def __str__(self):
         remaining_cpu_resource = sum([node_data['CPU'] for _, node_data in self.net.nodes(data=True)])
