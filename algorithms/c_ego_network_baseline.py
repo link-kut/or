@@ -4,6 +4,7 @@ import copy
 # Baseline Agent
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
+from common.utils import TYPE_OF_VIRTUAL_NODE_RANKING
 from main import config
 
 
@@ -57,24 +58,14 @@ class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
         '''
         subset_S_per_v_node = {}
         embedding_s_nodes = {}
-        sorted_vnrs_with_node_ranking = []
         already_embedding_s_nodes = []
 
-        # calculate the vnr node ranking
-        for v_node_id, v_node_data in vnr.net.nodes(data=True):
-            vnr_node_ranking = self.calculate_node_ranking(
-                vnr.net.nodes[v_node_id]['CPU'],
-                vnr.net[v_node_id]
-            )
-            sorted_vnrs_with_node_ranking.append((v_node_id, v_node_data, vnr_node_ranking))
-
-        # sorting the vnr nodes with node's ranking
-        sorted_vnrs_with_node_ranking.sort(
-            key=lambda sorted_vnrs_with_node_ranking: sorted_vnrs_with_node_ranking[2], reverse=True
+        sorted_virtual_nodes_with_node_ranking = utils.get_sorted_virtual_nodes_with_node_ranking(
+            vnr=vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=self.beta
         )
 
         vnr_num_node = 0
-        for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
+        for v_node_id, v_node_data, _ in sorted_virtual_nodes_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
             v_node_location = v_node_data['LOCATION']
 
@@ -130,7 +121,7 @@ class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                msg = "VNR REJECTED ({0}): 'no suitable NODE for nodal constraints: {1}' {2}".format(
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))

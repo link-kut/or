@@ -1,16 +1,119 @@
+import copy
 import random
+import itertools
 
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
+from common.utils import peek_from_iterable, TYPE_OF_VIRTUAL_NODE_RANKING
 from main import config
 import networkx as nx
 from termcolor import colored
 import numpy as np
 
 
-class GABaselineVNEAgent(BaselineVNEAgent):
+class MultiGAVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
-        super(GABaselineVNEAgent, self).__init__(logger)
+        super(MultiGAVNEAgent, self).__init__(logger)
+
+    def embedding(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
+        sorted_vnrs = sorted(
+            VNRs_COLLECTED.values(), key=lambda vnr: vnr.revenue, reverse=True
+        )
+
+        for vnr in sorted_vnrs:
+            sorted_virtual_nodes_with_node_ranking = utils.get_sorted_virtual_nodes_with_node_ranking(
+                vnr=vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
+            )
+
+            node_embedding_combinations = self.find_all_node_embedding_combinations(
+                COPIED_SUBSTRATE, sorted_virtual_nodes_with_node_ranking, vnr
+            )
+
+    #
+    # def get_node_embedding_combinations(self, subset_S_per_v_node):
+    #     node_embedding_combinations = []
+    #
+    #     # for v_node_id in subset_S_per_v_node:
+    #
+    #     return node_embedding_combinations
+
+    def find_all_node_embedding_combinations(self, copied_substrate, sorted_virtual_nodes_with_node_ranking, vnr):
+        sorted_v_nodes_and_data = [
+            (v_node_id, v_node_data['CPU'], v_node_data['LOCATION'])
+            for v_node_id, v_node_data, _ in sorted_virtual_nodes_with_node_ranking
+        ]
+
+        # sorted_v_nodes_and_data: [(1, 43, 2), (2, 24, 0), (3, 7, 0), (4, 44, 1)]
+        print(sorted_v_nodes_and_data, "!!!!!")
+
+        all_combinations = []
+
+        self.search_combinations(
+            sorted_v_nodes_and_data=sorted_v_nodes_and_data,
+            idx=0,
+            combination=[],
+            all_combinations=all_combinations,
+            copied_substrate=copied_substrate,
+            already_embedding_s_nodes=[],
+            vnr=vnr
+        )
+
+        for combination in all_combinations:
+            print(combination)
+
+    def search_combinations(
+            self, sorted_v_nodes_and_data, idx, combination, all_combinations, copied_substrate,
+            already_embedding_s_nodes, vnr
+    ):
+        is_last = (idx == len(sorted_v_nodes_and_data) - 1)
+
+        v_cpu_demand = sorted_v_nodes_and_data[idx][1]
+        v_node_location = sorted_v_nodes_and_data[idx][2]
+        subset_S = self.find_subset_S_for_virtual_node(
+            copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
+        )
+
+        # first, subset_S = peek_from_iterable(subset_S)
+        # if first is None:
+        #     self.num_node_embedding_fails += 1
+        #     msg = "VNR REJECTED ({0}): 'no suitable NODE for nodal constraints: {1}' {2}".format(
+        #         self.num_node_embedding_fails, sorted_v_nodes_and_data[0][1], vnr
+        #     )
+        #     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+        #     return None
+
+        for s_node_id in subset_S:
+            item = combination + [s_node_id]
+
+            if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+                already_embedding_s_nodes.append(s_node_id)
+
+            assert copied_substrate.net.nodes[s_node_id]['CPU'] >= v_cpu_demand
+            copied_substrate.net.nodes[s_node_id]['CPU'] -= v_cpu_demand
+
+            if is_last:
+                all_combinations.append(item)
+                print(idx)
+            else:
+                new_copied_substrate = copy.deepcopy(copied_substrate)
+
+                if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+                    new_already_embedding_s_nodes = copy.deepcopy(already_embedding_s_nodes)
+                else:
+                    new_already_embedding_s_nodes = already_embedding_s_nodes
+
+                #print(idx + 1, already_embedding_s_nodes, all_combinations)
+
+                self.search_combinations(
+                    sorted_v_nodes_and_data=sorted_v_nodes_and_data,
+                    idx=idx + 1,
+                    combination=item,
+                    all_combinations=all_combinations,
+                    copied_substrate=new_copied_substrate,
+                    already_embedding_s_nodes=new_already_embedding_s_nodes,
+                    vnr=vnr
+                )
+
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         subset_S_per_v_node = {}

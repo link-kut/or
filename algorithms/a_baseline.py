@@ -84,7 +84,7 @@ class BaselineVNEAgent:
 
             # if len(subset_S_per_v_node[v_node_id]) == 0:
             #     self.num_node_embedding_fails += 1
-            #     msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+            #     msg = "VNR REJECTED ({0}): 'no suitable NODE for nodal constraints: {1}' {2}".format(
             #         self.num_node_embedding_fails, v_cpu_demand, vnr
             #     )
             #     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
@@ -104,7 +104,7 @@ class BaselineVNEAgent:
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                msg = "VNR REJECTED ({0}): 'no suitable NODE for nodal constraints: {1}' {2}".format(
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
@@ -250,15 +250,7 @@ class BaselineVNEAgent:
         COPIED_SUBSTRATE = copy.deepcopy(state.substrate)
         VNRs_COLLECTED = state.vnrs_collected
 
-        #####################################
-        # step 1 - Greedy Node Mapping      #
-        #####################################
-        sorted_vnrs_and_node_embedding = self.node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
-
-        #####################################
-        # step 2 - Link Mapping             #
-        #####################################
-        self.link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
+        self.embedding(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
 
         assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
 
@@ -268,3 +260,14 @@ class BaselineVNEAgent:
         action.num_link_embedding_fails = self.num_link_embedding_fails
         
         return action
+
+    def embedding(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
+        #####################################
+        # step 1 - Greedy Node Mapping      #
+        #####################################
+        sorted_vnrs_and_node_embedding = self.node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
+
+        #####################################
+        # step 2 - Link Mapping             #
+        #####################################
+        self.link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
