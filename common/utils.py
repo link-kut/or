@@ -1,3 +1,5 @@
+import itertools
+
 import networkx as nx
 from itertools import islice
 import os, sys
@@ -100,3 +102,11 @@ def send_file_to_slack(filepath):
         assert e.response["ok"] is False
         assert e.response["error"]  # str like 'invalid_auth', 'channel_not_found'
         print(f"Got an error: {e.response['error']}")
+
+
+def peek_from_iterable(iterable):
+    try:
+        first = next(iterable)
+    except StopIteration:
+        return None
+    return first, itertools.chain([first], iterable)

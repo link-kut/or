@@ -179,7 +179,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
 
             if copied_substrate.net.nodes[selected_s_node_id]['CPU'] <= v_cpu_demand:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                msg = "VNR REJECTED ({0}): 'no suitable NODE for nodal constraints: {1}' {2}".format(
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))

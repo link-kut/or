@@ -99,7 +99,7 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
             total_p_value = sum(selected_s_node_p_value)
             if total_p_value == 0:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                msg = "VNR REJECTED ({0}): 'no suitable NODE for nodal constraints: {1}' {2}".format(
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
@@ -111,7 +111,7 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                msg = "VNR REJECTED ({0}): 'no suitable NODE for nodal constraints: {1}' {2}".format(
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))

@@ -1,16 +1,99 @@
+import copy
 import random
+import itertools
 
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
+from common.utils import peek_from_iterable
 from main import config
 import networkx as nx
 from termcolor import colored
 import numpy as np
 
 
-class GABaselineVNEAgent(BaselineVNEAgent):
+class MultiGAVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
-        super(GABaselineVNEAgent, self).__init__(logger)
+        super(MultiGAVNEAgent, self).__init__(logger)
+
+    def embedding(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
+        sorted_vnrs = sorted(
+            VNRs_COLLECTED.values(), key=lambda vnr: vnr.revenue, reverse=True
+        )
+
+        for vnr in sorted_vnrs:
+            node_embedding_combinations = self.find_all_node_embedding_combinations(COPIED_SUBSTRATE, vnr)
+
+    #
+    # def get_node_embedding_combinations(self, subset_S_per_v_node):
+    #     node_embedding_combinations = []
+    #
+    #     # for v_node_id in subset_S_per_v_node:
+    #
+    #     return node_embedding_combinations
+
+    def find_all_node_embedding_combinations(self, copied_substrate, vnr):
+        v_nodes_in_vnr = [(v_node_id, v_node_data['CPU'], v_node_data['LOCATION']) for v_node_id, v_node_data
+                   in vnr.net.nodes(data=True) if v_node_id]
+        all_permutations_of_v_nodes_in_vnr = list(itertools.permutations(v_nodes_in_vnr))
+
+        print(v_nodes_in_vnr, "!!!!!")
+        print(len(all_permutations_of_v_nodes_in_vnr), "@@@@@")
+
+        all_combinations = []
+
+        for idx, permuted_v_nodes_in_vnr in enumerate(all_permutations_of_v_nodes_in_vnr):
+            # permuted_v_nodes_in_vnr: [(1, 43, 2), (2, 24, 0), (3, 7, 0), (4, 44, 1)]
+
+            combinations = []
+            new_copied_substrate = copy.deepcopy(copied_substrate)
+            already_embedding_s_nodes = []
+
+            # simple_valid_subset_S_per_v_node =
+            # [
+            #   [0, 5, 10, 13, 17, 19, 21, 22, 26, 28, 39, 40, 45, 46, 47, 48, 50, 51, 54, 55, 57, 62, 63, 64, 65, 71, 72, 75, 76, 80, 81, 83, 85, 89, 94, 97],
+            #   [4, 8, 9, 12, 16, 23, 24, 29, 30, 34, 35, 36, 44, 49, 59, 60, 61, 66, 67, 68, 69, 70, 73, 77, 82, 84, 90, 91, 92, 93, 96, 98],
+            #   [4, 8, 9, 12, 16, 23, 24, 29, 30, 34, 35, 36, 44, 49, 59, 60, 61, 66, 67, 68, 69, 70, 73, 77, 82, 84, 90, 91, 92, 93, 96, 98],
+            #   [1, 2, 3, 6, 7, 11, 14, 15, 18, 20, 25, 27, 31, 32, 33, 37, 38, 41, 42, 43, 52, 53, 56, 58, 74, 78, 79, 86, 87, 88, 95, 99]
+            # ]
+            simple_valid_subset_S_per_v_node = self.find_simple_valid_subset_S_per_v_node(
+                new_copied_substrate, permuted_v_nodes_in_vnr, vnr
+            )
+
+            for subset_S in simple_valid_subset_S_per_v_node:
+                print(list(subset_S))
+            # all_combinations = list(itertools.product(*simple_valid_subset_S_per_v_node))
+            #
+            # print(len(all_combinations))
+
+            if idx == 0:
+                break
+
+        return
+
+    def find_simple_valid_subset_S_per_v_node(self, copied_substrate, permuted_v_nodes_in_vnr, vnr):
+        subset_S_per_v_node = []
+
+        for (v_node_id, v_cpu_demand, v_node_location) in permuted_v_nodes_in_vnr:
+            # Find the subset S of substrate nodes that satisfy restrictions and
+            # available CPU capacity (larger than that specified by the request.)
+
+            subset_S = self.find_subset_S_for_virtual_node(
+                copied_substrate, v_cpu_demand, v_node_location, []
+            )
+
+            first, subset_S = peek_from_iterable(subset_S)
+            if first is None:
+                self.num_node_embedding_fails += 1
+                msg = "VNR REJECTED ({0}): 'no suitable NODE for nodal constraints: {1}' {2}".format(
+                    self.num_node_embedding_fails, v_cpu_demand, vnr
+                )
+                self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                return None
+
+            subset_S_per_v_node.append(subset_S)
+
+        return subset_S_per_v_node
+
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         subset_S_per_v_node = {}
