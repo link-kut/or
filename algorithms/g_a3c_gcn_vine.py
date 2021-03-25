@@ -51,7 +51,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             self.initial_s_bandwidth.append(total_node_bandwidth)
 
     # copied env for A3C
-    def reflect_copied_substrate(self, copied_substrate, vnr, selected_s_node_id,
+    def get_reward_after_node_embedding_to_copied_substrate(self, copied_substrate, vnr, selected_s_node_id,
                                  num_v_node, v_cpu_demand, vnr_length_index):
         reward = 0.0
 
