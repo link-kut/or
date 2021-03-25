@@ -16,6 +16,7 @@ class A3C_Model(nn.Module):
         super(A3C_Model, self).__init__()
         self.s_dim = state_dim
         self.a_dim = action_dim
+
         self.substrate_state = 0
         self.edge_index = 0
         self.v_CPU_request = 0
