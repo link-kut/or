@@ -8,7 +8,7 @@ import gym
 import os
 
 from algorithms.model.utils import set_init
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, ChebConv
 
 
 class A3C_Model(nn.Module):
@@ -22,9 +22,7 @@ class A3C_Model(nn.Module):
         self.v_BW_demand = 0
         self.pending_v_nodes = 0
 
-        self.conv1 = GCNConv(in_channels=state_dim, out_channels=60)
-        self.conv2 = GCNConv(in_channels=60, out_channels=60)
-        self.conv3 = GCNConv(in_channels=60, out_channels=1)
+        self.actor_conv = ChebConv(in_channels=state_dim, out_channels=60, K=60)
 
         self.actor_fc = nn.Linear(103, action_dim)
         self.critic_fc = nn.Linear(103, 1)

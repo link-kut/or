@@ -54,9 +54,6 @@ def push_and_pull(opt, lnet, gnet, done, bsf, bsei,
             buffer_v_target[0]
         )
 
-        print("total_loss: ", loss)
-
-
         del bsf[0], bsei[0], bsvc[0], bsvb[0], bspe[0], ba[0]
 
         # calculate local gradients and push local parameters to global

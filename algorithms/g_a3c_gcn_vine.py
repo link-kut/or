@@ -131,7 +131,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             selected_s_node_id = model.select_node(state, data.edge_index, v_CPU_request, v_BW_demand, pending_v_nodes)
 
             reward = self.get_reward(copied_substrate, vnr, selected_s_node_id,
-                                     len(sorted_virtual_nodes_with_node_ranking), v_cpu_demand, vnr_length_index)
+                                     len(sorted_v_nodes_with_node_ranking), v_cpu_demand, vnr_length_index)
 
             if copied_substrate.net.nodes[selected_s_node_id]['CPU'] <= v_cpu_demand:
                 self.num_node_embedding_fails += 1
@@ -150,15 +150,15 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
 
-            self.state_action[self.action_count] = {
-                'substrate_features': state,
-                'edge_index': data.edge_index,
-                'v_node_cpu': v_CPU_request,
-                'v_node_bw': v_BW_demand,
-                'pending_node': pending_v_nodes,
-                'action': selected_s_node_id,
-                'reward': reward
-            }
+            # self.state_action[self.action_count] = {
+            #     'substrate_features': state,
+            #     'edge_index': data.edge_index,
+            #     'v_node_cpu': v_CPU_request,
+            #     'v_node_bw': v_BW_demand,
+            #     'pending_node': pending_v_nodes,
+            #     'action': selected_s_node_id,
+            #     'reward': reward
+            # }
 
             self.action_count += 1
             vnr_length_index += 1
