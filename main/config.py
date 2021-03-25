@@ -38,12 +38,12 @@ VNR_INTER_ARRIVAL_RATE = 0.05
 
 # Each substrate network is configured to have 100 nodes with over 500 links,
 # which is about the scale of a medium-sized ISP.
-SUBSTRATE_NODES = 20
-SUBSTRATE_LINKS = 100
+SUBSTRATE_NODES = 100
+SUBSTRATE_LINKS = 500
 
 # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
-VNR_NODES_MIN = 2
-VNR_NODES_MAX = 3
+VNR_NODES_MIN = 5
+VNR_NODES_MAX = 10
 
 # Pairs of virtual nodes are randomly connected by links with the probability of 0.5.
 VNR_LINK_PROBABILITY = 0.5
@@ -73,6 +73,9 @@ CROSSOVER_RATE = 0.8
 MUTATION_RATE = 0.2
 
 # FOR A3C ALGORITHM
-UPDATE_GLOBAL_ITER = 5
+UPDATE_GLOBAL_ITER = 30
 GAMMA = 0.9
 MAX_EP = 3000
+
+# MULTI GENETIC ALGORITHM
+MAX_NUM_CANDIDATE_S_NODES_PER_V_NODE = 2

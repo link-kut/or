@@ -4,12 +4,8 @@ from random import randint, expovariate
 
 from algorithms.a_baseline import Action
 from common import utils
+from environments.vne_env import VNEEnvironment
 from main import config
-import enum
-
-class EnvMode(enum.Enum):
-    plain = 0
-    a3c = 1
 
 
 class Substrate:
@@ -179,80 +175,7 @@ class State:
         return state_str
 
 
-class VNEEnvironment(gym.Env):
-    def __init__(self, logger):
-        self.logger = logger
-
-        self.SUBSTRATE = Substrate()
-        self.VNRs_INFO = {}
-
-        time_step = 0
-        vnr_id = 0
-
-        while True:
-            next_arrival = int(expovariate(config.VNR_INTER_ARRIVAL_RATE))
-
-            time_step += next_arrival
-            if time_step >= config.GLOBAL_MAX_STEPS:
-                break
-
-            vnr = VNR(
-                id=vnr_id,
-                vnr_duration_mean_rate=config.VNR_DURATION_MEAN_RATE,
-                delay=config.VNR_DELAY,
-                time_step_arrival=time_step
-            )
-
-            self.VNRs_INFO[vnr.id] = vnr
-            vnr_id += 1
-
-        msg = "TOTAL NUMBER of SUBSTRATE nodes: {0}\n".format(len(self.SUBSTRATE.net.nodes()))
-        msg += "TOTAL NUMBER of SUBSTRATE edges: {0}\n".format(len(self.SUBSTRATE.net.edges()))
-        msg += "DIAMETER of SUBSTRATE: {0}\n".format(nx.diameter(self.SUBSTRATE.net))
-        msg += "TOTAL NUMBER of VNRs: {0}\n".format(len(self.VNRs_INFO))
-
-        if self.logger:
-            self.logger.info(msg)
-        print(msg)
-
-        self.VNRs_SERVING = None
-        self.VNRs_COLLECTED = None
-
-        self.time_step = None
-
-        self.total_arrival_vnrs = None
-        self.total_embedded_vnrs = None
-
-        self.episode_reward = None
-        self.revenue = None
-        self.acceptance_ratio = None
-        self.rc_ratio = None
-        self.link_embedding_fails_against_total_fails_ratio= None
-
-    def reset(self):
-        self.VNRs_SERVING = {}
-        self.VNRs_COLLECTED = {}
-
-        self.time_step = 0
-
-        self.total_arrival_vnrs = 0
-        self.total_embedded_vnrs = 0
-
-        self.episode_reward = 0.0
-        self.revenue = 0.0
-        self.acceptance_ratio = 0.0
-        self.rc_ratio = 0.0
-        self.link_embedding_fails_against_total_fails_ratio = 0.0
-
-        self.collect_vnrs_new_arrival()
-
-        initial_state = State()
-        initial_state.substrate = self.SUBSTRATE
-        initial_state.vnrs_collected = self.VNRs_COLLECTED
-        initial_state.vnrs_serving = self.VNRs_SERVING
-
-        return initial_state
-
+class A3CVNEEnvironment(VNEEnvironment):
     def step(self, action: Action):
         self.time_step += 1
 
@@ -272,27 +195,40 @@ class VNEEnvironment(gym.Env):
 
         self.collect_vnrs_new_arrival()
 
-        reward = 0.0
+        revenue = 0.0
         cost = 0.0
+        adjusted_reward = 0.0
 
-        for vnr, _, embedding_s_paths in self.VNRs_SERVING.values():
-            reward += vnr.revenue
+        r_a = 0.0
+        r_c = 0.0
+        r_s = 0.0
+
+        for vnr, embedding_s_nodes, embedding_s_paths in self.VNRs_SERVING.values():
+            revenue += vnr.revenue
             cost += vnr.cost
+            r_c = vnr.revenue / vnr.cost
+            num_vnr_node = 1
+            for v_node_id in embedding_s_nodes:
+                r_a += 100 * (num_vnr_node / len(vnr.net.nodes))
+                r_s += self.SUBSTRATE.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] / self.SUBSTRATE.initial_s_cpu_capacity[embedding_s_nodes[v_node_id][0]]
+                num_vnr_node += 1
 
         if self.time_step >= config.GLOBAL_MAX_STEPS:
             done = True
         else:
             done = False
 
+        adjusted_reward = r_a * r_c * r_s
+
         next_state = State()
         next_state.substrate = self.SUBSTRATE
         next_state.vnrs_collected = self.VNRs_COLLECTED
         next_state.vnrs_serving = self.VNRs_SERVING
 
-        self.episode_reward += reward
+        self.episode_reward += revenue
         self.revenue = self.episode_reward / self.time_step
         self.acceptance_ratio = self.total_embedded_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
-        self.rc_ratio = reward / cost if cost else 0.0
+        self.rc_ratio = revenue / cost if cost else 0.0
         self.link_embedding_fails_against_total_fails_ratio = \
             action.num_link_embedding_fails / (action.num_node_embedding_fails + action.num_link_embedding_fails) \
             if action and action.num_link_embedding_fails + action.num_node_embedding_fails else 0.0
@@ -304,74 +240,4 @@ class VNEEnvironment(gym.Env):
             "link_embedding_fails_against_total_fails_ratio": self.link_embedding_fails_against_total_fails_ratio
         }
 
-        return next_state, reward, done, info
-
-    def release_vnrs_expired_from_collected(self, vnrs_embedding):
-        '''
-        processing of leave_from_queue
-
-        :return: vnrs_left_from_queue
-        '''
-        vnrs_left_from_queue = []
-        for vnr in self.VNRs_COLLECTED.values():
-            if vnr.time_step_leave_from_queue <= self.time_step and vnr.id not in vnrs_embedding:
-                vnrs_left_from_queue.append(vnr)
-
-        for vnr in vnrs_left_from_queue:
-            del self.VNRs_COLLECTED[vnr.id]
-            if self.logger:
-                self.logger.info("{0} VNR LEFT OUT {1}".format(utils.step_prefix(self.time_step), vnr))
-
-        return vnrs_left_from_queue
-
-    def starting_serving_for_a_vnr(self, vnr, embedding_s_nodes, embedding_s_paths):
-        for s_node_id, v_cpu_demand in embedding_s_nodes.values():
-            self.SUBSTRATE.net.nodes[s_node_id]['CPU'] -= v_cpu_demand
-
-        for s_links_in_path, v_bandwidth_demand in embedding_s_paths.values():
-            for s_link in s_links_in_path:
-                self.SUBSTRATE.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
-
-        vnr.time_step_serving_started = self.time_step
-        vnr.time_step_serving_completed = self.time_step + vnr.duration
-        vnr.cost = utils.get_cost_VNR(vnr, embedding_s_paths)
-
-        self.VNRs_SERVING[vnr.id] = (vnr, embedding_s_nodes, embedding_s_paths)
-        if self.logger:
-            self.logger.info("{0} VNR SERVING STARTED {1}".format(utils.step_prefix(self.time_step), vnr))
-        self.total_embedded_vnrs += 1
-
-        del self.VNRs_COLLECTED[vnr.id]
-
-    def complete_vnrs_serving(self):
-        '''
-        processing of serving_completed
-        :return: vnrs_serving_completed
-        '''
-        vnrs_serving_completed = []
-        for vnr, embedding_s_nodes, embedding_s_paths in self.VNRs_SERVING.values():
-            if vnr.time_step_serving_completed and vnr.time_step_serving_completed <= self.time_step:
-                vnrs_serving_completed.append(vnr)
-
-                for s_node_id, v_cpu_demand in embedding_s_nodes.values():
-                    self.SUBSTRATE.net.nodes[s_node_id]['CPU'] += v_cpu_demand
-
-                for s_links_in_path, v_bandwidth_demand in embedding_s_paths.values():
-                    for s_link in s_links_in_path:
-                        self.SUBSTRATE.net.edges[s_link]['bandwidth'] += v_bandwidth_demand
-
-        for vnr in vnrs_serving_completed:
-            assert vnr.id in self.VNRs_SERVING
-            del self.VNRs_SERVING[vnr.id]
-            if self.logger:
-                self.logger.info("{0} VNR SERVING COMPLETED {1}".format(utils.step_prefix(self.time_step), vnr))
-
-        return vnrs_serving_completed
-
-    def collect_vnrs_new_arrival(self):
-        for vnr in self.VNRs_INFO.values():
-            if vnr.time_step_arrival == self.time_step:
-                self.VNRs_COLLECTED[vnr.id] = vnr
-                self.total_arrival_vnrs += 1
-                if self.logger:
-                    self.logger.info("{0} NEW VNR ARRIVED {1}".format(utils.step_prefix(self.time_step), vnr))
+        return next_state, revenue, adjusted_reward, done, info

@@ -30,37 +30,6 @@ class BaselineVNEAgent:
         self.time_step = 0
         self.next_embedding_epoch = config.TIME_WINDOW_SIZE
 
-    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
-        '''
-        find the subset S of the substrate nodes that satisfy restrictions and available CPU capacity
-        :param substrate: substrate network
-        :param v_cpu_demand: cpu demand of the given virtual node
-        :return:
-        '''
-
-        if config.LOCATION_CONSTRAINT:
-            subset_S = (
-                s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
-                if s_node_data['CPU'] >= v_cpu_demand and
-                   s_node_id not in already_embedding_s_nodes and
-                   s_node_data['LOCATION'] == v_node_location and
-                   s_node_id < config.SUBSTRATE_NODES
-            )
-        else:
-            subset_S = (
-                s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
-                if s_node_data['CPU'] >= v_cpu_demand and
-                   s_node_id not in already_embedding_s_nodes and
-                   s_node_id < config.SUBSTRATE_NODES
-            )
-
-        # subset_S = []
-        # for s_node_id, s_cpu_capacity in copied_substrate.net.nodes(data=True):
-        #     if s_cpu_capacity['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes:
-        #         subset_S.append(s_node_id)
-
-        return subset_S
-
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
         Execute Step 1
@@ -78,13 +47,13 @@ class BaselineVNEAgent:
 
             # Find the subset S of substrate nodes that satisfy restrictions and
             # available CPU capacity (larger than that specified by the request.)
-            subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
+            subset_S_per_v_node[v_node_id] = utils.find_subset_S_for_virtual_node(
                 copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
             )
 
             # if len(subset_S_per_v_node[v_node_id]) == 0:
             #     self.num_node_embedding_fails += 1
-            #     msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+            #     msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
             #         self.num_node_embedding_fails, v_cpu_demand, vnr
             #     )
             #     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
@@ -104,7 +73,7 @@ class BaselineVNEAgent:
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
@@ -250,15 +219,7 @@ class BaselineVNEAgent:
         COPIED_SUBSTRATE = copy.deepcopy(state.substrate)
         VNRs_COLLECTED = state.vnrs_collected
 
-        #####################################
-        # step 1 - Greedy Node Mapping      #
-        #####################################
-        sorted_vnrs_and_node_embedding = self.node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
-
-        #####################################
-        # step 2 - Link Mapping             #
-        #####################################
-        self.link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)
+        self.embedding(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
 
         assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
 
@@ -268,3 +229,14 @@ class BaselineVNEAgent:
         action.num_link_embedding_fails = self.num_link_embedding_fails
         
         return action
+
+    def embedding(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
+        #####################################
+        # step 1 - Greedy Node Mapping      #
+        #####################################
+        sorted_vnrs_and_node_embedding = self.node_mapping(VNRs_COLLECTED, COPIED_SUBSTRATE, action)
+
+        #####################################
+        # step 2 - Link Mapping             #
+        #####################################
+        self.link_mapping(sorted_vnrs_and_node_embedding, COPIED_SUBSTRATE, action)

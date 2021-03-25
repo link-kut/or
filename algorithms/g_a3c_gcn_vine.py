@@ -1,36 +1,25 @@
+import os, sys
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
+from common.utils import TYPE_OF_VIRTUAL_NODE_RANKING
 from main import config
 
 import copy
 import torch
+import networkx as nx
+
 # from torch.nn import Linear
 # from torch_geometric.nn import GCNConv
 from torch_geometric.data import Data
 from torch_geometric.utils import from_networkx
+from algorithms.model.A3C import A3C_Model
+from main.common_main import model_save_path
 
+current_path = os.path.dirname(os.path.realpath(__file__))
+PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
+if PROJECT_HOME not in sys.path:
+    sys.path.append(PROJECT_HOME)
 
-# class GCN(torch.nn.Module):
-#     def __init__(self):
-#         super(GCN, self).__init__()
-#         torch.manual_seed(12345)
-#         self.conv1 = GCNConv(in_channels=5, out_channels=4)
-#         self.conv2 = GCNConv(in_channels=4, out_channels=4)
-#         self.conv3 = GCNConv(in_channels=4, out_channels=2)
-#         self.classifier = Linear(2, 100)
-#
-#     def forward(self, x, edge_index):
-#         h = self.conv1(x, edge_index)
-#         h = h.tanh()
-#         h = self.conv2(h, edge_index)
-#         h = h.tanh()
-#         h = self.conv3(h, edge_index)
-#         h = h.tanh()  # Final GNN embedding space.
-#
-#         # Apply a final (linear) classifier.
-#         out = self.classifier(h)
-#
-#         return out, h
 
 class A3CGraphCNVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
@@ -39,19 +28,11 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         self.initial_s_CPU = []
         self.initial_s_bandwidth = []
         self.count_node_mapping = 0
-
-    def get_initial_cpu_and_bandwidth_capacity(self, substrate):
-        for s_node_id, s_node_data in substrate.net.nodes(data=True):
-            self.initial_s_CPU.append(s_node_data['CPU'])
-
-        for s_node_id in range(len(substrate.net.nodes)):
-            total_node_bandwidth = 0.0
-            for link_id in substrate.net[s_node_id]:
-                total_node_bandwidth += substrate.net[s_node_id][link_id]['bandwidth']
-            self.initial_s_bandwidth.append(total_node_bandwidth)
+        self.action_count = 0
+        self.state_action = {}
 
     # copied env for A3C
-    def get_reward_after_node_embedding_to_copied_substrate(self, copied_substrate, vnr, selected_s_node_id,
+    def get_reward(self, copied_substrate, vnr, selected_s_node_id,
                                  num_v_node, v_cpu_demand, vnr_length_index):
         reward = 0.0
 
@@ -67,8 +48,8 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         else:
             r_a = -100 * (num_embedded_v_node / num_v_node)
 
-        r_c = vnr.revenue / vnr.cost
-        r_s = copied_substrate.net.nodes[selected_s_node_id]['CPU'] / self.initial_s_CPU[selected_s_node_id]
+        r_c = vnr.revenue / vnr.revenue
+        r_s = copied_substrate.net.nodes[selected_s_node_id]['CPU'] / copied_substrate.initial_s_cpu_capacity[selected_s_node_id]
 
         reward = r_a * r_c * r_s
 
@@ -94,28 +75,17 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         embedding_s_nodes = {}
         s_CPU_remaining = []
         s_bandwidth_remaining = []
-        sorted_vnrs_with_node_ranking = []
         already_embedding_s_nodes = []
         current_embedding = [0] * len(copied_substrate.net.nodes)
+        model = A3C_Model(5, config.SUBSTRATE_NODES)
 
-        # calculate the vnr node ranking
-        for v_node_id, v_node_data in vnr.net.nodes(data=True):
-            vnr_node_ranking = self.calculate_node_ranking(
-                vnr.net.nodes[v_node_id]['CPU'],
-                vnr.net[v_node_id]
-            )
-            sorted_vnrs_with_node_ranking.append((v_node_id, v_node_data, vnr_node_ranking))
-
-        # sorting the vnr nodes with node's ranking
-        sorted_vnrs_with_node_ranking.sort(
-            key=lambda sorted_vnrs_with_node_ranking: sorted_vnrs_with_node_ranking[2], reverse=True
+        sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
+            vnr=vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
         )
 
-        # Input State s for GCN
-        if self.count_node_mapping == 0:
-            self.get_initial_cpu_and_bandwidth_capacity(substrate=copied_substrate)
-        s_CPU_capacity = self.initial_s_CPU
-        s_bandwidth_capacity = self.initial_s_bandwidth
+        # Input State
+        s_CPU_capacity = copied_substrate.initial_s_cpu_capacity
+        s_bandwidth_capacity = copied_substrate.initial_s_node_total_bandwidth
 
         # S_CPU_Free
         for s_node_id, s_node_data in copied_substrate.net.nodes(data=True):
@@ -126,12 +96,6 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             for link_id in copied_substrate.net[s_node_id]:
                 total_node_bandwidth += copied_substrate.net[s_node_id][link_id]['bandwidth']
             s_bandwidth_remaining.append(total_node_bandwidth)
-
-        print("S_CPU_MAX: ",s_CPU_capacity)
-        print("S_BW_MAX: ", s_bandwidth_capacity)
-        print("S_CPU_Free: ", s_CPU_remaining)
-        print("S_BW_Free: ", s_bandwidth_remaining)
-        print("Current_Embedding: ", current_embedding)
 
         # Generate substrate feature matrix
         substrate_features = []
@@ -144,67 +108,38 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         # Convert to the torch.tensor
         substrate_features = torch.tensor(substrate_features)
         substrate_features = torch.transpose(substrate_features, 0, 1)
-        substrate_features = torch.reshape(substrate_features, (-1,))
+        # substrate_features = torch.reshape(substrate_features, (-1,))
 
         # GCN for Feature Extract
-        # data = from_networkx(copied_substrate.net)
-        # model = GCN()
-        # out, embedding = model(substrate_features, data.edge_index)
+        data = from_networkx(copied_substrate.net)
 
+        new_model_path = os.path.join(model_save_path, "A3C_model.pth")
+        model.load_state_dict(torch.load(new_model_path))
         vnr_length_index = 0
-        for v_node_id, v_node_data, _ in sorted_vnrs_with_node_ranking:
+        for v_node_id, v_node_data, _ in sorted_v_nodes_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
             v_CPU_request = torch.tensor([v_node_data['CPU']])
             v_node_location = v_node_data['LOCATION']
             v_BW_demand = torch.tensor([sum((vnr.net[v_node_id][link_id]['bandwidth'] for link_id in vnr.net[v_node_id]))])
-            pending_nodes = len(sorted_vnrs_with_node_ranking) - vnr_length_index
+            pending_nodes = len(sorted_v_nodes_with_node_ranking) - vnr_length_index
             pending_v_nodes = torch.tensor([pending_nodes])
-            print("V_CPU_Request: ", v_CPU_request)
-            print("V_BW_Request: ", v_BW_demand)
-            print("Pending_V_Nodes: ", pending_v_nodes)
-            print("\n")
 
-            # Find the subset S of substrate nodes that satisfy restrictions and
-            # available CPU capacity (larger than that specified by the request.)
-            subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
-                copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
-            )
+            state = torch.unsqueeze(substrate_features, 0)
+            # state = torch.cat((substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes), 0)
+            # state = torch.unsqueeze(state, 0)
 
-            # if len(subset_S_per_v_node[v_node_id]) == 0:
-            #     self.num_node_embedding_fails += 1
-            #     msg = "VNR REJECTED ({0}): 'no subset S' - {1}".format(self.num_node_embedding_fails, vnr)
-            #     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-            #     return None
+            selected_s_node_id = model.select_node(state, data.edge_index, v_CPU_request, v_BW_demand, pending_v_nodes)
 
-            # max_node_ranking = -1.0 * 1e10
-            # selected_s_node_id = -1
+            reward = self.get_reward(copied_substrate, vnr, selected_s_node_id,
+                                     len(sorted_v_nodes_with_node_ranking), v_cpu_demand, vnr_length_index)
 
-            selected_s_node_id = max(
-                subset_S_per_v_node[v_node_id],
-                key=lambda s_node_id: self.calculate_node_ranking(
-                    copied_substrate.net.nodes[s_node_id]['CPU'],
-                    copied_substrate.net[s_node_id]
-                ),
-                default=None
-            )
-
-            if selected_s_node_id is None:
+            if copied_substrate.net.nodes[selected_s_node_id]['CPU'] <= v_cpu_demand:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for CPU demand: {1}' {2}".format(
+                msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
-
-            # for s_node_id in subset_S_per_v_node[v_node_id]:
-            #     node_ranking = self.calculate_node_ranking(
-            #         copied_substrate.net.nodes[s_node_id]['CPU'],
-            #         copied_substrate.net[s_node_id]
-            #     )
-            #
-            #     if node_ranking > max_node_ranking:
-            #         max_node_ranking = node_ranking
-            #         selected_s_node_id = s_node_id
 
             assert selected_s_node_id != -1
             embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
@@ -214,14 +149,87 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
 
             assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
+
+            self.state_action[self.action_count] = {
+                'substrate_features': state,
+                'edge_index': data.edge_index,
+                'v_node_cpu': v_CPU_request,
+                'v_node_bw': v_BW_demand,
+                'pending_node': pending_v_nodes,
+                'action': selected_s_node_id,
+                'reward': reward
+            }
+
+            self.action_count += 1
             vnr_length_index += 1
 
         self.count_node_mapping += 1
 
         return embedding_s_nodes
 
+    def find_substrate_path(self, copied_substrate, vnr, embedding_s_nodes):
+        embedding_s_paths = {}
+
+        # mapping the virtual nodes and substrate_net nodes
+        for src_v_node, dst_v_node, edge_data in vnr.net.edges(data=True):
+            v_link = (src_v_node, dst_v_node)
+            src_s_node = embedding_s_nodes[src_v_node][0]
+            dst_s_node = embedding_s_nodes[dst_v_node][0]
+            v_bandwidth_demand = edge_data['bandwidth']
+
+            if src_s_node == dst_s_node:
+                embedding_s_paths[v_link] = ([], v_bandwidth_demand)
+            else:
+                subnet = nx.subgraph_view(
+                    copied_substrate.net,
+                    filter_edge=lambda node_1_id, node_2_id: \
+                        True if copied_substrate.net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
+                )
+
+                # Just for assertion
+                # for u, v, a in subnet.edges(data=True):
+                #     assert a["bandwidth"] >= v_bandwidth_demand
+
+                if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
+                    self.num_link_embedding_fails += 1
+                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
+                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    )
+                    self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                    return None
+
+                MAX_K = 1
+
+                shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
+
+                # Check the path length
+                if len(shortest_s_path) == config.MAX_EMBEDDING_PATH_LENGTH:
+                    self.num_link_embedding_fails += 1
+                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
+                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    )
+                    self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                    return None
+
+                s_links_in_path = []
+                for node_idx in range(len(shortest_s_path) - 1):
+                    s_links_in_path.append((shortest_s_path[node_idx], shortest_s_path[node_idx + 1]))
+
+                for s_link in s_links_in_path:
+                    assert copied_substrate.net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
+                    copied_substrate.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+
+                embedding_s_paths[v_link] = (s_links_in_path, v_bandwidth_demand)
+
+        return embedding_s_paths
+
     def calculate_node_ranking(self, node_cpu_capacity, adjacent_links):
         total_node_bandwidth = sum((adjacent_links[link_id]['bandwidth'] for link_id in adjacent_links))
 
         return node_cpu_capacity * total_node_bandwidth
+
+    def init_state_action(self):
+        self.action_count = 0
+        self.state_action = {}
+
 

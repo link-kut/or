@@ -1,3 +1,7 @@
+import glob
+import os, sys
+import datetime
+
 from torch import nn
 import torch
 import numpy as np
@@ -5,6 +9,13 @@ import torch.nn.functional as F
 import torch.multiprocessing as mp
 
 from main import config
+from main.common_main import model_save_path
+
+current_path = os.path.dirname(os.path.realpath(__file__))
+PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
+if PROJECT_HOME not in sys.path:
+    sys.path.append(PROJECT_HOME)
+
 
 def v_wrap(np_array, dtype=np.float32):
     if np_array.dtype != dtype:
@@ -18,31 +29,49 @@ def set_init(layers):
         nn.init.constant_(layer.bias, 0.)
 
 
-def push_and_pull(opt, lnet, gnet, done, s_, bs, ba, br, gamma):
-    if done:
-        v_s_ = 0.               # terminal
+def push_and_pull(opt, lnet, gnet, done, bsf, bsei,
+                        bsvc, bsvb, bspe,
+                        ba, br, gamma):
+    if len(bsf) <= 2:
+        pass
     else:
-        v_s_ = lnet.forward(v_wrap(s_[None, :]))[-1].data.numpy()[0, 0]
+        if done:
+            v_s_ = 0.               # terminal
+        else:
+            v_s_ = lnet.forward(bsf[1], bsei[1], bsvc[1], bsvb[1], bspe[1])[-1].data.numpy()[0, 0] # input next_state
 
-    buffer_v_target = []
-    for r in br[::-1]:    # reverse buffer r
-        v_s_ = r + gamma * v_s_
-        buffer_v_target.append(v_s_)
-    buffer_v_target.reverse()
-    loss = lnet.loss_func(
-        v_wrap(np.vstack(bs)),
-        v_wrap(np.array(ba), dtype=np.int64) if ba[0].dtype == np.int64 else v_wrap(np.vstack(ba)),
-        v_wrap(np.array(buffer_v_target)[:, None]))
+        buffer_v_target = []
+        for r in br[::-1]:    # reverse buffer r
+            v_s_ = r + gamma * v_s_
+            buffer_v_target.append(v_s_)
+        buffer_v_target.reverse()
 
-    # calculate local gradients and push local parameters to global
-    opt.zero_grad()
-    loss.backward()
-    for lp, gp in zip(lnet.parameters(), gnet.parameters()):
-        gp._grad = lp.grad
-    opt.step()
+        # input current_state
+        loss = lnet.loss_func(
+            bsf[0], bsei[0],
+            bsvc[0], bsvb[0], bspe[0],
+            v_wrap(np.array(ba[0]), dtype=np.int64) if ba[0].dtype == np.int64 else v_wrap(np.vstack(ba[0])),
+            buffer_v_target[0]
+        )
 
-    # pull global parameters
-    lnet.load_state_dict(gnet.state_dict())
+        print("total_loss: ", loss)
+
+
+        del bsf[0], bsei[0], bsvc[0], bsvb[0], bspe[0], ba[0]
+
+        # calculate local gradients and push local parameters to global
+        opt.zero_grad()
+        loss.backward()
+        for lp, gp in zip(lnet.parameters(), gnet.parameters()):
+            gp._grad = lp.grad
+        opt.step()
+
+        # pull global parameters
+        lnet.load_state_dict(gnet.state_dict())
+
+        now = datetime.datetime.now()
+        new_model_path = os.path.join(model_save_path, "A3C_model.pth")
+        torch.save(gnet.state_dict(), new_model_path)
 
 
 def record(global_ep, global_ep_r, ep_r, res_queue, name):
@@ -59,6 +88,12 @@ def record(global_ep, global_ep_r, ep_r, res_queue, name):
         "Ep:", global_ep.value,
         "| Ep_r: %.0f" % global_ep_r.value,
     )
+
+def load_model(self, model_save_path, model):
+    saved_models = glob.glob(os.path.join(model_save_path, "A3C_*.pth"))
+    model_params = torch.load(saved_models)
+
+    model.load_state_dict(model_params)
 
 class SharedAdam(torch.optim.Adam):
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.99), eps=1e-8,

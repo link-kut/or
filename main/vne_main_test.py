@@ -1,6 +1,7 @@
 import os, sys
 
 from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
+from algorithms.i_multi_ga_baseline import MultiGAVNEAgent
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
@@ -10,17 +11,21 @@ if PROJECT_HOME not in sys.path:
 from main.common_main import *
 
 agents = [
+    # TopologyAwareBaselineVNEAgent(0.3, logger),
     # DeterministicVNEAgent(logger),
     # RandomizedVNEAgent(logger)
     A3CGraphCNVNEAgent(0.3, logger)
     # GABaselineVNEAgent(logger)
+    # MultiGAVNEAgent(logger)
 ]
 
 agent_labels = [
+    # "TA_node_rank"
     # "D-ViNE"
     # "R-ViNE"
     "A3C-GCN",
     # "GA"
+    # "Multi-GA"
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
