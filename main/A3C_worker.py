@@ -90,8 +90,8 @@ class Worker(mp.Process):
 
                 next_state, reward, adjusted_reward, done, info = self.env.step(action)
 
-                substrate_features, edge_index = self.get_substrate_cpu_and_bandwidth(state.substrate)
-                next_substrate_features, next_edge_index = self.get_substrate_cpu_and_bandwidth(next_state.substrate)
+                # substrate_features, edge_index = self.get_substrate_cpu_and_bandwidth(state.substrate)
+                # next_substrate_features, next_edge_index = self.get_substrate_cpu_and_bandwidth(next_state.substrate)
 
                 ep_r += adjusted_reward
 
