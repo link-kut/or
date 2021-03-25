@@ -195,16 +195,15 @@ class A3CVNEEnvironment(VNEEnvironment):
 
         self.collect_vnrs_new_arrival()
 
-        revenue = 0.0
+        reward = 0.0
         cost = 0.0
-        adjusted_reward = 0.0
 
         r_a = 0.0
         r_c = 0.0
         r_s = 0.0
 
         for vnr, embedding_s_nodes, embedding_s_paths in self.VNRs_SERVING.values():
-            revenue += vnr.revenue
+            reward += vnr.revenue
             cost += vnr.cost
             r_c = vnr.revenue / vnr.cost
             num_vnr_node = 1
@@ -225,10 +224,10 @@ class A3CVNEEnvironment(VNEEnvironment):
         next_state.vnrs_collected = self.VNRs_COLLECTED
         next_state.vnrs_serving = self.VNRs_SERVING
 
-        self.episode_reward += revenue
+        self.episode_reward += reward
         self.revenue = self.episode_reward / self.time_step
         self.acceptance_ratio = self.total_embedded_vnrs / self.total_arrival_vnrs if self.total_arrival_vnrs else 0.0
-        self.rc_ratio = revenue / cost if cost else 0.0
+        self.rc_ratio = reward / cost if cost else 0.0
         self.link_embedding_fails_against_total_fails_ratio = \
             action.num_link_embedding_fails / (action.num_node_embedding_fails + action.num_link_embedding_fails) \
             if action and action.num_link_embedding_fails + action.num_node_embedding_fails else 0.0
@@ -240,4 +239,4 @@ class A3CVNEEnvironment(VNEEnvironment):
             "link_embedding_fails_against_total_fails_ratio": self.link_embedding_fails_against_total_fails_ratio
         }
 
-        return next_state, revenue, adjusted_reward, done, info
+        return next_state, reward, adjusted_reward, done, info

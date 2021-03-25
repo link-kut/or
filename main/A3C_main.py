@@ -15,45 +15,46 @@ if PROJECT_HOME not in sys.path:
 from main.common_main import *
 
 agents = [
-    # DeterministicVNEAgent(logger),
-    # RandomizedVNEAgent(logger)
     A3CGraphCNVNEAgent(0.3, logger)
-    # GABaselineVNEAgent(logger)
 ]
 
 agent_labels = [
-    # "D-ViNE"
-    # "R-ViNE"
     "A3C-GCN",
-    # "GA"
 ]
 
-performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
-performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
-performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
-performance_link_fail_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
-
-
 def main():
-    gnet = A3C_Model(5, config.SUBSTRATE_NODES)  # global network Net(state_dim, action_dim)
-    gnet.share_memory()  # share the global parameters in multiprocessing
-    opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))  # global optimizer
+    global_net = A3C_Model(chev_conv_state_dim=5, action_dim=config.SUBSTRATE_NODES)
+    global_net.share_memory()  # share the global parameters in multiprocessing
+    optimizer = SharedAdam(global_net.parameters(), lr=1e-4, betas=(0.92, 0.999))  # global optimizer
     mp.set_start_method('spawn')
-    global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
+
+    global_episode = mp.Value('i', 0)
+    global_episode_reward = mp.Value('d', 0.)
+    message_queue = mp.Queue()
 
     # parallel training
     # print("Number of Workers: ", mp.cpu_count())
-    # workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(mp.cpu_count())]
-    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(2)]
-    [w.start() for w in workers]
+    # workers = [Worker(global_net, optimizer, global_episode, global_episode_reward, message_queue, i) for i in range(mp.cpu_count())]
+    workers = [
+        Worker(
+            global_net, optimizer, global_episode, global_episode_reward, message_queue, idx
+        ) for idx in range(config.NUM_WORKERS)
+    ]
+
+    for w in workers:
+        w.start()
+
     res = []  # record episode reward to plot
     while True:
-        r = res_queue.get()
+        r = message_queue.get()
         if r is not None:
             res.append(r)
         else:
             break
-    [w.join() for w in workers]
+
+    for w in workers:
+        w.join()
+
 
 if __name__ == "__main__":
     main()

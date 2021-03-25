@@ -12,7 +12,7 @@ from main.common_main import *
 
 agents = [
     BaselineVNEAgent(logger),
-    TopologyAwareBaselineVNEAgent(0.3, logger),
+    # TopologyAwareBaselineVNEAgent(0.3, logger),
     # # EgoNetworkBasedVNEAgent(0.9, logger),
     # EgoNetworkBasedVNEAgent(0.3, logger),
     # DeterministicVNEAgent(logger),
@@ -23,7 +23,7 @@ agents = [
 
 agent_labels = [
     "BL",
-    "TA_0.3",
+    # "TA_0.3",
     # # "EN_0.9",
     # "EN_0.3",
     # "D-ViNE",

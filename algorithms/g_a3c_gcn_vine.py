@@ -113,8 +113,9 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         # GCN for Feature Extract
         data = from_networkx(copied_substrate.net)
 
-        new_model_path = os.path.join(model_save_path, "A3C_model.pth")
-        model.load_state_dict(torch.load(new_model_path))
+        #new_model_path = os.path.join(model_save_path, "A3C_model.pth")
+        #model.load_state_dict(torch.load(new_model_path))
+
         vnr_length_index = 0
         for v_node_id, v_node_data, _ in sorted_v_nodes_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
@@ -150,15 +151,15 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
 
-            self.state_action[self.action_count] = {
-                'substrate_features': state,
-                'edge_index': data.edge_index,
-                'v_node_cpu': v_CPU_request,
-                'v_node_bw': v_BW_demand,
-                'pending_node': pending_v_nodes,
-                'action': selected_s_node_id,
-                'reward': reward
-            }
+            # self.state_action[self.action_count] = {
+            #     'substrate_features': state,
+            #     'edge_index': data.edge_index,
+            #     'v_node_cpu': v_CPU_request,
+            #     'v_node_bw': v_BW_demand,
+            #     'pending_node': pending_v_nodes,
+            #     'action': selected_s_node_id,
+            #     'reward': reward
+            # }
 
             self.action_count += 1
             vnr_length_index += 1
