@@ -29,26 +29,6 @@ class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
         super(EgoNetworkBasedVNEAgent, self).__init__(logger)
         self.beta = beta
 
-    def find_subset_S_for_virtual_node(self, copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
-        '''
-        find the subset S of the substrate nodes that satisfy restrictions and available CPU capacity
-        :param substrate: substrate network
-        :param v_cpu_demand: cpu demand of the given virtual node
-        :return:
-        '''
-
-        # subset_S = (s_node_id for s_node_id, s_cpu_capacity in copied_substrate.nodes(data=True)
-        #             if s_cpu_capacity['CPU'] >= v_cpu_demand and s_node_id not in already_embedding_s_nodes)
-
-        subset_S = []
-        for s_node_id, s_cpu_capacity in copied_substrate.nodes(data=True):
-            if s_cpu_capacity['CPU'] >= v_cpu_demand and \
-                    s_node_id not in already_embedding_s_nodes and \
-                    s_cpu_capacity['LOCATION'] == v_node_location:
-                subset_S.append(s_node_id)
-
-        return subset_S
-
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
         Execute Step 1
@@ -60,20 +40,20 @@ class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
         embedding_s_nodes = {}
         already_embedding_s_nodes = []
 
-        sorted_virtual_nodes_with_node_ranking = utils.get_sorted_virtual_nodes_with_node_ranking(
+        sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
             vnr=vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=self.beta
         )
 
         vnr_num_node = 0
-        for v_node_id, v_node_data, _ in sorted_virtual_nodes_with_node_ranking:
+        for v_node_id, v_node_data, _ in sorted_v_nodes_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
             v_node_location = v_node_data['LOCATION']
 
             if vnr_num_node == 0:
                 # Find the subset S of substrate nodes that satisfy restrictions and
                 # available CPU capacity (larger than that specified by the request.)
-                subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
-                    copied_substrate.net, v_cpu_demand, v_node_location, already_embedding_s_nodes
+                subset_S_per_v_node[v_node_id] = utils.find_subset_S_for_virtual_node(
+                    copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
                 )
 
                 selected_s_node_id = max(
@@ -93,7 +73,7 @@ class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
                     sub_ego_graph = nx.ego_graph(copied_substrate.net, selected_s_node_id, radius=radius)
                     sub_ego_graph_length = len(sub_ego_graph.nodes)
 
-                    subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
+                    subset_S_per_v_node[v_node_id] = utils.find_subset_S_for_virtual_node(
                         sub_ego_graph, v_cpu_demand, v_node_location, already_embedding_s_nodes
                     )
                     if len(subset_S_per_v_node[v_node_id]) == 0:
@@ -121,7 +101,7 @@ class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for nodal constraints: {1}' {2}".format(
+                msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))

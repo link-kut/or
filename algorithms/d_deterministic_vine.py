@@ -68,7 +68,7 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
             # Find the subset S of substrate nodes that satisfy restrictions and
             # available CPU capacity (larger than that specified by the request.)
-            subset_S_per_v_node[v_node_id] = self.find_subset_S_for_virtual_node(
+            subset_S_per_v_node[v_node_id] = utils.find_subset_S_for_virtual_node(
                 copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
             )
 
@@ -99,7 +99,7 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable NODE for nodal constraints: {1}' {2}".format(
+                msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
