@@ -83,7 +83,7 @@ class MultiGAVNEAgent(BaselineVNEAgent):
         #     return None
 
         for s_node_id in subset_S:
-            item = combination + [s_node_id]
+            new_combination = combination + [s_node_id]
 
             if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
                 already_embedding_s_nodes.append(s_node_id)
@@ -92,25 +92,25 @@ class MultiGAVNEAgent(BaselineVNEAgent):
             copied_substrate.net.nodes[s_node_id]['CPU'] -= v_cpu_demand
 
             if is_last:
-                all_combinations.append(item)
+                all_combinations.append(new_combination)
                 print(idx)
             else:
-                new_copied_substrate = copy.deepcopy(copied_substrate)
-
-                if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
-                    new_already_embedding_s_nodes = copy.deepcopy(already_embedding_s_nodes)
-                else:
-                    new_already_embedding_s_nodes = already_embedding_s_nodes
-
-                #print(idx + 1, already_embedding_s_nodes, all_combinations)
+                # new_copied_substrate = copy.deepcopy(copied_substrate)
+                #
+                # if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+                #     new_already_embedding_s_nodes = copy.deepcopy(already_embedding_s_nodes)
+                # else:
+                #     new_already_embedding_s_nodes = already_embedding_s_nodes
+                #
+                # #print(idx + 1, already_embedding_s_nodes, all_combinations)
 
                 self.search_combinations(
                     sorted_v_nodes_and_data=sorted_v_nodes_and_data,
                     idx=idx + 1,
-                    combination=item,
+                    combination=new_combination,
                     all_combinations=all_combinations,
-                    copied_substrate=new_copied_substrate,
-                    already_embedding_s_nodes=new_already_embedding_s_nodes,
+                    copied_substrate=copied_substrate,
+                    already_embedding_s_nodes=already_embedding_s_nodes,
                     vnr=vnr
                 )
 

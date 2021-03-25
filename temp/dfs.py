@@ -1,12 +1,12 @@
-def combine(terms, accumulation, combinations):
+def combine(terms, item, combinations):
     last = (len(terms) == 1)
     n = len(terms[0])
     for i in range(n):
-        item = accumulation + [terms[0][i]]
+        new_item = item + [terms[0][i]]
         if last:
-            combinations.append(item)
+            combinations.append(new_item)
         else:
-            combine(terms[1:], item, combinations)
+            combine(terms[1:], new_item, combinations)
 
 
 a = [
