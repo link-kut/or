@@ -117,8 +117,8 @@ def peek_from_iterable(iterable):
     return first, itertools.chain([first], iterable)
 
 
-def get_sorted_virtual_nodes_with_node_ranking(vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=None):
-    sorted_virtual_nodes_with_node_ranking = []
+def get_sorted_v_nodes_with_node_ranking(vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=None):
+    sorted_v_nodes_with_node_ranking = []
 
     # calculate the vnr node ranking
     for v_node_id, v_node_data in vnr.net.nodes(data=True):
@@ -135,14 +135,14 @@ def get_sorted_virtual_nodes_with_node_ranking(vnr, type_of_node_ranking=TYPE_OF
             )
         else:
             raise ValueError()
-        sorted_virtual_nodes_with_node_ranking.append((v_node_id, v_node_data, vnr_node_ranking))
+        sorted_v_nodes_with_node_ranking.append((v_node_id, v_node_data, vnr_node_ranking))
 
     # sorting the vnr nodes with node's ranking
-    sorted_virtual_nodes_with_node_ranking.sort(
-        key=lambda sorted_virtual_nodes_with_node_ranking: sorted_virtual_nodes_with_node_ranking[2], reverse=True
+    sorted_v_nodes_with_node_ranking.sort(
+        key=lambda sorted_v_nodes_with_node_ranking: sorted_v_nodes_with_node_ranking[2], reverse=True
     )
 
-    return sorted_virtual_nodes_with_node_ranking
+    return sorted_v_nodes_with_node_ranking
 
 
 def calculate_node_ranking_1(node_cpu_capacity, adjacent_links, beta):
@@ -159,3 +159,30 @@ def calculate_node_ranking_2(node_cpu_capacity, adjacent_links):
     total_node_bandwidth = sum((adjacent_links[link_id]['bandwidth'] for link_id in adjacent_links))
 
     return node_cpu_capacity * total_node_bandwidth
+
+
+def find_subset_S_for_virtual_node(copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes):
+    '''
+    find the subset S of the substrate nodes that satisfy restrictions and available CPU capacity
+    :param substrate: substrate network
+    :param v_cpu_demand: cpu demand of the given virtual node
+    :return:
+    '''
+
+    if config.LOCATION_CONSTRAINT:
+        subset_S = (
+            s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
+            if s_node_data['CPU'] >= v_cpu_demand and
+               s_node_id not in already_embedding_s_nodes and
+               s_node_data['LOCATION'] == v_node_location and
+               s_node_id < config.SUBSTRATE_NODES
+        )
+    else:
+        subset_S = (
+            s_node_id for s_node_id, s_node_data in copied_substrate.net.nodes(data=True)
+            if s_node_data['CPU'] >= v_cpu_demand and
+               s_node_id not in already_embedding_s_nodes and
+               s_node_id < config.SUBSTRATE_NODES
+        )
+
+    return subset_S
