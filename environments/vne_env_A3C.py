@@ -203,14 +203,15 @@ class A3CVNEEnvironment(VNEEnvironment):
         r_c = 0.0
         r_s = 0.0
 
-        num_vnr_node = 1
         for vnr, embedding_s_nodes, embedding_s_paths in self.VNRs_SERVING.values():
             revenue += vnr.revenue
             cost += vnr.cost
-            r_a += 100 * (num_vnr_node / len(vnr.net.nodes))
             r_c = vnr.revenue / vnr.cost
-            r_s = self.SUBSTRATE.net.nodes(embedding_s_nodes)['CPU'] / self.SUBSTRATE.initial_s_cpu_capacity[embedding_s_nodes]
-            num_vnr_node += 1
+            num_vnr_node = 1
+            for v_node_id in embedding_s_nodes:
+                r_a += 100 * (num_vnr_node / len(vnr.net.nodes))
+                r_s += self.SUBSTRATE.net.nodes[embedding_s_nodes[v_node_id][0]]['CPU'] / self.SUBSTRATE.initial_s_cpu_capacity[embedding_s_nodes[v_node_id][0]]
+                num_vnr_node += 1
 
         if self.time_step >= config.GLOBAL_MAX_STEPS:
             done = True

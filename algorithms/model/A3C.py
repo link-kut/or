@@ -79,14 +79,14 @@ class A3C_Model(nn.Module):
 
         return m.sample().numpy()[0]
 
-    def loss_func(self, s, a, v_t):
+    def loss_func(self, substrate_features, edge_index, v_CPU_request, v_BW_demand, pending_v_nodes, action, v_t):
         self.train()
-        logits, values = self.forward(s)
+        logits, values = self.forward(substrate_features, edge_index, v_CPU_request, v_BW_demand, pending_v_nodes)
         td = v_t - values
         c_loss = td.pow(2)
         probs = F.softmax(logits, dim=1)
         m = self.distribution(probs)
-        exp_v = m.log_prob(a) * td.detach().squeeze()
+        exp_v = m.log_prob(action) * td.detach().squeeze()
         a_loss = -exp_v
         total_loss = (c_loss + a_loss).mean()
 

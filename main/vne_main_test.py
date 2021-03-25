@@ -11,21 +11,21 @@ if PROJECT_HOME not in sys.path:
 from main.common_main import *
 
 agents = [
-    TopologyAwareBaselineVNEAgent(0.3, logger),
+    # TopologyAwareBaselineVNEAgent(0.3, logger),
     # DeterministicVNEAgent(logger),
     # RandomizedVNEAgent(logger)
-    # A3CGraphCNVNEAgent(0.3, logger)
+    A3CGraphCNVNEAgent(0.3, logger)
     # GABaselineVNEAgent(logger)
-    MultiGAVNEAgent(logger)
+    # MultiGAVNEAgent(logger)
 ]
 
 agent_labels = [
     # "TA_node_rank"
     # "D-ViNE"
     # "R-ViNE"
-    # "A3C-GCN",
+    "A3C-GCN",
     # "GA"
-    "Multi-GA"
+    # "Multi-GA"
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
@@ -78,14 +78,6 @@ def main():
                 ))
 
                 next_state, reward, done, info = envs[agent_id].step(action)
-
-                print(action)
-                print(action.vnrs_postponement.values())
-                for vnr, embedding_s_nodes, embedding_s_paths in action.vnrs_embedding.values():
-                    print(vnr)
-                    print(embedding_s_nodes)
-                    for i in embedding_s_nodes:
-                        print(embedding_s_nodes[i])
 
                 elapsed_time = time.time() - run_start_ts
                 after_action_msg = "reward {0:6.1f} | revenue {1:6.1f} | acc. ratio {2:4.2f} | " \
