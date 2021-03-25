@@ -113,8 +113,9 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         # GCN for Feature Extract
         data = from_networkx(copied_substrate.net)
 
-        new_model_path = os.path.join(model_save_path, "A3C_model.pth")
-        model.load_state_dict(torch.load(new_model_path))
+        #new_model_path = os.path.join(model_save_path, "A3C_model.pth")
+        #model.load_state_dict(torch.load(new_model_path))
+
         vnr_length_index = 0
         for v_node_id, v_node_data, _ in sorted_v_nodes_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
