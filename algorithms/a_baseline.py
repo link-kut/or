@@ -41,7 +41,11 @@ class BaselineVNEAgent:
         embedding_s_nodes = {}
         already_embedding_s_nodes = []
 
-        for v_node_id, v_node_data in vnr.net.nodes(data=True):
+        sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
+            vnr=vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
+        )
+
+        for v_node_id, v_node_data, _ in sorted_v_nodes_with_node_ranking:
             v_cpu_demand = v_node_data['CPU']
             v_node_location = v_node_data['LOCATION']
 

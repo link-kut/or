@@ -1,7 +1,6 @@
 import os, sys
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
-from common.utils import TYPE_OF_VIRTUAL_NODE_RANKING
 from main import config
 
 import copy
@@ -80,7 +79,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         model = A3C_Model(5, config.SUBSTRATE_NODES)
 
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
-            vnr=vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
+            vnr=vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
         )
 
         # Input State

@@ -4,7 +4,6 @@ import copy
 # Baseline Agent
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
-from common.utils import TYPE_OF_VIRTUAL_NODE_RANKING
 from main import config
 
 
@@ -41,7 +40,7 @@ class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
         already_embedding_s_nodes = []
 
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
-            vnr=vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=self.beta
+            vnr=vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=self.beta
         )
 
         vnr_num_node = 0

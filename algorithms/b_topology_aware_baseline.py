@@ -1,6 +1,5 @@
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
-from common.utils import TYPE_OF_VIRTUAL_NODE_RANKING
 from main import config
 
 
@@ -21,7 +20,7 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
         already_embedding_s_nodes = []
 
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
-            vnr=vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=self.beta
+            vnr=vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=self.beta
         )
 
         for v_node_id, v_node_data, _ in sorted_v_nodes_with_node_ranking:

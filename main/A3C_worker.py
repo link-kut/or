@@ -75,7 +75,7 @@ class Worker(mp.Process):
     def run(self):
         done = False
         time_step = 0
-        total_step = 1
+        total_step = 0
 
         # eligibility_trace = np.zeros(shape=(100,))
 
@@ -117,10 +117,9 @@ class Worker(mp.Process):
 
                 if done:  # done and print information
                     record(self.global_episode, self.global_episode_reward, ep_r, self.message_queue, self.name)
-                    break
 
                 state = next_state
                 total_step += 1
                 self.agent.init_state_action()
 
-            self.message_queue.put(None)
+        self.message_queue.put(None)

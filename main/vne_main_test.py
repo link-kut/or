@@ -10,11 +10,13 @@ if PROJECT_HOME not in sys.path:
 
 from main.common_main import *
 
+
+
 agents = [
     # TopologyAwareBaselineVNEAgent(0.3, logger),
     # DeterministicVNEAgent(logger),
     # RandomizedVNEAgent(logger)
-    A3CGraphCNVNEAgent(0.3, logger)
+    A3CGraphCNVNEAgent(0.3, logger) if config.TARGET_ALGORITHM == config.ALGORITHMS.A3C_GCN else MultiGAVNEAgent(logger)
     # GABaselineVNEAgent(logger)
     # MultiGAVNEAgent(logger)
 ]
@@ -23,7 +25,7 @@ agent_labels = [
     # "TA_node_rank"
     # "D-ViNE"
     # "R-ViNE"
-    "A3C-GCN",
+    config.ALGORITHMS.A3C_GCN.value if config.TARGET_ALGORITHM == config.ALGORITHMS.A3C_GCN else config.ALGORITHMS.GENETIC_ALGORITHM.value
     # "GA"
     # "Multi-GA"
 ]

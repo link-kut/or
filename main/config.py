@@ -1,10 +1,27 @@
 import configparser
 import os, sys
+import enum
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir, os.pardir))
 if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
+
+class TYPE_OF_VIRTUAL_NODE_RANKING(enum.Enum):
+    TYPE_1 = 0
+    TYPE_2 = 1
+
+
+class ALGORITHMS(enum.Enum):
+    BASELINE = "BL"
+    TOPOLOGY_AWARE_DEGREE = "TA_D"
+    EGO_NETWORK = "EN"
+    DETERMINISTIC_VINE = "D_VINE"
+    RANDOMIZED_VINE = "R_VINE"
+    TOPOLOGY_AWARE_NODE_RANKING = "TA_NR"
+    GENETIC_ALGORITHM = "GA"
+    A3C_GCN = "A3C_GCN"
+    MULTI_GENETIC_ALGORITHM = "MULTI_GA"
 
 config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))
@@ -81,3 +98,13 @@ NUM_WORKERS = 2
 
 # MULTI GENETIC ALGORITHM
 MAX_NUM_CANDIDATE_S_NODES_PER_V_NODE = 2
+
+if 'PRIVATE' in config_parser and 'TARGET_ALGORITHM' in config_parser['PRIVATE']:
+    if config_parser['PRIVATE']['TARGET_ALGORITHM'] == "A3C":
+        TARGET_ALGORITHM = ALGORITHMS.A3C_GCN
+    elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "Multi-GA":
+        TARGET_ALGORITHM = ALGORITHMS.MULTI_GENETIC_ALGORITHM
+    else:
+        TARGET_ALGORITHM = ALGORITHMS.MULTI_GENETIC_ALGORITHM
+else:
+    TARGET_ALGORITHM = ALGORITHMS.MULTI_GENETIC_ALGORITHM

@@ -1,5 +1,4 @@
 import itertools
-import enum
 import networkx as nx
 from itertools import islice
 import os, sys
@@ -11,16 +10,10 @@ if PROJECT_HOME not in sys.path:
 
 from slack import WebClient
 from slack.errors import SlackApiError
-
 from main import config
 
 
 client = WebClient(token=config.SLACK_API_TOKEN)
-
-
-class TYPE_OF_VIRTUAL_NODE_RANKING(enum.Enum):
-    TYPE_1 = 0
-    TYPE_2 = 1
 
 
 def get_revenue_VNR(vnr):
@@ -117,18 +110,18 @@ def peek_from_iterable(iterable):
     return first, itertools.chain([first], iterable)
 
 
-def get_sorted_v_nodes_with_node_ranking(vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=None):
+def get_sorted_v_nodes_with_node_ranking(vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=None):
     sorted_v_nodes_with_node_ranking = []
 
     # calculate the vnr node ranking
     for v_node_id, v_node_data in vnr.net.nodes(data=True):
-        if type_of_node_ranking == TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1:
+        if type_of_node_ranking == config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1:
             vnr_node_ranking = calculate_node_ranking_1(
                 vnr.net.nodes[v_node_id]['CPU'],
                 vnr.net[v_node_id],
                 beta
             )
-        elif type_of_node_ranking == TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2:
+        elif type_of_node_ranking == config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2:
             vnr_node_ranking = calculate_node_ranking_2(
                 vnr.net.nodes[v_node_id]['CPU'],
                 vnr.net[v_node_id]
@@ -145,6 +138,7 @@ def get_sorted_v_nodes_with_node_ranking(vnr, type_of_node_ranking=TYPE_OF_VIRTU
     return sorted_v_nodes_with_node_ranking
 
 
+# PAPER: Topology-aware - 2013
 def calculate_node_ranking_1(node_cpu_capacity, adjacent_links, beta):
     total_node_bandwidth = sum((adjacent_links[link_id]['bandwidth'] for link_id in adjacent_links))
 
@@ -154,7 +148,7 @@ def calculate_node_ranking_1(node_cpu_capacity, adjacent_links, beta):
 
     return beta * node_cpu_capacity + (1.0 - beta) * len(adjacent_links) * total_node_bandwidth
 
-
+# PAPER: Rethinking (Baseline) - 2008
 def calculate_node_ranking_2(node_cpu_capacity, adjacent_links):
     total_node_bandwidth = sum((adjacent_links[link_id]['bandwidth'] for link_id in adjacent_links))
 

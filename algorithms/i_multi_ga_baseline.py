@@ -4,8 +4,8 @@ import itertools
 
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
-from common.utils import peek_from_iterable, TYPE_OF_VIRTUAL_NODE_RANKING
 from main import config
+from common.utils import peek_from_iterable
 import networkx as nx
 from termcolor import colored
 import numpy as np
@@ -25,7 +25,7 @@ class MultiGAVNEAgent(BaselineVNEAgent):
 
     def find_substrate_nodes_combinations(self, vnr, COPIED_SUBSTRATE):
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
-            vnr=vnr, type_of_node_ranking=TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
+            vnr=vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
         )
 
         print(sorted_v_nodes_with_node_ranking, "!!!!!")
@@ -42,7 +42,10 @@ class MultiGAVNEAgent(BaselineVNEAgent):
             vnr=vnr
         )
 
-        substrate_nodes_combinations = []
+        for idx, combination in enumerate(all_combinations):
+            print(idx, combination)
+
+        substrate_s_nodes_combinations = []
         for combination_idx, combination in enumerate(all_combinations):
             if len(combination) != len(sorted_v_nodes_with_node_ranking):
                 self.num_node_embedding_fails += 1
@@ -60,12 +63,12 @@ class MultiGAVNEAgent(BaselineVNEAgent):
                 v_cpu_demand = sorted_v_nodes_with_node_ranking[idx][1]['CPU']
                 embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
 
-            substrate_nodes_combinations.append(embedding_s_nodes)
+            substrate_s_nodes_combinations.append(embedding_s_nodes)
 
-        for combination in substrate_nodes_combinations:
+        for combination in substrate_s_nodes_combinations:
             print(combination)
 
-        return substrate_nodes_combinations
+        return substrate_s_nodes_combinations
 
     def make_top_n_combinations(
             self, sorted_v_nodes_with_node_ranking, idx, combination, all_combinations, copied_substrate,
