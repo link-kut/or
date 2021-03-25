@@ -24,7 +24,7 @@ class ALGORITHMS(enum.Enum):
     MULTI_GENETIC_ALGORITHM = "MULTI_GA"
 
 config_parser = configparser.ConfigParser(defaults=None)
-read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))
+read_ok = config_parser.read(os.path.join(PROJECT_HOME, "or", "common", "config.ini"))
 
 if 'GENERAL' in config_parser and 'SLACK_API_TOKEN' in config_parser['GENERAL']:
     SLACK_API_TOKEN = config_parser['GENERAL']['SLACK_API_TOKEN']
@@ -100,7 +100,7 @@ NUM_WORKERS = 2
 MAX_NUM_CANDIDATE_S_NODES_PER_V_NODE = 2
 
 if 'PRIVATE' in config_parser and 'TARGET_ALGORITHM' in config_parser['PRIVATE']:
-    if config_parser['PRIVATE']['TARGET_ALGORITHM'] == "A3C":
+    if config_parser['PRIVATE']['TARGET_ALGORITHM'] == "A3C_GCN":
         TARGET_ALGORITHM = ALGORITHMS.A3C_GCN
     elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "Multi-GA":
         TARGET_ALGORITHM = ALGORITHMS.MULTI_GENETIC_ALGORITHM
