@@ -45,9 +45,10 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
 
             selected_s_node_id = max(
                 subset_S_per_v_node[v_node_id],
-                key=lambda s_node_id: self.calculate_node_ranking(
+                key=lambda s_node_id: utils.calculate_node_ranking_1(
                     copied_substrate.net.nodes[s_node_id]['CPU'],
-                    copied_substrate.net[s_node_id]
+                    copied_substrate.net[s_node_id],
+                    self.beta
                 ),
                 default=None
             )

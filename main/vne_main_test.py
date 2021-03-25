@@ -11,7 +11,7 @@ if PROJECT_HOME not in sys.path:
 from main.common_main import *
 
 agents = [
-    TopologyAwareBaselineVNEAgent(0.3, logger),
+    # TopologyAwareBaselineVNEAgent(0.3, logger),
     # DeterministicVNEAgent(logger),
     # RandomizedVNEAgent(logger)
     # A3CGraphCNVNEAgent(0.3, logger)
