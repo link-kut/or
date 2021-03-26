@@ -32,17 +32,19 @@ class Worker(mp.Process):
         self.agent = A3CGraphCNVNEAgent(0.3, logger)
 
     def run(self):
-        done = False
         time_step = 0
         total_step = 0
 
         while self.global_episode.value < config.MAX_EPISODES:
             state = self.env.reset()
+            done = False
             buffer_substrate_feature, buffer_edge_index, buffer_v_node_capacity, \
             buffer_v_node_bandwidth, buffer_v_pending, buffer_action, buffer_reward, \
             buffer_next_substrate_feature, buffer_next_edge_index, buffer_done \
                 = [], [], [], [], [], [], [], [], [], []
             ep_r = 0.0
+            print(self.global_episode.value)
+            print(done)
             while not done:
                 time_step += 1
                 action = self.agent.get_action(state)
