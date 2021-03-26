@@ -33,6 +33,8 @@ def push_and_pull(optimizer, local_net, global_net, done, buffer_substrate_featu
                         buffer_v_node_capacity, buffer_v_node_bandwidth, buffer_v_node_pending,
                         buffer_action, buffer_reward, buffer_next_substrate_feature, buffer_next_edge_index,
                         buffer_done, gamma):
+    # print(buffer_done)
+    # print(buffer_reward)
     for idx in range(len(buffer_done)):
         if buffer_done[idx]:
             v_s_ = 0.               # terminal
@@ -44,10 +46,13 @@ def push_and_pull(optimizer, local_net, global_net, done, buffer_substrate_featu
                 buffer_v_node_bandwidth[idx+1],
                 buffer_v_node_pending[idx+1])[-1].data.numpy()[0, 0] # input next_state
 
+        # print(v_s_)
         buffer_v_target = []
-        for r in buffer_reward[::-1]:    # reverse buffer r
-            v_s_ = r + gamma * v_s_
-            buffer_v_target.append(v_s_)
+        # for r in buffer_reward[::-1]:    # reverse buffer r
+        #     v_s_ = r + gamma * v_s_
+        #     buffer_v_target.append(v_s_)
+        v_s_ = buffer_reward[idx] + gamma * v_s_
+        buffer_v_target.append(v_s_)
         buffer_v_target.reverse()
 
         # input current_state
@@ -55,8 +60,10 @@ def push_and_pull(optimizer, local_net, global_net, done, buffer_substrate_featu
             buffer_substrate_feature[idx], buffer_edge_index[idx],
             buffer_v_node_capacity[idx], buffer_v_node_bandwidth[idx], buffer_v_node_pending[idx],
             v_wrap(np.array(buffer_action[idx]), dtype=np.int64) if buffer_action[0].dtype == np.int64 else v_wrap(np.vstack(buffer_action[0])),
-            buffer_v_target[idx]
+            v_s_
         )
+
+        # print("loss: ", loss)
 
         # calculate local gradients and push local parameters to global
         optimizer.zero_grad()

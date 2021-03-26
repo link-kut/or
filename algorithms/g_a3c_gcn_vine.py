@@ -69,6 +69,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         # S_CPU_Free
         for s_node_id, s_node_data in copied_substrate.net.nodes(data=True):
             s_CPU_remaining.append(s_node_data['CPU'])
+
         # S_BW_Free
         for s_node_id in range(len(copied_substrate.net.nodes)):
             total_node_bandwidth = 0.0
@@ -174,10 +175,6 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
                 })
                 return None
 
-            self.state_action_reward_next_state[self.action_count].update({
-                'done': True,
-            })
-
             assert selected_s_node_id != -1
             embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
             if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
@@ -185,6 +182,10 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
 
             self.action_count += 1
             vnr_length_index += 1
+
+        self.state_action_reward_next_state[self.action_count-1].update({
+            'done': True,
+        })
 
         self.count_node_mapping += 1
 
