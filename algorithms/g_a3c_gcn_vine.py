@@ -6,6 +6,7 @@ from main import config
 import copy
 import torch
 import networkx as nx
+import numpy as np
 
 # from torch.nn import Linear
 # from torch_geometric.nn import GCNConv
@@ -28,11 +29,12 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         self.initial_s_bandwidth = []
         self.count_node_mapping = 0
         self.action_count = 0
-        self.state_action = {}
+        self.state_action_reward_next_state = {}
+        self.eligibility_trace = np.zeros(shape=(100,))
 
     # copied env for A3C
     def get_reward(self, copied_substrate, vnr, selected_s_node_id,
-                                 num_v_node, v_cpu_demand, vnr_length_index):
+                                 num_v_node, v_cpu_demand, vnr_length_index, current_embedding):
         reward = 0.0
 
         r_a = 0.0
@@ -42,6 +44,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
 
         if copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand:
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
+            current_embedding[selected_s_node_id] = 1
             # r_a = 100*\gamma Positive reward
             r_a = 100 * (num_embedded_v_node / num_v_node)
         else:
@@ -53,6 +56,42 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         reward = r_a * r_c * r_s
 
         return reward
+
+    def get_substrate_features(self, copied_substrate, current_embedding):
+        s_CPU_remaining = []
+        s_bandwidth_remaining = []
+        substrate_features = []
+
+        # Input State
+        s_CPU_capacity = copied_substrate.initial_s_cpu_capacity
+        s_bandwidth_capacity = copied_substrate.initial_s_node_total_bandwidth
+
+        # S_CPU_Free
+        for s_node_id, s_node_data in copied_substrate.net.nodes(data=True):
+            s_CPU_remaining.append(s_node_data['CPU'])
+        # S_BW_Free
+        for s_node_id in range(len(copied_substrate.net.nodes)):
+            total_node_bandwidth = 0.0
+            for link_id in copied_substrate.net[s_node_id]:
+                total_node_bandwidth += copied_substrate.net[s_node_id][link_id]['bandwidth']
+            s_bandwidth_remaining.append(total_node_bandwidth)
+
+        # Generate substrate feature matrix
+        substrate_features.append(s_CPU_capacity)
+        substrate_features.append(s_bandwidth_capacity)
+        substrate_features.append(s_CPU_remaining)
+        substrate_features.append(s_bandwidth_remaining)
+        substrate_features.append(current_embedding)
+
+        # Convert to the torch.tensor
+        substrate_features = torch.tensor(substrate_features)
+        substrate_features = torch.transpose(substrate_features, 0, 1)
+        # substrate_features = torch.reshape(substrate_features, (-1,))
+
+        # GCN for Feature Extract
+        data = from_networkx(copied_substrate.net)
+
+        return substrate_features, data
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -72,8 +111,6 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         '''
         subset_S_per_v_node = {}
         embedding_s_nodes = {}
-        s_CPU_remaining = []
-        s_bandwidth_remaining = []
         already_embedding_s_nodes = []
         current_embedding = [0] * len(copied_substrate.net.nodes)
         model = A3C_Model(5, config.SUBSTRATE_NODES)
@@ -81,36 +118,6 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
             vnr=vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
         )
-
-        # Input State
-        s_CPU_capacity = copied_substrate.initial_s_cpu_capacity
-        s_bandwidth_capacity = copied_substrate.initial_s_node_total_bandwidth
-
-        # S_CPU_Free
-        for s_node_id, s_node_data in copied_substrate.net.nodes(data=True):
-            s_CPU_remaining.append(s_node_data['CPU'])
-        # S_BW_Free
-        for s_node_id in range(len(copied_substrate.net.nodes)):
-            total_node_bandwidth = 0.0
-            for link_id in copied_substrate.net[s_node_id]:
-                total_node_bandwidth += copied_substrate.net[s_node_id][link_id]['bandwidth']
-            s_bandwidth_remaining.append(total_node_bandwidth)
-
-        # Generate substrate feature matrix
-        substrate_features = []
-        substrate_features.append(s_CPU_capacity)
-        substrate_features.append(s_bandwidth_capacity)
-        substrate_features.append(s_CPU_remaining)
-        substrate_features.append(s_bandwidth_remaining)
-        substrate_features.append(current_embedding)
-
-        # Convert to the torch.tensor
-        substrate_features = torch.tensor(substrate_features)
-        substrate_features = torch.transpose(substrate_features, 0, 1)
-        # substrate_features = torch.reshape(substrate_features, (-1,))
-
-        # GCN for Feature Extract
-        data = from_networkx(copied_substrate.net)
 
         #new_model_path = os.path.join(model_save_path, "A3C_model.pth")
         #model.load_state_dict(torch.load(new_model_path))
@@ -124,41 +131,57 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             pending_nodes = len(sorted_v_nodes_with_node_ranking) - vnr_length_index
             pending_v_nodes = torch.tensor([pending_nodes])
 
+            substrate_features, data = self.get_substrate_features(copied_substrate, current_embedding)
+
             state = torch.unsqueeze(substrate_features, 0)
             # state = torch.cat((substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes), 0)
             # state = torch.unsqueeze(state, 0)
 
             selected_s_node_id = model.select_node(state, data.edge_index, v_CPU_request, v_BW_demand, pending_v_nodes)
 
-            reward = self.get_reward(copied_substrate, vnr, selected_s_node_id,
-                                     len(sorted_v_nodes_with_node_ranking), v_cpu_demand, vnr_length_index)
+            self.state_action_reward_next_state[self.action_count] = {
+                'substrate_features': state,
+                'edge_index': data.edge_index,
+                'v_node_cpu': v_CPU_request,
+                'v_node_bw': v_BW_demand,
+                'pending_node': pending_v_nodes,
+                'action': selected_s_node_id,
+            }
 
-            if copied_substrate.net.nodes[selected_s_node_id]['CPU'] <= v_cpu_demand:
+            reward = self.get_reward(
+                copied_substrate, vnr, selected_s_node_id,
+                len(sorted_v_nodes_with_node_ranking),
+                v_cpu_demand, vnr_length_index, current_embedding
+            )
+
+            substrate_features, data = self.get_substrate_features(copied_substrate, current_embedding)
+            self.state_action_reward_next_state[self.action_count].update({
+                'reward': reward,
+                'next_substrate_features': state,
+                'next_edge_index': data.edge_index,
+                'done': False,
+            })
+
+            if copied_substrate.net.nodes[selected_s_node_id]['CPU'] <= v_cpu_demand and \
+                    selected_s_node_id in already_embedding_s_nodes:
                 self.num_node_embedding_fails += 1
                 msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
                     self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                self.state_action_reward_next_state[self.action_count].update({
+                    'done': True,
+                })
                 return None
+
+            self.state_action_reward_next_state[self.action_count].update({
+                'done': True,
+            })
 
             assert selected_s_node_id != -1
             embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
             if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
                 already_embedding_s_nodes.append(selected_s_node_id)
-                current_embedding[selected_s_node_id] = 1
-
-            assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
-            copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
-
-            # self.state_action[self.action_count] = {
-            #     'substrate_features': state,
-            #     'edge_index': data.edge_index,
-            #     'v_node_cpu': v_CPU_request,
-            #     'v_node_bw': v_BW_demand,
-            #     'pending_node': pending_v_nodes,
-            #     'action': selected_s_node_id,
-            #     'reward': reward
-            # }
 
             self.action_count += 1
             vnr_length_index += 1
@@ -228,8 +251,8 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
 
         return node_cpu_capacity * total_node_bandwidth
 
-    def init_state_action(self):
+    def init_state_action_reward_next_state(self):
         self.action_count = 0
-        self.state_action = {}
+        self.state_action_reward_next_state = {}
 
 

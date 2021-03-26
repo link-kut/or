@@ -77,7 +77,7 @@ class Worker(mp.Process):
         total_step = 1
         while self.g_ep.value < MAX_EP:
             s = self.env.reset()
-            buffer_s, buffer_a, buffer_r = [], [], []
+            buffer_s, buffer_action, buffer_reward = [], [], []
             ep_r = 0.
             while True:
                 if self.name == 'w00':
@@ -86,14 +86,14 @@ class Worker(mp.Process):
                 s_, r, done, _ = self.env.step(a)
                 if done: r = -1
                 ep_r += r
-                buffer_a.append(a)
+                buffer_action.append(a)
                 buffer_s.append(s)
-                buffer_r.append(r)
+                buffer_reward.append(r)
 
                 if total_step % UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
                     # sync
-                    push_and_pull(self.opt, self.lnet, self.gnet, done, s_, buffer_s, buffer_a, buffer_r, GAMMA)
-                    buffer_s, buffer_a, buffer_r = [], [], []
+                    push_and_pull(self.opt, self.lnet, self.gnet, done, s_, buffer_s, buffer_action, buffer_reward, GAMMA)
+                    buffer_s, buffer_action, buffer_reward = [], [], []
 
                     if done:  # done and print information
                         record(self.g_ep, self.g_ep_r, ep_r, self.res_queue, self.name)

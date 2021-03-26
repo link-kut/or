@@ -29,46 +29,49 @@ def set_init(layers):
         nn.init.constant_(layer.bias, 0.)
 
 
-def push_and_pull(optimizer, local_net, global_net, done, bsf, bsei,
-                        bsvc, bsvb, bspe,
-                        ba, br, gamma):
-    if len(bsf) <= 2:
-        pass
+def push_and_pull(optimizer, local_net, global_net, done, buffer_substrate_feature, buffer_edge_index,
+                        buffer_v_node_capacity, buffer_v_node_bandwidth, buffer_v_node_pending,
+                        buffer_action, buffer_reward, buffer_next_substrate_feature, buffer_next_edge_index,
+                        buffer_done, gamma):
+    if done:
+        v_s_ = 0.               # terminal
     else:
-        if done:
-            v_s_ = 0.               # terminal
-        else:
-            v_s_ = local_net.forward(bsf[1], bsei[1], bsvc[1], bsvb[1], bspe[1])[-1].data.numpy()[0, 0] # input next_state
+        v_s_ = local_net.forward(
+            buffer_substrate_feature[1],
+            buffer_edge_index[1],
+            buffer_v_node_capacity[1],
+            buffer_v_node_bandwidth[1],
+            buffer_v_node_pending[1])[-1].data.numpy()[0, 0] # input next_state
 
-        buffer_v_target = []
-        for r in br[::-1]:    # reverse buffer r
-            v_s_ = r + gamma * v_s_
-            buffer_v_target.append(v_s_)
-        buffer_v_target.reverse()
+    buffer_v_target = []
+    for r in buffer_reward[::-1]:    # reverse buffer r
+        v_s_ = r + gamma * v_s_
+        buffer_v_target.append(v_s_)
+    buffer_v_target.reverse()
 
-        # input current_state
-        loss = local_net.loss_func(
-            bsf[0], bsei[0],
-            bsvc[0], bsvb[0], bspe[0],
-            v_wrap(np.array(ba[0]), dtype=np.int64) if ba[0].dtype == np.int64 else v_wrap(np.vstack(ba[0])),
-            buffer_v_target[0]
-        )
+    # input current_state
+    loss = local_net.loss_func(
+        buffer_substrate_feature[0], buffer_edge_index[0],
+        buffer_v_node_capacity[0], buffer_v_node_bandwidth[0], buffer_v_node_pending[0],
+        v_wrap(np.array(buffer_action[0]), dtype=np.int64) if buffer_action[0].dtype == np.int64 else v_wrap(np.vstack(buffer_action[0])),
+        buffer_v_target[0]
+    )
 
-        del bsf[0], bsei[0], bsvc[0], bsvb[0], bspe[0], ba[0]
+    del buffer_substrate_feature[0], buffer_edge_index[0], buffer_v_node_capacity[0], buffer_v_node_bandwidth[0], buffer_v_node_pending[0], buffer_action[0]
 
-        # calculate local gradients and push local parameters to global
-        optimizer.zero_grad()
-        loss.backward()
-        for lp, gp in zip(local_net.parameters(), global_net.parameters()):
-            gp._grad = lp.grad
-        optimizer.step()
+    # calculate local gradients and push local parameters to global
+    optimizer.zero_grad()
+    loss.backward()
+    for lp, gp in zip(local_net.parameters(), global_net.parameters()):
+        gp._grad = lp.grad
+    optimizer.step()
 
-        # pull global parameters
-        local_net.load_state_dict(global_net.state_dict())
+    # pull global parameters
+    local_net.load_state_dict(global_net.state_dict())
 
-        now = datetime.datetime.now()
-        new_model_path = os.path.join(model_save_path, "A3C_model.pth")
-        torch.save(global_net.state_dict(), new_model_path)
+    now = datetime.datetime.now()
+    new_model_path = os.path.join(model_save_path, "A3C_model.pth")
+    torch.save(global_net.state_dict(), new_model_path)
 
 
 def record(global_ep, global_ep_r, ep_r, message_queue, name):
