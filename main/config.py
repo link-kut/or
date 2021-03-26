@@ -40,7 +40,7 @@ else:
 NUM_RUNS = 1
 
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
-GLOBAL_MAX_STEPS = 5600
+GLOBAL_MAX_STEPS = 560
 
 TIME_WINDOW_SIZE = 1
 
@@ -90,7 +90,7 @@ CROSSOVER_RATE = 0.8
 MUTATION_RATE = 0.2
 
 # FOR A3C ALGORITHM
-UPDATE_GLOBAL_ITER = 30
+UPDATE_GLOBAL_ITER = 5
 GAMMA = 0.9
 MAX_EPISODES = 3000
 NUM_SUBSTRATE_FEATURES = 5
