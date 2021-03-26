@@ -43,8 +43,7 @@ class Worker(mp.Process):
             buffer_next_substrate_feature, buffer_next_edge_index, buffer_done \
                 = [], [], [], [], [], [], [], [], [], []
             ep_r = 0.0
-            print(self.global_episode.value)
-            print(done)
+            
             while not done:
                 time_step += 1
                 action = self.agent.get_action(state)
