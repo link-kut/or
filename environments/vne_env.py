@@ -55,6 +55,25 @@ class Substrate:
                 total_node_bandwidth += self.net[s_node_id][link_id]['bandwidth']
             self.initial_s_node_total_bandwidth.append(total_node_bandwidth)
 
+    def __eq__(self, other):
+        remaining_cpu_resource = sum([node_data['CPU'] for _, node_data in self.net.nodes(data=True)])
+        remaining_bandwidth_resource = sum([link_data['bandwidth'] for _, _, link_data in self.net.edges(data=True)])
+
+        other_remaining_cpu_resource = sum([node_data['CPU'] for _, node_data in other.net.nodes(data=True)])
+        other_remaining_bandwidth_resource = sum([link_data['bandwidth'] for _, _, link_data in other.net.edges(data=True)])
+
+        equal_conditions = [
+            len(self.net.nodes) == len(other.net.nodes),
+            len(self.net.edges) == len(other.net.edges),
+            remaining_cpu_resource == other_remaining_cpu_resource,
+            remaining_bandwidth_resource == other_remaining_bandwidth_resource
+        ]
+
+        if all(equal_conditions):
+            return True
+        else:
+            return False
+
     def __str__(self):
         remaining_cpu_resource = sum([node_data['CPU'] for _, node_data in self.net.nodes(data=True)])
         remaining_bandwidth_resource = sum([link_data['bandwidth'] for _, _, link_data in self.net.edges(data=True)])

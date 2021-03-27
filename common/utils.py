@@ -243,3 +243,7 @@ def print_env_and_agent_info(env, agent, logger):
     print(msg)
 
     print()
+
+    response = input("Are you OK for All environment and agent information ? [y/n]: ")
+    if not (response == "Y" or response == "y"):
+        sys.exit(-1)

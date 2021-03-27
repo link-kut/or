@@ -3,9 +3,11 @@ import random
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
 from main import config
-import networkx as nx
 from termcolor import colored
 import numpy as np
+from collections import namedtuple
+
+ChromosomeFitness = namedtuple('ChromosomeFitness', ['chromosome', 'fitness'])
 
 
 class GABaselineVNEAgent(BaselineVNEAgent):
@@ -137,14 +139,16 @@ class GAOperator:
                 chromosome.append(path_id)
 
             self.population.append(
-                (chromosome, self.evaluate_fitness(embedding_s_paths))
+                ChromosomeFitness(
+                    chromosome=chromosome, fitness=self.evaluate_fitness(embedding_s_paths)
+                )
             )
 
-        self.length_chromosome = len(self.population[0][0])
+        self.length_chromosome = len(self.all_s_paths)
         #self.print_population()
 
     def sort_population_and_set_elite(self):
-        self.population.sort(key=lambda p: p[1], reverse=True)
+        self.population.sort(key=lambda p: p.fitness, reverse=True)
         self.elite = self.population[0]
 
     def evaluate_fitness(self, embedding_s_paths):
@@ -155,26 +159,16 @@ class GAOperator:
         # return 1 / (cost + 1e-05) + 1 / (total_hop_count + 1e-05) + attraction_strength + 1 / (distance_factor + 1e-05)
         return 1 / (cost + 1e-05) + 1 / (total_hop_count + 1e-05)
 
-    # def selection(self, tsize=10):
-    #     # https://en.wikipedia.org/wiki/Tournament_selection
-    #     # generate next population based on 'tournament selection'
-    #     prev_population = self.population
-    #     self.population = []
-    #
-    #     for _ in range(config.POPULATION_SIZE):
-    #         candidates = random.sample(prev_population, tsize)
-    #         self.population.append(max(candidates, key=lambda p: p[1]))
-
     def selection(self):
         # https://en.wikipedia.org/wiki/Fitness_proportionate_selection: Roulette wheel selection
         # generate next population based on 'fitness proportionate selection'
-        total = sum(p[1] for p in self.population)
-        selection_probs = [p[1]/total for p in self.population]
-        new_population_idx = np.random.choice(len(self.population), size=config.POPULATION_SIZE, p=selection_probs)
+        total_fitness = sum(p.fitness for p in self.population)
+        selection_probs = [p.fitness / total_fitness for p in self.population]
+        new_population_idxes = np.random.choice(len(self.population), size=config.POPULATION_SIZE, p=selection_probs)
 
         prev_population = self.population
         self.population = []
-        for idx in new_population_idx:
+        for idx in new_population_idxes:
             self.population.append(prev_population[idx])
 
     def crossover(self):
@@ -193,8 +187,8 @@ class GAOperator:
             chromosomes_idx.remove(c_idx_2)
 
             crossover_point = np.random.randint(1, self.length_chromosome)
-            chromosomes_1 = self.population[c_idx_1][0]
-            chromosomes_2 = self.population[c_idx_2][0]
+            chromosomes_1 = self.population[c_idx_1].chromosome
+            chromosomes_2 = self.population[c_idx_2].chromosome
 
             # print(chromosomes_1, chromosomes_2, "!!!!! - before crossover")
 
@@ -208,13 +202,19 @@ class GAOperator:
             for idx, v_link in enumerate(self.all_s_paths.keys()):
                 path_id = chromosomes_1[idx]
                 embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
-            self.population[c_idx_1] = (chromosomes_1, self.evaluate_fitness(embedding_s_paths))
+
+            self.population[c_idx_1] = ChromosomeFitness(
+                chromosome=chromosomes_1, fitness=self.evaluate_fitness(embedding_s_paths)
+            )
 
             embedding_s_paths = {}
             for idx, v_link in enumerate(self.all_s_paths.keys()):
                 path_id = chromosomes_2[idx]
                 embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
-            self.population[c_idx_1] = (chromosomes_2, self.evaluate_fitness(embedding_s_paths))
+
+            self.population[c_idx_1] = ChromosomeFitness(
+                chromosome=chromosomes_2, fitness=self.evaluate_fitness(embedding_s_paths)
+            )
 
             # print(chromosomes_1, chromosomes_2, "!!!!! - after crossover\n")
 
@@ -235,7 +235,9 @@ class GAOperator:
                     embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
             #print(chromosome, "!!!!! - after mutation")
 
-            self.population[p_idx] = (chromosome, self.evaluate_fitness(embedding_s_paths))
+            self.population[p_idx] = ChromosomeFitness(
+                chromosome=chromosome, fitness=self.evaluate_fitness(embedding_s_paths)
+            )
 
     def print_population(self):
         for idx, (chromosome, fitness) in enumerate(self.population):
