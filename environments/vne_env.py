@@ -206,15 +206,6 @@ class VNEEnvironment(gym.Env):
             self.VNRs_INFO[vnr.id] = vnr
             vnr_id += 1
 
-        msg = "TOTAL NUMBER of SUBSTRATE nodes: {0}\n".format(len(self.SUBSTRATE.net.nodes()))
-        msg += "TOTAL NUMBER of SUBSTRATE edges: {0}\n".format(len(self.SUBSTRATE.net.edges()))
-        msg += "DIAMETER of SUBSTRATE: {0}\n".format(nx.diameter(self.SUBSTRATE.net))
-        msg += "TOTAL NUMBER of VNRs: {0}\n".format(len(self.VNRs_INFO))
-
-        if self.logger:
-            self.logger.info(msg)
-        print(msg)
-
         self.VNRs_SERVING = None
         self.VNRs_COLLECTED = None
 

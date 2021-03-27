@@ -11,6 +11,7 @@ import numpy as np
 class GABaselineVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
         super(GABaselineVNEAgent, self).__init__(logger)
+        self.type = config.TARGET_ALGORITHM.GENETIC_ALGORITHM
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         subset_S_per_v_node = {}

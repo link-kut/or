@@ -14,6 +14,7 @@ import numpy as np
 class MultiGAVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
         super(MultiGAVNEAgent, self).__init__(logger)
+        self.type = config.TARGET_ALGORITHM.MULTI_GENETIC_ALGORITHM
 
     def embedding(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
         sorted_vnrs = sorted(

@@ -55,8 +55,7 @@ def main():
         env = VNEEnvironment(logger)
         envs = [env]
 
-        msg = "RUN: {0} STARTED".format(run + 1)
-        logger.info(msg), print(msg)
+        utils.print_env_and_agent_info(env, agents[0], logger)
 
         agent_id = 0
 

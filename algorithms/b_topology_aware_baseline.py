@@ -7,6 +7,7 @@ class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
         super(TopologyAwareBaselineVNEAgent, self).__init__(logger)
         self.beta = beta
+        self.type = config.TARGET_ALGORITHM.TOPOLOGY_AWARE_DEGREE
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''

@@ -222,3 +222,24 @@ def find_all_s_paths_for_v_links(copied_substrate, embedding_s_nodes, vnr):
                 return False, (v_link, None)
 
     return True, all_s_paths
+
+
+def print_env_and_agent_info(env, agent, logger):
+    msg = "[ENVIRONMENT]\n"
+    msg += "TOTAL NUMBER of SUBSTRATE nodes: {0}\n".format(len(env.SUBSTRATE.net.nodes()))
+    msg += "TOTAL NUMBER of SUBSTRATE edges: {0}\n".format(len(env.SUBSTRATE.net.edges()))
+    msg += "DIAMETER of SUBSTRATE: {0}\n".format(nx.diameter(env.SUBSTRATE.net))
+    msg += "TOTAL NUMBER of VNRs: {0}\n".format(len(env.VNRs_INFO))
+
+    if logger:
+        logger.info(msg)
+    print(msg)
+
+    msg = "[AGENT]\n"
+    msg += "AGENT: {0}".format(agent.type.value)
+
+    if logger:
+        logger.info(msg)
+    print(msg)
+
+    print()

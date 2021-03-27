@@ -18,6 +18,7 @@ warnings.filterwarnings(action='ignore')
 class DeterministicVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
         super(DeterministicVNEAgent, self).__init__(logger)
+        self.type = config.TARGET_ALGORITHM.DETERMINISTIC_VINE
 
     @staticmethod
     def change_to_augmented_substrate(copied_substrate, vnr):

@@ -7,26 +7,11 @@ from common import utils
 from main import config
 
 
-class Action:
-    def __init__(self):
-        self.vnrs_postponement = None
-        self.vnrs_embedding = None
-        self.num_node_embedding_fails = 0
-        self.num_link_embedding_fails = 0
-
-    def __str__(self):
-        action_str = "[{0:2} VNR POST.] [{1:2} VNR EMBED.]".format(
-            len(self.vnrs_postponement),
-            len(self.vnrs_embedding),
-        )
-
-        return action_str
-
-
 class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
         super(EgoNetworkBasedVNEAgent, self).__init__(logger)
         self.beta = beta
+        self.type = config.TARGET_ALGORITHM.EGO_NETWORK
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''

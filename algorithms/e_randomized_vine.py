@@ -14,9 +14,11 @@ from scipy.special import softmax
 import warnings
 warnings.filterwarnings(action='ignore')
 
+
 class RandomizedVNEAgent(DeterministicVNEAgent):
     def __init__(self, logger):
         super(RandomizedVNEAgent, self).__init__(logger)
+        self.type = config.TARGET_ALGORITHM.RANDOMIZED_VINE
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''

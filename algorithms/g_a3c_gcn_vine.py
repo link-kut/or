@@ -14,11 +14,6 @@ from torch_geometric.data import Data
 from torch_geometric.utils import from_networkx
 from algorithms.model.A3C import A3C_Model
 
-current_path = os.path.dirname(os.path.realpath(__file__))
-PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
-if PROJECT_HOME not in sys.path:
-    sys.path.append(PROJECT_HOME)
-
 
 class A3CGraphCNVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
@@ -30,6 +25,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         self.action_count = 0
         self.state_action_reward_next_state = {}
         self.eligibility_trace = np.zeros(shape=(100,))
+        self.type = config.TARGET_ALGORITHM.A3C_GCN
 
     # copied env for A3C
     def get_reward(self, copied_substrate, vnr, selected_s_node_id,

@@ -29,6 +29,7 @@ class BaselineVNEAgent:
         self.num_link_embedding_fails = 0
         self.time_step = 0
         self.next_embedding_epoch = config.TIME_WINDOW_SIZE
+        self.type = config.TARGET_ALGORITHM.BASELINE
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
