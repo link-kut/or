@@ -5,11 +5,6 @@ import datetime
 from torch import nn
 import torch
 import numpy as np
-import torch.nn.functional as F
-import torch.multiprocessing as mp
-
-from main import config
-from main.common_main import model_save_path
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
@@ -32,7 +27,7 @@ def set_init(layers):
 def push_and_pull(optimizer, local_net, global_net, done, buffer_substrate_feature, buffer_edge_index,
                         buffer_v_node_capacity, buffer_v_node_bandwidth, buffer_v_node_pending,
                         buffer_action, buffer_reward, buffer_next_substrate_feature, buffer_next_edge_index,
-                        buffer_done, gamma):
+                        buffer_done, gamma, model_save_path):
     # print(buffer_done)
     # print(buffer_reward)
     for idx in range(len(buffer_done)):

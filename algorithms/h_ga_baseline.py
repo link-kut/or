@@ -53,53 +53,25 @@ class GABaselineVNEAgent(BaselineVNEAgent):
         return embedding_s_nodes
 
     def find_substrate_path(self, copied_substrate, vnr, embedding_s_nodes):
-        all_s_paths = {}
+        is_ok, results = utils.find_all_s_paths_for_v_links(copied_substrate, embedding_s_nodes, vnr)
 
-        # 각 v_link 당 가능한 모든 s_path (set of s_link) 구성하여 all_s_paths에 저장
-        for src_v_node, dst_v_node, edge_data in vnr.net.edges(data=True):
-            v_link = (src_v_node, dst_v_node)
-            src_s_node = embedding_s_nodes[src_v_node][0]
-            dst_s_node = embedding_s_nodes[dst_v_node][0]
-            v_bandwidth_demand = edge_data['bandwidth']
+        if is_ok:
+            all_s_paths = results
+        else:
+            (v_link, v_bandwidth_demand) = results
+            self.num_link_embedding_fails += 1
 
-            if src_s_node == dst_s_node:
-                all_s_paths[v_link][0] = ([], v_bandwidth_demand)
+            if v_bandwidth_demand:
+                msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
+                    self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                )
             else:
-                subnet = nx.subgraph_view(
-                    copied_substrate.net,
-                    filter_edge=lambda node_1_id, node_2_id: \
-                        True if copied_substrate.net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
+                msg = "VNR REJECTED ({0}): 'not found for any substrate path for v_link: {1}' {2}".format(
+                    self.num_link_embedding_fails, v_link, vnr
                 )
 
-                if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
-                    self.num_link_embedding_fails += 1
-                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
-                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
-                    )
-                    self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-                    return None
-
-                all_paths = nx.all_simple_paths(
-                    subnet, source=src_s_node, target=dst_s_node, cutoff=config.MAX_EMBEDDING_PATH_LENGTH
-                )
-
-                all_s_paths[v_link] = {}
-                idx = 0
-                for path in all_paths:
-                    s_links_in_path = []
-                    for node_idx in range(len(path) - 1):
-                        s_links_in_path.append((path[node_idx], path[node_idx + 1]))
-
-                    all_s_paths[v_link][idx] = (s_links_in_path, v_bandwidth_demand)
-                    idx += 1
-
-                if idx == 0:
-                    self.num_link_embedding_fails += 1
-                    msg = "VNR REJECTED ({0}): 'not found for any substrate path for v_link: {1}' {2}".format(
-                        self.num_link_embedding_fails, v_link, vnr
-                    )
-                    self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-                    return None
+            self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+            return None
 
         # GENETIC ALGORITHM START: mapping the virtual nodes and substrate_net nodes
         embedding_s_paths = {}

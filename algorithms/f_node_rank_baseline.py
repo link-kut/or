@@ -3,9 +3,9 @@ from common import utils
 from main import config
 
 
-class TopologyAwareBaselineVNEAgent(BaselineVNEAgent):
+class TopologyAwareNodeRankingVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
-        super(TopologyAwareBaselineVNEAgent, self).__init__(logger)
+        super(TopologyAwareNodeRankingVNEAgent, self).__init__(logger)
         self.beta = beta
 
     def find_substrate_nodes(self, copied_substrate, vnr):

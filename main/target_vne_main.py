@@ -1,8 +1,5 @@
 import os, sys
 
-from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
-from algorithms.i_multi_ga_baseline import MultiGAVNEAgent
-
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
 if PROJECT_HOME not in sys.path:
@@ -11,28 +8,43 @@ if PROJECT_HOME not in sys.path:
 from main.common_main import *
 
 
-agents = [
-    # TopologyAwareBaselineVNEAgent(0.3, logger),
-    # DeterministicVNEAgent(logger),
-    # RandomizedVNEAgent(logger)
-    A3CGraphCNVNEAgent(0.3, logger) if config.TARGET_ALGORITHM == config.ALGORITHMS.A3C_GCN else MultiGAVNEAgent(logger)
-    # GABaselineVNEAgent(logger)
-    # MultiGAVNEAgent(logger)
-]
+if config.TARGET_ALGORITHM == config.ALGORITHMS.BASELINE:
+    agent = BaselineVNEAgent(logger)
 
-agent_labels = [
-    # "TA_node_rank"
-    # "D-ViNE"
-    # "R-ViNE"
-    config.ALGORITHMS.A3C_GCN.value if config.TARGET_ALGORITHM == config.ALGORITHMS.A3C_GCN else config.ALGORITHMS.GENETIC_ALGORITHM.value
-    # "GA"
-    # "Multi-GA"
-]
+elif config.TARGET_ALGORITHM == config.ALGORITHMS.TOPOLOGY_AWARE_DEGREE:
+    agent = TopologyAwareBaselineVNEAgent(beta=0.3, logger=logger)
 
-performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
-performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
-performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
-performance_link_fail_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
+elif config.TARGET_ALGORITHM == config.ALGORITHMS.EGO_NETWORK:
+    agent = EgoNetworkBasedVNEAgent(beta=0.9, logger=logger)
+
+elif config.TARGET_ALGORITHM == config.ALGORITHMS.DETERMINISTIC_VINE:
+    agent = DeterministicVNEAgent(logger)
+
+elif config.TARGET_ALGORITHM == config.ALGORITHMS.RANDOMIZED_VINE:
+    agent = RandomizedVNEAgent(logger)
+
+elif config.TARGET_ALGORITHM == config.ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING:
+    agent = TopologyAwareNodeRankingVNEAgent(beta=0.3, logger=logger)
+
+elif config.TARGET_ALGORITHM == config.ALGORITHMS.GENETIC_ALGORITHM:
+    agent = GABaselineVNEAgent(logger)
+
+elif config.TARGET_ALGORITHM == config.ALGORITHMS.A3C_GCN:
+    agent = A3CGraphCNVNEAgent(beta=0.3, logger=logger)
+
+elif config.TARGET_ALGORITHM == config.ALGORITHMS.MULTI_GENETIC_ALGORITHM:
+    agent = MultiGAVNEAgent(logger)
+
+else:
+    raise ValueError()
+
+agents = [agent]
+agent_labels = [config.TARGET_ALGORITHM.value]
+
+performance_revenue = np.zeros(shape=(1, config.GLOBAL_MAX_STEPS + 1))
+performance_acceptance_ratio = np.zeros(shape=(1, config.GLOBAL_MAX_STEPS + 1))
+performance_rc_ratio = np.zeros(shape=(1, config.GLOBAL_MAX_STEPS + 1))
+performance_link_fail_ratio = np.zeros(shape=(1, config.GLOBAL_MAX_STEPS + 1))
 
 
 def main():
@@ -41,74 +53,68 @@ def main():
         run_start_ts = time.time()
 
         env = VNEEnvironment(logger)
-        envs = []
-        for agent_id in range(len(agents)):
-            if agent_id == 0:
-                envs.append(env)
-            else:
-                envs.append(copy.deepcopy(env))
+        envs = [env]
 
         msg = "RUN: {0} STARTED".format(run + 1)
         logger.info(msg), print(msg)
 
-        states = []
+        agent_id = 0
 
-        for agent_id in range(len(agents)):
-            states.append(envs[agent_id].reset())
+        states = [envs[agent_id].reset()]
 
         done = False
         time_step = 0
 
         while not done:
             time_step += 1
-            for agent_id in range(len(agents)):
-                before_action_msg = "state {0} | ".format(repr(states[agent_id]))
-                before_action_simple_msg = "state {0} | ".format(states[agent_id])
-                logger.info("{0} {1}".format(
-                    utils.run_agent_step_prefix(run + 1, agent_id, time_step), before_action_msg
-                ))
 
-                # action = bl_agent.get_action(state)
-                action = agents[agent_id].get_action(states[agent_id])
+            before_action_msg = "state {0} | ".format(repr(states[agent_id]))
+            before_action_simple_msg = "state {0} | ".format(states[agent_id])
+            logger.info("{0} {1}".format(
+                utils.run_agent_step_prefix(run + 1, agent_id, time_step), before_action_msg
+            ))
 
-                action_msg = "act. {0:30} |".format(
-                    str(action) if action.vnrs_embedding is not None and action.vnrs_postponement is not None else " - "
-                )
-                logger.info("{0} {1}".format(
-                    utils.run_agent_step_prefix(run + 1, agent_id, time_step), action_msg
-                ))
+            # action = bl_agent.get_action(state)
+            action = agents[agent_id].get_action(states[agent_id])
 
-                next_state, reward, done, info = envs[agent_id].step(action)
+            action_msg = "act. {0:30} |".format(
+                str(action) if action.vnrs_embedding is not None and action.vnrs_postponement is not None else " - "
+            )
+            logger.info("{0} {1}".format(
+                utils.run_agent_step_prefix(run + 1, agent_id, time_step), action_msg
+            ))
 
-                elapsed_time = time.time() - run_start_ts
-                after_action_msg = "reward {0:6.1f} | revenue {1:6.1f} | acc. ratio {2:4.2f} | " \
-                                   "r/c ratio {3:4.2f} | {4}".format(
-                    reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio'],
-                    time.strftime("%Hh %Mm %Ss", time.gmtime(elapsed_time)),
-                )
+            next_state, reward, done, info = envs[agent_id].step(action)
 
-                after_action_msg += " | {0:3.1f} steps/sec.".format(time_step / elapsed_time)
+            elapsed_time = time.time() - run_start_ts
+            after_action_msg = "reward {0:6.1f} | revenue {1:6.1f} | acc. ratio {2:4.2f} | " \
+                               "r/c ratio {3:4.2f} | {4}".format(
+                reward, info['revenue'], info['acceptance_ratio'], info['rc_ratio'],
+                time.strftime("%Hh %Mm %Ss", time.gmtime(elapsed_time)),
+            )
 
-                logger.info("{0} {1}".format(
-                    utils.run_agent_step_prefix(run + 1, agent_id, time_step), after_action_msg
-                ))
+            after_action_msg += " | {0:3.1f} steps/sec.".format(time_step / elapsed_time)
 
-                print("{0} {1} {2} {3}".format(
-                    utils.run_agent_step_prefix(run + 1, agent_id, time_step),
-                    before_action_simple_msg,
-                    action_msg,
-                    after_action_msg
-                ))
+            logger.info("{0} {1}".format(
+                utils.run_agent_step_prefix(run + 1, agent_id, time_step), after_action_msg
+            ))
 
-                states[agent_id] = next_state
+            print("{0} {1} {2} {3}".format(
+                utils.run_agent_step_prefix(run + 1, agent_id, time_step),
+                before_action_simple_msg,
+                action_msg,
+                after_action_msg
+            ))
 
-                performance_revenue[agent_id, time_step] += info['revenue']
-                performance_acceptance_ratio[agent_id, time_step] += info['acceptance_ratio']
-                performance_rc_ratio[agent_id, time_step] += info['rc_ratio']
-                performance_link_fail_ratio[agent_id, time_step] += \
-                    info['link_embedding_fails_against_total_fails_ratio']
+            states[agent_id] = next_state
 
-                logger.info("")
+            performance_revenue[agent_id, time_step] += info['revenue']
+            performance_acceptance_ratio[agent_id, time_step] += info['acceptance_ratio']
+            performance_rc_ratio[agent_id, time_step] += info['rc_ratio']
+            performance_link_fail_ratio[agent_id, time_step] += \
+                info['link_embedding_fails_against_total_fails_ratio']
+
+            logger.info("")
 
             if time_step > config.FIGURE_START_TIME_STEP - 1 and time_step % 100 == 0:
                 draw_performance(
@@ -116,7 +122,8 @@ def main():
                     performance_revenue / (run + 1),
                     performance_acceptance_ratio / (run + 1),
                     performance_rc_ratio / (run + 1),
-                    performance_link_fail_ratio / (run + 1)
+                    performance_link_fail_ratio / (run + 1),
+                    config.graph_save_path
                 )
 
         draw_performance(
@@ -125,6 +132,7 @@ def main():
             performance_acceptance_ratio / (run + 1),
             performance_rc_ratio / (run + 1),
             performance_link_fail_ratio / (run + 1),
+            config.graph_save_path,
             send_image_to_slack=True
         )
 
@@ -136,7 +144,7 @@ def main():
 
 def draw_performance(
         run, time_step, performance_revenue, performance_acceptance_ratio,
-        performance_rc_ratio, performance_link_fail_ratio, send_image_to_slack=False
+        performance_rc_ratio, performance_link_fail_ratio, graph_save_path, send_image_to_slack=False
 ):
     files = glob.glob(os.path.join(graph_save_path, "*"))
     for f in files:

@@ -71,7 +71,7 @@ class Worker(mp.Process):
                         buffer_substrate_feature, buffer_edge_index, buffer_v_node_capacity,
                         buffer_v_node_bandwidth, buffer_v_pending,
                         buffer_action, buffer_reward, buffer_next_substrate_feature, buffer_next_edge_index,
-                        buffer_done, config.GAMMA
+                        buffer_done, config.GAMMA, config.model_save_path
                     )
 
                     buffer_substrate_feature, buffer_edge_index, buffer_v_node_capacity, \

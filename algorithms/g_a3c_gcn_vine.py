@@ -13,7 +13,6 @@ import numpy as np
 from torch_geometric.data import Data
 from torch_geometric.utils import from_networkx
 from algorithms.model.A3C import A3C_Model
-from main.common_main import model_save_path
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))

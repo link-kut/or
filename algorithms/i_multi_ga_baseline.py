@@ -22,6 +22,7 @@ class MultiGAVNEAgent(BaselineVNEAgent):
 
         for vnr in sorted_vnrs:
             substrate_s_nodes_combinations = self.find_substrate_nodes_combinations(vnr, COPIED_SUBSTRATE)
+
             for substrate_s_nodes in substrate_s_nodes_combinations:
                 print(substrate_s_nodes)
 

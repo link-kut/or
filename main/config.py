@@ -1,11 +1,32 @@
 import configparser
 import os, sys
 import enum
+import shutil
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir, os.pardir))
 if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
+
+PROJECT_HOME = os.getcwd()[:-5]
+graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
+log_save_path = os.path.join(PROJECT_HOME, "out", "logs")
+csv_save_path = os.path.join(PROJECT_HOME, "out", "parameters")
+model_save_path = os.path.join(PROJECT_HOME, "out", "models")
+
+if not os.path.exists(graph_save_path):
+    os.makedirs(graph_save_path)
+
+if not os.path.exists(log_save_path):
+    os.makedirs(log_save_path)
+else:
+    shutil.rmtree(log_save_path)
+
+if not os.path.exists(csv_save_path):
+    os.makedirs(csv_save_path)
+
+if not os.path.exists(model_save_path):
+    os.makedirs(model_save_path)
 
 class TYPE_OF_VIRTUAL_NODE_RANKING(enum.Enum):
     TYPE_1 = 0
@@ -100,11 +121,25 @@ NUM_WORKERS = 2
 MAX_NUM_CANDIDATE_S_NODES_PER_V_NODE = 2
 
 if 'PRIVATE' in config_parser and 'TARGET_ALGORITHM' in config_parser['PRIVATE']:
-    if config_parser['PRIVATE']['TARGET_ALGORITHM'] == "A3C_GCN":
+    if config_parser['PRIVATE']['TARGET_ALGORITHM'] == "BASELINE":
+        TARGET_ALGORITHM = ALGORITHMS.BASELINE
+    elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "TOPOLOGY_AWARE_DEGREE":
+        TARGET_ALGORITHM = ALGORITHMS.TOPOLOGY_AWARE_DEGREE
+    elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "EGO_NETWORK":
+        TARGET_ALGORITHM = ALGORITHMS.EGO_NETWORK
+    elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "DETERMINISTIC_VINE":
+        TARGET_ALGORITHM = ALGORITHMS.DETERMINISTIC_VINE
+    elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "RANDOMIZED_VINE":
+        TARGET_ALGORITHM = ALGORITHMS.RANDOMIZED_VINE
+    elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "TOPOLOGY_AWARE_NODE_RANKING":
+        TARGET_ALGORITHM = ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING
+    elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "GENETIC_ALGORITHM":
+        TARGET_ALGORITHM = ALGORITHMS.GENETIC_ALGORITHM
+    elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "A3C_GCN":
         TARGET_ALGORITHM = ALGORITHMS.A3C_GCN
-    elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "Multi-GA":
+    elif config_parser['PRIVATE']['TARGET_ALGORITHM'] == "MULTI_GENETIC_ALGORITHM":
         TARGET_ALGORITHM = ALGORITHMS.MULTI_GENETIC_ALGORITHM
     else:
-        TARGET_ALGORITHM = ALGORITHMS.MULTI_GENETIC_ALGORITHM
+        raise ValueError()
 else:
     TARGET_ALGORITHM = ALGORITHMS.MULTI_GENETIC_ALGORITHM

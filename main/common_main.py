@@ -1,5 +1,4 @@
 import copy
-import shutil
 import time
 import matplotlib.pyplot as plt
 import os, sys
@@ -9,9 +8,6 @@ import pandas as pd
 import warnings
 from matplotlib import MatplotlibDeprecationWarning
 import datetime
-
-from algorithms.c_ego_network_baseline import EgoNetworkBasedVNEAgent
-from main.config import HOST
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
@@ -25,31 +21,18 @@ from common import utils
 from main import config
 from common.logger import get_logger
 from environments.vne_env import VNEEnvironment
+
 from algorithms.a_baseline import BaselineVNEAgent
 from algorithms.b_topology_aware_baseline import TopologyAwareBaselineVNEAgent
+from algorithms.c_ego_network_baseline import EgoNetworkBasedVNEAgent
 from algorithms.d_deterministic_vine import DeterministicVNEAgent
 from algorithms.e_randomized_vine import RandomizedVNEAgent
 from algorithms.h_ga_baseline import GABaselineVNEAgent
+from algorithms.f_node_rank_baseline import TopologyAwareNodeRankingVNEAgent
+from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
+from algorithms.i_multi_ga_baseline import MultiGAVNEAgent
 
-PROJECT_HOME = os.getcwd()[:-5]
-graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
-log_save_path = os.path.join(PROJECT_HOME, "out", "logs")
-csv_save_path = os.path.join(PROJECT_HOME, "out", "parameters")
-model_save_path = os.path.join(PROJECT_HOME, "out", "models")
-
-if not os.path.exists(graph_save_path):
-    os.makedirs(graph_save_path)
-
-if not os.path.exists(log_save_path):
-    os.makedirs(log_save_path)
-else:
-    shutil.rmtree(log_save_path)
-
-if not os.path.exists(csv_save_path):
-    os.makedirs(csv_save_path)
-
-if not os.path.exists(model_save_path):
-    os.makedirs(model_save_path)
+from main.config import HOST
 
 logger = get_logger("vne")
 
