@@ -195,8 +195,8 @@ def find_subset_S_for_virtual_node(copied_substrate, v_cpu_demand, v_node_locati
 
     return subset_S
 
-num_calls = 0
 
+num_calls = 0
 def make_all_paths(sorted_v_links_with_node_ranking, idx, all_s_paths, copied_substrate, embedding_s_nodes):
     global num_calls
     num_calls += 1
@@ -281,7 +281,45 @@ def find_all_s_paths_1(copied_substrate, embedding_s_nodes, vnr):
 
 
 def find_all_s_paths_2(copied_substrate, embedding_s_nodes, vnr):
-    pass
+    all_s_paths = {}
+
+    # 각 v_link 당 가능한 모든 s_path (set of s_link) 구성하여 all_s_paths에 저장
+    for src_v_node, dst_v_node, edge_data in vnr.net.edges(data=True):
+        v_link = (src_v_node, dst_v_node)
+        src_s_node = embedding_s_nodes[src_v_node][0]
+        dst_s_node = embedding_s_nodes[dst_v_node][0]
+        v_bandwidth_demand = edge_data['bandwidth']
+
+        if src_s_node == dst_s_node:
+            all_s_paths[v_link][0] = ([], v_bandwidth_demand)
+        else:
+            subnet = nx.subgraph_view(
+                copied_substrate.net,
+                filter_edge=lambda node_1_id, node_2_id: \
+                    True if copied_substrate.net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
+            )
+
+            if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
+                return False, (v_link, v_bandwidth_demand)
+
+            all_paths = nx.all_simple_paths(
+                subnet, source=src_s_node, target=dst_s_node, cutoff=config.MAX_EMBEDDING_PATH_LENGTH
+            )
+
+            all_s_paths[v_link] = {}
+            s_path_idx = 0
+            for path in all_paths:
+                s_links_in_path = []
+                for node_idx in range(len(path) - 1):
+                    s_links_in_path.append((path[node_idx], path[node_idx + 1]))
+
+                all_s_paths[v_link][s_path_idx] = (s_links_in_path, v_bandwidth_demand)
+                s_path_idx += 1
+
+            if s_path_idx == 0:
+                return False, (v_link, None)
+
+    return True, all_s_paths
 
 
 def print_env_and_agent_info(env, agent, logger):

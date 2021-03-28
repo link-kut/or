@@ -58,8 +58,8 @@ class BaselineVNEAgent:
 
             # if len(subset_S_per_v_node[v_node_id]) == 0:
             #     self.num_node_embedding_fails += 1
-            #     msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
-            #         self.num_node_embedding_fails, v_cpu_demand, vnr
+            #     msg = "VNR {0} REJECTED ({1}): 'no suitable SUBSTRATE NODE for nodal constraints: {2}' {3}".format(
+            #         vnr.id, self.num_node_embedding_fails, v_cpu_demand, vnr
             #     )
             #     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
             #     return None
@@ -78,8 +78,8 @@ class BaselineVNEAgent:
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
-                    self.num_node_embedding_fails, v_cpu_demand, vnr
+                msg = "VNR {0} REJECTED ({1}): 'no suitable SUBSTRATE NODE for nodal constraints: {2}' {3}".format(
+                    vnr.id, self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
@@ -130,8 +130,8 @@ class BaselineVNEAgent:
 
                 if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
                     self.num_link_embedding_fails += 1
-                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
-                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
+                        vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
                     )
                     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                     return None
@@ -143,16 +143,16 @@ class BaselineVNEAgent:
                 # Check the path length
                 if len(shortest_s_path) == config.MAX_EMBEDDING_PATH_LENGTH:
                     self.num_link_embedding_fails += 1
-                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
-                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
+                        vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
                     )
                     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                     return None
 
                 # if hasattr(config, "MAX_EMBEDDING_PATH_LENGTH") and len(shortest_s_path) - 1 > config.MAX_EMBEDDING_PATH_LENGTH:
                 #     self.num_link_embedding_fails += 1
-                #     msg = "VNR REJECTED ({0}): 'Suitable LINK for bandwidth demand, however the path length {1} is higher than {2}".format(
-                #         self.num_link_embedding_fails, len(shortest_s_path) - 1, config.MAX_EMBEDDING_PATH_LENGTH
+                #     msg = "VNR {0} REJECTED ({1}): 'Suitable LINK for bandwidth demand, however the path length {2} is higher than {3}".format(
+                #         vnr.id, self.num_link_embedding_fails, len(shortest_s_path) - 1, config.MAX_EMBEDDING_PATH_LENGTH
                 #     )
                 #     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 #     return None

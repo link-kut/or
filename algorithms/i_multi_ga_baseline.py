@@ -3,8 +3,9 @@ import random
 import itertools
 
 from algorithms.a_baseline import BaselineVNEAgent
-from algorithms.h_ga_baseline import EarlyStopping, GAOperator
+from algorithms.h_ga_baseline import GAOperator
 from common import utils
+from common.ga_utils import GAEarlyStopping
 from main import config
 from common.utils import peek_from_iterable
 import networkx as nx
@@ -67,8 +68,8 @@ class MultiGAVNEAgent(BaselineVNEAgent):
         for combination_idx, combination in enumerate(all_combinations):
             if len(combination) != len(sorted_v_nodes_with_node_ranking):
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints' {1}".format(
-                    self.num_node_embedding_fails, vnr
+                msg = "VNR {0} REJECTED ({1}): 'no suitable SUBSTRATE NODE for nodal constraints' {2}".format(
+                    vnr.id, self.num_node_embedding_fails, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
@@ -148,12 +149,12 @@ class MultiGAVNEAgent(BaselineVNEAgent):
             self.num_link_embedding_fails += 1
 
             if v_bandwidth_demand:
-                msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
-                    self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
+                    vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
                 )
             else:
-                msg = "VNR REJECTED ({0}): 'not found for any substrate path for v_link: {1}' {2}".format(
-                    self.num_link_embedding_fails, v_link, vnr
+                msg = "VNR {0} REJECTED ({1}): 'not found for any substrate path for v_link: {2}' {3}".format(
+                    vnr.id, self.num_link_embedding_fails, v_link, vnr
                 )
 
             self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
@@ -164,7 +165,7 @@ class MultiGAVNEAgent(BaselineVNEAgent):
         for v_link_idx, (src_v_node, dst_v_node, edge_data) in enumerate(vnr.net.edges(data=True)):
             v_link = (src_v_node, dst_v_node)
 
-            early_stopping = EarlyStopping(
+            early_stopping = GAEarlyStopping(
                 patience=config.STOP_PATIENCE_COUNT, verbose=True, delta=0.0001
             )
             ga_operator = GAOperator(vnr, all_s_paths, embedding_s_nodes, copied_substrate, population_size)

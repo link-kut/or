@@ -161,8 +161,8 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             if copied_substrate.net.nodes[selected_s_node_id]['CPU'] <= v_cpu_demand and \
                     selected_s_node_id in already_embedding_s_nodes:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
-                    self.num_node_embedding_fails, v_cpu_demand, vnr
+                msg = "VNR {0} REJECTED ({1}): 'no suitable SUBSTRATE NODE for nodal constraints: {2}' {3}".format(
+                    vnr.id, self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 self.state_action_reward_next_state[self.action_count].update({
@@ -211,8 +211,8 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
 
                 if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
                     self.num_link_embedding_fails += 1
-                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
-                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
+                        vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
                     )
                     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                     return None
@@ -224,8 +224,8 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
                 # Check the path length
                 if len(shortest_s_path) == config.MAX_EMBEDDING_PATH_LENGTH:
                     self.num_link_embedding_fails += 1
-                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
-                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
+                        vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
                     )
                     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                     return None

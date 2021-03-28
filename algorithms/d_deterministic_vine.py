@@ -100,8 +100,8 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
-                    self.num_node_embedding_fails, v_cpu_demand, vnr
+                msg = "VNR {0} REJECTED ({1}): 'no suitable SUBSTRATE NODE for nodal constraints: {2}' {3}".format(
+                    vnr.id, self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 self.revoke_from_augmented_substrate(copied_substrate, vnr)
@@ -147,8 +147,8 @@ class DeterministicVNEAgent(BaselineVNEAgent):
 
                 if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
                     self.num_link_embedding_fails += 1
-                    msg = "VNR REJECTED ({0}): 'no suitable LINK for bandwidth demand: {1}' {2}".format(
-                        self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
+                        vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
                     )
                     self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                     return None

@@ -85,8 +85,8 @@ class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
 
             if selected_s_node_id is None:
                 self.num_node_embedding_fails += 1
-                msg = "VNR REJECTED ({0}): 'no suitable SUBSTRATE NODE for nodal constraints: {1}' {2}".format(
-                    self.num_node_embedding_fails, v_cpu_demand, vnr
+                msg = "VNR {0} REJECTED ({1}): 'no suitable SUBSTRATE NODE for nodal constraints: {2}' {3}".format(
+                    vnr.id, self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 return None
