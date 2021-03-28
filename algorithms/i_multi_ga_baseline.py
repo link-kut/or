@@ -3,6 +3,7 @@ import random
 import itertools
 
 from algorithms.a_baseline import BaselineVNEAgent
+from algorithms.h_ga_baseline import EarlyStopping, GAOperator
 from common import utils
 from main import config
 from common.utils import peek_from_iterable
@@ -23,19 +24,23 @@ class MultiGAVNEAgent(BaselineVNEAgent):
 
         for vnr in sorted_vnrs:
             new_copied_substrate = copy.deepcopy(COPIED_SUBSTRATE)
-            substrate_s_nodes_combinations = self.find_substrate_nodes_combinations(vnr, new_copied_substrate)
+            s_nodes_combinations = self.find_substrate_nodes_combinations(vnr, new_copied_substrate)
 
-            if substrate_s_nodes_combinations is None:
+            if s_nodes_combinations is None:
                 action.vnrs_postponement[vnr.id] = vnr
                 continue
 
-            for substrate_s_nodes in substrate_s_nodes_combinations:
-                embedding_s_paths = self.find_substrate_path(new_copied_substrate, vnr, substrate_s_nodes)
+            population_size_dist = [config.POPULATION_SIZE_PER_COMBINATION] * len(s_nodes_combinations)
+
+            for combination_idx, s_nodes_combination in enumerate(s_nodes_combinations):
+
+                embedding_s_paths = self.find_substrate_path_for_combination(
+                    new_copied_substrate, vnr, s_nodes_combination, population_size_dist[combination_idx]
+                )
 
                 if embedding_s_paths is None:
                     action.vnrs_postponement[vnr.id] = vnr
                     continue
-
 
     def find_substrate_nodes_combinations(self, vnr, COPIED_SUBSTRATE):
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
@@ -52,14 +57,13 @@ class MultiGAVNEAgent(BaselineVNEAgent):
             combination=[],
             all_combinations=all_combinations,
             copied_substrate=COPIED_SUBSTRATE,
-            already_embedding_s_nodes=[],
-            vnr=vnr
+            already_embedding_s_nodes=[]
         )
 
         for idx, combination in enumerate(all_combinations):
             print(idx, combination)
 
-        substrate_s_nodes_combinations = []
+        s_nodes_combinations = []
         for combination_idx, combination in enumerate(all_combinations):
             if len(combination) != len(sorted_v_nodes_with_node_ranking):
                 self.num_node_embedding_fails += 1
@@ -77,13 +81,13 @@ class MultiGAVNEAgent(BaselineVNEAgent):
                 v_cpu_demand = sorted_v_nodes_with_node_ranking[idx][1]['CPU']
                 embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
 
-            substrate_s_nodes_combinations.append(embedding_s_nodes)
+            s_nodes_combinations.append(embedding_s_nodes)
 
-        return substrate_s_nodes_combinations
+        return s_nodes_combinations
 
     def make_top_n_combinations(
             self, sorted_v_nodes_with_node_ranking, idx, combination, all_combinations, copied_substrate,
-            already_embedding_s_nodes, vnr
+            already_embedding_s_nodes
     ):
         is_last = (idx == len(sorted_v_nodes_with_node_ranking) - 1)
 
@@ -94,8 +98,8 @@ class MultiGAVNEAgent(BaselineVNEAgent):
             copied_substrate, v_cpu_demand, v_node_location, already_embedding_s_nodes
         )
 
-        first, subset_S = peek_from_iterable(subset_S)
-        if first is None:
+        is_empty, subset_S = peek_from_iterable(subset_S)
+        if is_empty:
             return
 
         selected_subset_S = sorted(
@@ -126,17 +130,16 @@ class MultiGAVNEAgent(BaselineVNEAgent):
                     combination=new_combination,
                     all_combinations=all_combinations,
                     copied_substrate=copied_substrate,
-                    already_embedding_s_nodes=already_embedding_s_nodes,
-                    vnr=vnr
+                    already_embedding_s_nodes=already_embedding_s_nodes
                 )
 
             copied_substrate.net.nodes[s_node_id]['CPU'] += v_cpu_demand
             if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
                 already_embedding_s_nodes.remove(s_node_id)
 
-    def find_substrate_path(self, copied_substrate, vnr, embedding_s_nodes):
+    def find_substrate_path_for_combination(self, copied_substrate, vnr, embedding_s_nodes, population_size):
         # embedding_s_nodes: {8: (73, 48), 5: (21, 20), 7: (55, 36), 4: (40, 16)}
-        is_ok, results = utils.find_all_s_paths_for_v_links(copied_substrate, embedding_s_nodes, vnr)
+        is_ok, results = utils.find_all_s_paths(copied_substrate, embedding_s_nodes, vnr)
 
         if is_ok:
             all_s_paths = results
@@ -156,219 +159,30 @@ class MultiGAVNEAgent(BaselineVNEAgent):
             self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
             return None
 
-        return
-
+        embedding_s_paths_for_combination = {}
         # GENETIC ALGORITHM START: mapping the virtual nodes and substrate_net nodes
-        embedding_s_paths = {}
-        print("[[VNR {0}] GA Started for {1} Virtual Paths]".format(vnr.id, len(vnr.net.edges(data=True))))
-        for path_idx, (src_v_node, dst_v_node, edge_data) in enumerate(vnr.net.edges(data=True)):
+        for v_link_idx, (src_v_node, dst_v_node, edge_data) in enumerate(vnr.net.edges(data=True)):
             v_link = (src_v_node, dst_v_node)
-            v_bandwidth_demand = edge_data['bandwidth']
-            print("[VNR {0}, Virtual Path {1} {2}] GA Started: Bandwidth Demand {3}".format(
-                vnr.id, path_idx, v_link, v_bandwidth_demand
-            ))
 
-            # LINK EMBEDDING VIA GENETIC ALGORITHM
             early_stopping = EarlyStopping(
                 patience=config.STOP_PATIENCE_COUNT, verbose=True, delta=0.0001
             )
-            ga_operator = GAOperator(vnr, all_s_paths, embedding_s_nodes, copied_substrate)
+            ga_operator = GAOperator(vnr, all_s_paths, embedding_s_nodes, copied_substrate, population_size)
             ga_operator.initialize()
-            ga_operator.sort_population_and_set_elite()
+            ga_operator.sort_population_and_set_elite_group()
 
             generation_idx = 0
             while True:
-                solved = early_stopping.evaluate(evaluation_value=ga_operator.elite[1])
+                solved = early_stopping.evaluate(evaluation_value=ga_operator.elite_group_fitness)
 
                 if solved:
-                    print("[VNR {0}, Virtual Path {1} {2}] Solved in {3} generations".format(
-                        vnr.id, path_idx, v_link, generation_idx
-                    ))
                     break
                 else:
                     ga_operator.selection()
                     ga_operator.crossover()
                     ga_operator.mutation()
-                    ga_operator.sort_population_and_set_elite()
+                    ga_operator.sort_population_and_set_elite_group()
                     generation_idx += 1
 
-            path_id = ga_operator.elite[0][path_idx]
-            for s_link in all_s_paths[v_link][path_id][0]:
-                assert copied_substrate.net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
-            embedding_s_paths[v_link] = all_s_paths[v_link][path_id]
 
-        return embedding_s_paths
-
-
-class GAOperator:
-    def __init__(self, vnr, all_s_paths, embedding_s_nodes, copied_substrate):
-        self.vnr = vnr
-        self.all_s_paths = all_s_paths
-        self.embedding_s_nodes = embedding_s_nodes
-        self.copied_substrate = copied_substrate
-        self.population = []
-        self.elite = None
-        self.length_chromosome = 0
-
-    def initialize(self):
-        for _ in range(config.POPULATION_SIZE):
-            chromosome = []
-            embedding_s_paths = {}
-            for v_link in self.all_s_paths.keys():
-                v_link_path_ids = list(self.all_s_paths[v_link].keys())
-                path_id = random.choice(v_link_path_ids)
-                embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
-                chromosome.append(path_id)
-
-            self.population.append(
-                (chromosome, self.evaluate_fitness(embedding_s_paths))
-            )
-
-        self.length_chromosome = len(self.population[0][0])
-        #self.print_population()
-
-    def sort_population_and_set_elite(self):
-        self.population.sort(key=lambda p: p[1], reverse=True)
-        self.elite = self.population[0]
-
-    def evaluate_fitness(self, embedding_s_paths):
-        cost = utils.get_cost_VNR(self.vnr, embedding_s_paths)
-        total_hop_count = utils.get_total_hop_count_VNR(embedding_s_paths)
-        attraction_strength = utils.get_attraction_strength_VNR(embedding_s_paths, self.copied_substrate)
-        distance_factor = utils.get_distance_factor_VNR(embedding_s_paths, self.copied_substrate)
-        # return 1 / (cost + 1e-05) + 1 / (total_hop_count + 1e-05) + attraction_strength + 1 / (distance_factor + 1e-05)
-        return 1 / (cost + 1e-05) + 1 / (total_hop_count + 1e-05)
-
-    # def selection(self, tsize=10):
-    #     # https://en.wikipedia.org/wiki/Tournament_selection
-    #     # generate next population based on 'tournament selection'
-    #     prev_population = self.population
-    #     self.population = []
-    #
-    #     for _ in range(config.POPULATION_SIZE):
-    #         candidates = random.sample(prev_population, tsize)
-    #         self.population.append(max(candidates, key=lambda p: p[1]))
-
-    def selection(self):
-        # https://en.wikipedia.org/wiki/Fitness_proportionate_selection: Roulette wheel selection
-        # generate next population based on 'fitness proportionate selection'
-        total = sum(p[1] for p in self.population)
-        selection_probs = [p[1]/total for p in self.population]
-        new_population_idx = np.random.choice(len(self.population), size=config.POPULATION_SIZE, p=selection_probs)
-
-        prev_population = self.population
-        self.population = []
-        for idx in new_population_idx:
-            self.population.append(prev_population[idx])
-
-    def crossover(self):
-        if self.length_chromosome < 2:
-            return
-
-        max_chromosomes_crossovered = int(config.POPULATION_SIZE * config.CROSSOVER_RATE)
-        num_chromosomes_crossovered = 0
-
-        chromosomes_idx = list(range(0, config.POPULATION_SIZE))
-
-        while num_chromosomes_crossovered <= max_chromosomes_crossovered:
-            c_idx_1 = random.choice(chromosomes_idx)
-            chromosomes_idx.remove(c_idx_1)
-            c_idx_2 = random.choice(chromosomes_idx)
-            chromosomes_idx.remove(c_idx_2)
-
-            crossover_point = np.random.randint(1, self.length_chromosome)
-            chromosomes_1 = self.population[c_idx_1][0]
-            chromosomes_2 = self.population[c_idx_2][0]
-
-            # print(chromosomes_1, chromosomes_2, "!!!!! - before crossover")
-
-            chromosomes_1_right_part = chromosomes_1[crossover_point:]
-            chromosomes_2_right_part = chromosomes_2[crossover_point:]
-
-            chromosomes_1[crossover_point:] = chromosomes_2_right_part
-            chromosomes_2[crossover_point:] = chromosomes_1_right_part
-
-            embedding_s_paths = {}
-            for idx, v_link in enumerate(self.all_s_paths.keys()):
-                path_id = chromosomes_1[idx]
-                embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
-            self.population[c_idx_1] = (chromosomes_1, self.evaluate_fitness(embedding_s_paths))
-
-            embedding_s_paths = {}
-            for idx, v_link in enumerate(self.all_s_paths.keys()):
-                path_id = chromosomes_2[idx]
-                embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
-            self.population[c_idx_1] = (chromosomes_2, self.evaluate_fitness(embedding_s_paths))
-
-            # print(chromosomes_1, chromosomes_2, "!!!!! - after crossover\n")
-
-            num_chromosomes_crossovered += 2
-
-    def mutation(self):
-        for p_idx, (chromosome, _) in enumerate(self.population):
-            embedding_s_paths = {}
-            #print(chromosome, "!!!!! - before mutation")
-            for idx, v_link in enumerate(self.all_s_paths.keys()):
-                is_mutation = random.uniform(0, 1) < config.MUTATION_RATE
-                if is_mutation:
-                    new_path_id = random.choice(list(self.all_s_paths[v_link].keys()))
-                    embedding_s_paths[v_link] = self.all_s_paths[v_link][new_path_id]
-                    chromosome[idx] = new_path_id
-                else:
-                    path_id = chromosome[idx]
-                    embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
-            #print(chromosome, "!!!!! - after mutation")
-
-            self.population[p_idx] = (chromosome, self.evaluate_fitness(embedding_s_paths))
-
-    def print_population(self):
-        for idx, (chromosome, fitness) in enumerate(self.population):
-            print(idx, chromosome, fitness)
-
-
-class EarlyStopping:
-    """Early stops the training if evaluation value doesn't improve after a given patience."""
-    def __init__(self, patience=7, delta=0.0, verbose=False):
-        """
-        Args:
-            patience (int): How long to wait after last time validation loss improved.
-                            Default: 7
-            verbose (bool): If True, prints a message for each validation loss improvement.
-                            Default: False
-            delta (float): Minimum change in the monitored quantity to qualify as an improvement.
-                           Default: 0
-        """
-        self.patience = patience
-        self.verbose = verbose
-        self.counter = 0
-        self.best_evaluation_value = -1.0e10
-        self.early_stop = False
-        self.delta = delta
-
-    def evaluate(self, evaluation_value):
-        solved = False
-
-        if evaluation_value < self.best_evaluation_value + self.delta:
-            self.counter += 1
-            if self.verbose:
-                counter_str = colored(f'{self.counter} out of {self.patience}', 'red')
-                best_str = colored(f'{self.best_evaluation_value:.6f}', 'green')
-                print(f'---> EarlyStopping counter: {counter_str}. Best evaluation value is still {best_str}')
-            if self.counter >= self.patience:
-                solved = True
-        elif evaluation_value >= self.best_evaluation_value + self.delta:
-            if self.verbose:
-                if self.best_evaluation_value == -1.0e10:
-                    evaluation_str = colored(f'{evaluation_value:.6f} recorded first.', 'green')
-                    print(f'---> *** Evaluation value {evaluation_str}')
-                else:
-                    evaluation_str = colored(
-                        f'{self.best_evaluation_value:.6f} is increased into {evaluation_value:.6f}', 'green'
-                    )
-                    print(f'---> *** Evaluation value {evaluation_str}.')
-            self.best_evaluation_value = evaluation_value
-            self.counter = 0
-        else:
-            raise ValueError()
-
-        return solved
+        return ga_operator.elite_group, ga_operator.elite_group_fitness

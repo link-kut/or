@@ -56,7 +56,7 @@ class GABaselineVNEAgent(BaselineVNEAgent):
         return embedding_s_nodes
 
     def find_substrate_path(self, copied_substrate, vnr, embedding_s_nodes):
-        is_ok, results = utils.find_all_s_paths_for_v_links(copied_substrate, embedding_s_nodes, vnr)
+        is_ok, results = utils.find_all_s_paths(copied_substrate, embedding_s_nodes, vnr)
 
         if is_ok:
             all_s_paths = results
@@ -78,65 +78,65 @@ class GABaselineVNEAgent(BaselineVNEAgent):
 
         # GENETIC ALGORITHM START: mapping the virtual nodes and substrate_net nodes
         embedding_s_paths = {}
-        print("[[VNR {0}] GA Started for {1} Virtual Paths]".format(vnr.id, len(vnr.net.edges(data=True))))
-        for path_idx, (src_v_node, dst_v_node, edge_data) in enumerate(vnr.net.edges(data=True)):
-            v_link = (src_v_node, dst_v_node)
-            v_bandwidth_demand = edge_data['bandwidth']
-            print("[VNR {0}, Virtual Path {1} {2}] GA Started: Bandwidth Demand {3}".format(
-                vnr.id, path_idx, v_link, v_bandwidth_demand
-            ))
 
-            # LINK EMBEDDING VIA GENETIC ALGORITHM
-            early_stopping = EarlyStopping(
-                patience=config.STOP_PATIENCE_COUNT, verbose=True, delta=0.0001
-            )
-            ga_operator = GAOperator(vnr, all_s_paths, embedding_s_nodes, copied_substrate)
-            ga_operator.initialize()
-            ga_operator.sort_population_and_set_elite()
+        print("[[VNR {0}] GA Started for {1} Virtual Links]".format(vnr.id, len(vnr.net.edges(data=True))))
 
-            generation_idx = 0
-            while True:
-                solved = early_stopping.evaluate(evaluation_value=ga_operator.elite[1])
+        # LINK EMBEDDING VIA GENETIC ALGORITHM
+        early_stopping = EarlyStopping(
+            patience=config.STOP_PATIENCE_COUNT, verbose=True, delta=0.0001
+        )
+        ga_operator = GAOperator(vnr, all_s_paths, copied_substrate, config.POPULATION_SIZE)
+        ga_operator.initialize()
+        ga_operator.sort_population_and_set_elite()
 
-                if solved:
-                    print("[VNR {0}, Virtual Path {1} {2}] Solved in {3} generations".format(
-                        vnr.id, path_idx, v_link, generation_idx
-                    ))
-                    break
-                else:
-                    ga_operator.selection()
-                    ga_operator.crossover()
-                    ga_operator.mutation()
-                    ga_operator.sort_population_and_set_elite()
-                    generation_idx += 1
+        generation_idx = 0
+        while True:
+            solved = early_stopping.evaluate(evaluation_value=ga_operator.elite.fitness)
 
-            path_id = ga_operator.elite[0][path_idx]
-            for s_link in all_s_paths[v_link][path_id][0]:
+            if solved:
+                break
+            else:
+                ga_operator.selection()
+                ga_operator.crossover()
+                ga_operator.mutation()
+                ga_operator.sort_population_and_set_elite()
+                generation_idx += 1
+
+        # s_path is selected from elite chromosome
+        for idx, v_link in enumerate(all_s_paths.keys()):
+            s_path_idx = ga_operator.elite.chromosome[idx]
+            s_links_in_path = all_s_paths[v_link][s_path_idx][0]
+            v_bandwidth_demand = all_s_paths[v_link][s_path_idx][1]
+            for s_link in s_links_in_path:
                 assert copied_substrate.net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
-            embedding_s_paths[v_link] = all_s_paths[v_link][path_id]
+                copied_substrate.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+
+            embedding_s_paths[v_link] = all_s_paths[v_link][s_path_idx]
 
         return embedding_s_paths
 
 
 class GAOperator:
-    def __init__(self, vnr, all_s_paths, embedding_s_nodes, copied_substrate):
+    def __init__(self, vnr, all_s_paths, copied_substrate, population_size):
         self.vnr = vnr
         self.all_s_paths = all_s_paths
-        self.embedding_s_nodes = embedding_s_nodes
         self.copied_substrate = copied_substrate
         self.population = []
         self.elite = None
+        self.elite_group = None
+        self.elite_group_fitness = 0.0
         self.length_chromosome = 0
+        self.population_size = population_size
 
     def initialize(self):
-        for _ in range(config.POPULATION_SIZE):
+        for _ in range(self.population_size):
             chromosome = []
             embedding_s_paths = {}
             for v_link in self.all_s_paths.keys():
-                v_link_path_ids = list(self.all_s_paths[v_link].keys())
-                path_id = random.choice(v_link_path_ids)
-                embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]
-                chromosome.append(path_id)
+                s_path_idxes = list(self.all_s_paths[v_link].keys())
+                s_path_idx = random.choice(s_path_idxes)
+                embedding_s_paths[v_link] = self.all_s_paths[v_link][s_path_idx]
+                chromosome.append(s_path_idx)
 
             self.population.append(
                 ChromosomeFitness(
@@ -151,6 +151,11 @@ class GAOperator:
         self.population.sort(key=lambda p: p.fitness, reverse=True)
         self.elite = self.population[0]
 
+    def sort_population_and_set_elite_group(self):
+        self.population.sort(key=lambda p: p.fitness, reverse=True)
+        self.elite_group = self.population[:config.ELITE_GROUP_SIZE]
+        self.elite_group_fitness = np.average(self.elite_group)
+
     def evaluate_fitness(self, embedding_s_paths):
         cost = utils.get_cost_VNR(self.vnr, embedding_s_paths)
         total_hop_count = utils.get_total_hop_count_VNR(embedding_s_paths)
@@ -164,7 +169,7 @@ class GAOperator:
         # generate next population based on 'fitness proportionate selection'
         total_fitness = sum(p.fitness for p in self.population)
         selection_probs = [p.fitness / total_fitness for p in self.population]
-        new_population_idxes = np.random.choice(len(self.population), size=config.POPULATION_SIZE, p=selection_probs)
+        new_population_idxes = np.random.choice(len(self.population), size=self.population_size, p=selection_probs)
 
         prev_population = self.population
         self.population = []
@@ -175,10 +180,10 @@ class GAOperator:
         if self.length_chromosome < 2:
             return
 
-        max_chromosomes_crossovered = int(config.POPULATION_SIZE * config.CROSSOVER_RATE)
+        max_chromosomes_crossovered = int(self.population_size * config.CROSSOVER_RATE)
         num_chromosomes_crossovered = 0
 
-        chromosomes_idx = list(range(0, config.POPULATION_SIZE))
+        chromosomes_idx = list(range(0, self.population_size))
 
         while num_chromosomes_crossovered <= max_chromosomes_crossovered:
             c_idx_1 = random.choice(chromosomes_idx)
@@ -227,9 +232,9 @@ class GAOperator:
             for idx, v_link in enumerate(self.all_s_paths.keys()):
                 is_mutation = random.uniform(0, 1) < config.MUTATION_RATE
                 if is_mutation:
-                    new_path_id = random.choice(list(self.all_s_paths[v_link].keys()))
-                    embedding_s_paths[v_link] = self.all_s_paths[v_link][new_path_id]
-                    chromosome[idx] = new_path_id
+                    new_s_path_id = random.choice(list(self.all_s_paths[v_link].keys()))
+                    embedding_s_paths[v_link] = self.all_s_paths[v_link][new_s_path_id]
+                    chromosome[idx] = new_s_path_id
                 else:
                     path_id = chromosome[idx]
                     embedding_s_paths[v_link] = self.all_s_paths[v_link][path_id]

@@ -106,8 +106,21 @@ def peek_from_iterable(iterable):
     try:
         first = next(iterable)
     except StopIteration:
-        return None
-    return first, itertools.chain([first], iterable)
+        return True, None
+    return False, itertools.chain([first], iterable)
+
+
+def get_sorted_v_links_with_edge_ranking(vnr):
+    sorted_v_links_with_edge_ranking = []
+
+    for src_v_node, dst_v_node, edge_data in vnr.net.edges(data=True):
+        sorted_v_links_with_edge_ranking.append((src_v_node, dst_v_node, edge_data))
+
+    sorted_v_links_with_edge_ranking.sort(
+        key=lambda v_links_element: v_links_element[2]['bandwidth'], reverse=True
+    )
+
+    return sorted_v_links_with_edge_ranking
 
 
 def get_sorted_v_nodes_with_node_ranking(vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1, beta=None):
@@ -132,7 +145,7 @@ def get_sorted_v_nodes_with_node_ranking(vnr, type_of_node_ranking=config.TYPE_O
 
     # sorting the vnr nodes with node's ranking
     sorted_v_nodes_with_node_ranking.sort(
-        key=lambda sorted_v_nodes_with_node_ranking: sorted_v_nodes_with_node_ranking[2], reverse=True
+        key=lambda v_nodes_element: v_nodes_element[2], reverse=True
     )
 
     return sorted_v_nodes_with_node_ranking
@@ -147,6 +160,7 @@ def calculate_node_ranking_1(node_cpu_capacity, adjacent_links, beta):
     #     total_node_bandwidth += adjacent_links[link_id]['bandwidth']
 
     return beta * node_cpu_capacity + (1.0 - beta) * len(adjacent_links) * total_node_bandwidth
+
 
 # PAPER: Rethinking (Baseline) - 2008
 def calculate_node_ranking_2(node_cpu_capacity, adjacent_links):
@@ -181,47 +195,93 @@ def find_subset_S_for_virtual_node(copied_substrate, v_cpu_demand, v_node_locati
 
     return subset_S
 
+num_calls = 0
 
-def find_all_s_paths_for_v_links(copied_substrate, embedding_s_nodes, vnr):
+def make_all_paths(sorted_v_links_with_node_ranking, idx, all_s_paths, copied_substrate, embedding_s_nodes):
+    global num_calls
+    num_calls += 1
+
+    is_last = (idx == len(sorted_v_links_with_node_ranking) - 1)
+
+    print(idx, len(sorted_v_links_with_node_ranking) - 1, is_last, num_calls, "---------")
+
+    src_v_node = sorted_v_links_with_node_ranking[idx][0]
+    dst_v_node = sorted_v_links_with_node_ranking[idx][1]
+    v_link = (src_v_node, dst_v_node)
+    src_s_node = embedding_s_nodes[src_v_node][0]
+    dst_s_node = embedding_s_nodes[dst_v_node][0]
+    v_bandwidth_demand = sorted_v_links_with_node_ranking[idx][2]['bandwidth']
+
+    all_s_paths[v_link] = {}
+
+    if src_s_node == dst_s_node:
+        all_s_paths[v_link][0] = ([], v_bandwidth_demand)
+    else:
+        subnet = nx.subgraph_view(
+            copied_substrate.net,
+            filter_edge=lambda node_1_id, node_2_id: \
+                True if copied_substrate.net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
+        )
+
+        if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
+            all_s_paths[v_link] = None
+
+        paths = nx.all_simple_paths(
+            subnet, source=src_s_node, target=dst_s_node, cutoff=config.MAX_EMBEDDING_PATH_LENGTH
+        )
+
+        is_empty, paths = peek_from_iterable(paths)
+        if is_empty:
+            all_s_paths[v_link] = None
+        else:
+            s_path_idx = 0
+            for s_path in paths:
+                print("[{0}]".format(s_path_idx), end=" ")
+
+                s_links_in_path = []
+
+                for node_idx in range(len(s_path) - 1):
+                    s_link = (s_path[node_idx], s_path[node_idx + 1])
+                    s_links_in_path.append(s_link)
+                    copied_substrate.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+
+                all_s_paths[v_link][s_path_idx] = (s_links_in_path, v_bandwidth_demand)
+                s_path_idx += 1
+
+                if not is_last:
+                    make_all_paths(
+                        sorted_v_links_with_node_ranking=sorted_v_links_with_node_ranking,
+                        idx=idx + 1,
+                        all_s_paths=all_s_paths,
+                        copied_substrate=copied_substrate,
+                        embedding_s_nodes=embedding_s_nodes
+                    )
+
+                for node_idx in range(len(s_path) - 1):
+                    s_link = (s_path[node_idx], s_path[node_idx + 1])
+                    copied_substrate.net.edges[s_link]['bandwidth'] += v_bandwidth_demand
+
+        print()
+
+
+def find_all_s_paths_1(copied_substrate, embedding_s_nodes, vnr):
+    sorted_v_links_with_node_ranking = get_sorted_v_links_with_edge_ranking(vnr=vnr)
+
     all_s_paths = {}
 
-    # 각 v_link 당 가능한 모든 s_path (set of s_link) 구성하여 all_s_paths에 저장
-    for src_v_node, dst_v_node, edge_data in vnr.net.edges(data=True):
-        v_link = (src_v_node, dst_v_node)
-        src_s_node = embedding_s_nodes[src_v_node][0]
-        dst_s_node = embedding_s_nodes[dst_v_node][0]
-        v_bandwidth_demand = edge_data['bandwidth']
+    print(sorted_v_links_with_node_ranking)
 
-        if src_s_node == dst_s_node:
-            all_s_paths[v_link][0] = ([], v_bandwidth_demand)
-        else:
-            subnet = nx.subgraph_view(
-                copied_substrate.net,
-                filter_edge=lambda node_1_id, node_2_id: \
-                    True if copied_substrate.net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
-            )
+    make_all_paths(
+        sorted_v_links_with_node_ranking=sorted_v_links_with_node_ranking,
+        idx=0,
+        all_s_paths=all_s_paths,
+        copied_substrate=copied_substrate,
+        embedding_s_nodes=embedding_s_nodes
+    )
 
-            if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
-                return False, (v_link, v_bandwidth_demand)
 
-            all_paths = nx.all_simple_paths(
-                subnet, source=src_s_node, target=dst_s_node, cutoff=config.MAX_EMBEDDING_PATH_LENGTH
-            )
-
-            all_s_paths[v_link] = {}
-            idx = 0
-            for path in all_paths:
-                s_links_in_path = []
-                for node_idx in range(len(path) - 1):
-                    s_links_in_path.append((path[node_idx], path[node_idx + 1]))
-
-                all_s_paths[v_link][idx] = (s_links_in_path, v_bandwidth_demand)
-                idx += 1
-
-            if idx == 0:
-                return False, (v_link, None)
-
-    return True, all_s_paths
+def find_all_s_paths_2(copied_substrate, embedding_s_nodes, vnr):
+    pass
 
 
 def print_env_and_agent_info(env, agent, logger):
