@@ -1,7 +1,7 @@
 import os, sys
 
 from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
-from algorithms.f_node_rank_baseline import TopologyAwareBaselineVNEAgent
+from algorithms.f_node_rank_baseline import TopologyAwareNodeRankingVNEAgent
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
@@ -17,8 +17,8 @@ agents = [
     # EgoNetworkBasedVNEAgent(0.3, logger),
     # DeterministicVNEAgent(logger),
     # RandomizedVNEAgent(logger),
-    # GABaselineVNEAgent(logger),
-    A3CGraphCNVNEAgent(0.3, logger),
+    GABaselineVNEAgent(logger),
+    # A3CGraphCNVNEAgent(0.3, logger),
 ]
 
 agent_labels = [
@@ -28,8 +28,8 @@ agent_labels = [
     # "EN_0.3",
     # "D-ViNE",
     # "R-ViNE"
-    # "GA"
-    "A3C-GCN",
+    "GA"
+    # "A3C-GCN",
 ]
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
