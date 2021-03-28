@@ -2,6 +2,7 @@ import os, sys
 
 from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
 from algorithms.f_node_rank_baseline import TopologyAwareNodeRankingVNEAgent
+from main.config import graph_save_path, csv_save_path
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
