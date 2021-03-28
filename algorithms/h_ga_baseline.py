@@ -105,7 +105,7 @@ class GABaselineVNEAgent(BaselineVNEAgent):
         assert previous_copied_substrate == copied_substrate
 
         # s_path is selected from elite chromosome
-        early_stopping.print_best_elite()
+        # early_stopping.print_best_elite()
 
         for v_link, (s_links_in_path, v_bandwidth_demand) in best_elite.embedding_s_paths.items():
             for s_link in s_links_in_path:
