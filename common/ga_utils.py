@@ -1,6 +1,7 @@
 import copy
 import enum
 import random
+import time
 from collections import namedtuple
 import numpy as np
 from termcolor import colored
@@ -19,65 +20,94 @@ class MultiGAOperator:
         self.num_combinations = len(self.s_nodes_combinations)
         self.copied_substrate = copied_substrate
         self.population_size_dist = [config.POPULATION_SIZE_PER_COMBINATION] * len(s_nodes_combinations)
+        self.total_population_size = config.POPULATION_SIZE_PER_COMBINATION * len(s_nodes_combinations)
         self.elite = None
+        self.global_elite_group = None
         self.all_s_paths_for_combination = {}
         self.workers = None
 
     def initialize(self):
         for combination_idx, embedding_s_nodes in enumerate(self.s_nodes_combinations):
-            is_ok, results = utils.find_all_s_paths_2(self.copied_substrate, embedding_s_nodes, self.vnr)
+            is_ok, all_s_paths = utils.find_all_s_paths_2(self.copied_substrate, embedding_s_nodes, self.vnr)
 
-            if not is_ok:
-                return None, results
+            if is_ok:
+                self.all_s_paths_for_combination[combination_idx] = all_s_paths
+            else:
+                self.all_s_paths_for_combination[combination_idx] = None
 
-            self.all_s_paths_for_combination[combination_idx] = results
+            print(combination_idx, is_ok)
 
-        original_copied_substrate = copy.deepcopy(self.copied_substrate)
+        if all([v is None for v in self.all_s_paths_for_combination.values()]):
+            return False
 
-        self.ga_workers = [
-            GAWorker(
-                vnr=self.vnr,
-                all_s_paths=self.all_s_paths_for_combination[combination_idx],
-                copied_substrate=self.copied_substrate,
-                population_size=self.population_size_dist[combination_idx]
-            ) for combination_idx in range(self.num_combinations)
-        ]
+        #original_copied_substrate = copy.deepcopy(self.copied_substrate)
+        self.ga_workers = []
+        for combination_idx in range(self.num_combinations):
+            if self.all_s_paths_for_combination[combination_idx]:
+                self.ga_workers.append(
+                    GAWorker(
+                        worker_id=combination_idx,
+                        vnr=self.vnr,
+                        all_s_paths=self.all_s_paths_for_combination[combination_idx],
+                        copied_substrate=self.copied_substrate,
+                        population_size=self.population_size_dist[combination_idx]
+                    )
+                )
+            else:
+                self.ga_workers.append(None)
 
-        for w in self.ga_workers:
-            w.start()
+        return True
 
-        for w in self.ga_workers:
-            w.join()
+    def process(self):
+        for worker in self.ga_workers:
+            if worker:
+                worker.start()
 
-        return True, None
+    def is_all_one_generation_finished(self, expected_generation):
+        check_lst = []
+        for ga_worker in self.ga_workers:
+            print(ga_worker.worker_generation, expected_generation)
+            check_lst.append(ga_worker.worker_generation == expected_generation)
 
-    def selection(self):
-        pass
+        if all(check_lst):
+            return True
+        else:
+            return False
 
-    def crossover(self):
-        pass
+    def evaluate_all_results_from_workers(self):
+        self.global_elite_group = []
 
-    def mutation(self):
-        pass
+        for worker in self.ga_workers:
+            self.global_elite_group.extend(worker.ga_operator.elite_group)
 
-    def sort_population_and_set_elite_group(self):
-        pass
+        self.global_elite_group.sort(key=lambda p: p.fitness, reverse=True)
+        self.elite = self.global_elite_group[0]
+
+    def go_next_generation(self):
+        for worker in self.ga_workers:
+            worker.hold = False
 
     def evaluate_fitness(self, embedding_s_paths):
-        pass
+        for ga_worker in self.ga_workers:
+            elite_group = ga_worker.ga_operator.elite_group
+            elite_group_fitness = ga_worker.ga_operator.elite_group_fitness
 
+            # if elite_group_fitness is None:
+            #     print("combination_idx: {0} is not valid".format(combination_idx))
 
-class GAWorkerStatus(enum.Enum):
-    INITIALIZED = 0
-    SELECTED = 1
-    CROSSOVERED = 2
-    MUTATED = 3
-    POPULATION_SORTED_AND_ELITE_GROUP_SET = 4
+            print("[Combination Idx: {0} (Population Size: {1}/{2})] --> Elite Group Fitness: {3:.6f}".format(
+                ga_worker.worker_id,
+                self.population_size_dist[ga_worker.worker_id],
+                self.total_population_size,
+                elite_group_fitness
+            ))
 
 
 class GAWorker(mp.Process):
-    def __init__(self, vnr, all_s_paths, copied_substrate, population_size):
+    def __init__(self, worker_id, vnr, all_s_paths, copied_substrate, population_size):
         super(GAWorker, self).__init__()
+
+        self.worker_id = worker_id
 
         self.ga_operator = GAOperator(
             vnr=vnr,
@@ -85,32 +115,28 @@ class GAWorker(mp.Process):
             copied_substrate=copied_substrate,
             population_size=population_size
         )
+        self.ga_operator.initialize()
 
-        self.status = GAWorkerStatus.INITIALIZED
+        self.finished = False
+        self.hold = True
+        self.worker_generation = 0
+        print("[GA Worker {0}] INITIALIZED".format(self.worker_id))
 
     def run(self):
-        if self.status == GAWorkerStatus.INITIALIZED:
+        while not self.finished:
             self.ga_operator.selection()
-            self.status = GAWorkerStatus.SELECTED
-
-        elif self.status == GAWorkerStatus.SELECTED:
             self.ga_operator.crossover()
-            self.status = GAWorkerStatus.CROSSOVERED
-
-        elif self.status == GAWorkerStatus.CROSSOVERED:
             self.ga_operator.mutation()
-            self.status = GAWorkerStatus.MUTATED
-
-        elif self.status == GAWorkerStatus.MUTATED:
             self.ga_operator.sort_population_and_set_elite_group()
-            self.status = GAWorkerStatus.POPULATION_SORTED_AND_ELITE_GROUP_SET
 
-        elif self.status == GAWorkerStatus.POPULATION_SORTED_AND_ELITE_GROUP_SET:
-            self.ga_operator.selection()
-            self.status = GAWorkerStatus.SELECTED
+            print("[GA Worker {0}] GENERATION WORK DONE - {1}".format(self.worker_id, self.worker_generation))
 
-        else:
-            raise ValueError()
+            self.worker_generation += 1
+
+            while self.hold:
+                time.sleep(0.1)
+
+            self.hold = True
 
 
 class GAOperator:
@@ -134,8 +160,8 @@ class GAOperator:
             chromosome = []
             embedding_s_paths = {}
             for v_link in self.all_s_paths.keys():
-                s_path_idxes = list(self.all_s_paths[v_link].keys())
-                s_path_idx = random.choice(s_path_idxes)
+                s_path_indices = list(self.all_s_paths[v_link].keys())
+                s_path_idx = random.choice(s_path_indices)
                 embedding_s_paths[v_link] = self.all_s_paths[v_link][s_path_idx]
                 chromosome.append(s_path_idx)
 

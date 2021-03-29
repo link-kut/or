@@ -1,6 +1,7 @@
 import copy
 import random
 import itertools
+import time
 
 from algorithms.a_baseline import BaselineVNEAgent
 from algorithms.h_ga_baseline import GAOperator
@@ -35,66 +36,44 @@ class MultiGAVNEAgent(BaselineVNEAgent):
                 continue
 
             early_stopping = GAEarlyStopping(
-                patience=config.STOP_PATIENCE_COUNT, verbose=False, delta=0.0001, copied_substrate=COPIED_SUBSTRATE
+                patience=config.STOP_PATIENCE_COUNT, verbose=True, delta=0.0001, copied_substrate=COPIED_SUBSTRATE
             )
 
             multi_ga_operator = MultiGAOperator(vnr, s_nodes_combinations, COPIED_SUBSTRATE)
 
             ### INITIALIZE ###
-            is_ok, results = multi_ga_operator.initialize()
+            is_ok = multi_ga_operator.initialize()
 
             if not is_ok:
-                (v_link, v_bandwidth_demand) = results
                 self.num_link_embedding_fails += 1
 
-                if v_bandwidth_demand:
-                    msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
-                        vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
-                    )
-                else:
-                    msg = "VNR {0} REJECTED ({1}): 'not found for any substrate path for v_link: {2} {3}".format(
-                        vnr.id, self.num_link_embedding_fails, v_link, vnr
-                    )
+                msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2}}".format(
+                    vnr.id, self.num_link_embedding_fails, vnr
+                )
 
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
                 action.vnrs_postponement[vnr.id] = vnr
                 continue
 
-            generation_idx = 0
+            multi_ga_operator.process()
+            expected_generation = 1
             while True:
-                multi_ga_operator.selection()
-                multi_ga_operator.crossover()
-                multi_ga_operator.mutation()
-                multi_ga_operator.sort_population_and_set_elite_group()
-                generation_idx += 1
+                if multi_ga_operator.is_all_one_generation_finished(expected_generation=expected_generation):
+                    multi_ga_operator.evaluate_all_results_from_workers()
 
-                solved, _ = early_stopping.evaluate(
-                    elite=multi_ga_operator.elite, evaluation_value=multi_ga_operator.elite.fitness
-                )
+                    solved, _ = early_stopping.evaluate(
+                        elite=multi_ga_operator.elite, evaluation_value=multi_ga_operator.elite.fitness
+                    )
 
-                if solved:
-                    break
+                    if solved:
+                        break
+
+                    multi_ga_operator.go_next_generation()
+                    expected_generation += 1
+
+                time.sleep(0.1)
 
             assert original_copied_substrate == COPIED_SUBSTRATE
-
-
-
-
-            for combination_idx, s_nodes_combination in enumerate(s_nodes_combinations):
-
-                elite_group, elite_group_fitness = self.find_substrate_path_for_combination(
-                    new_copied_substrate, vnr, s_nodes_combination, population_size_dist[combination_idx]
-                )
-
-                if elite_group_fitness is None:
-                    print("combination_idx: {0} is not valid".format(combination_idx))
-
-                print("[Combination Idx: {0} (Population Size: {1}/{2})] --> Elite Group Fitness: {3:.6f}".format(
-                    combination_idx,
-                    population_size_dist[combination_idx],
-                    config.POPULATION_SIZE_PER_COMBINATION * len(s_nodes_combinations),
-                    elite_group_fitness
-                ))
 
     def find_substrate_nodes_combinations(self, vnr, COPIED_SUBSTRATE):
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
@@ -192,56 +171,4 @@ class MultiGAVNEAgent(BaselineVNEAgent):
             if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
                 already_embedding_s_nodes.remove(s_node_id)
 
-    def find_substrate_path_for_combination(self, copied_substrate, vnr, embedding_s_nodes, population_size):
-        # embedding_s_nodes: {v_node_id: (selected_s_node_id, v_cpu_demand), ....}
-        # embedding_s_nodes: {8: (73, 48), 5: (21, 20), 7: (55, 36), 4: (40, 16)}
-        is_ok, results = utils.find_all_s_paths_2(copied_substrate, embedding_s_nodes, vnr)
 
-        if is_ok:
-            all_s_paths = results
-        else:
-            (v_link, v_bandwidth_demand) = results
-            self.num_link_embedding_fails += 1
-
-            if v_bandwidth_demand:
-                msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
-                    vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
-                )
-            else:
-                msg = "VNR {0} REJECTED ({1}): 'not found for any substrate path for v_link: {2} {3}".format(
-                    vnr.id, self.num_link_embedding_fails, v_link, vnr
-                )
-
-            self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-            return None, None
-
-        embedding_s_paths_for_combination = {}
-        # GENETIC ALGORITHM START: mapping the virtual nodes and substrate_net nodes
-        original_copied_substrate = copy.deepcopy(copied_substrate)
-
-        early_stopping = GAEarlyStopping(
-            patience=config.STOP_PATIENCE_COUNT, verbose=False, delta=0.0001, copied_substrate=copied_substrate
-        )
-
-        ga_operator = GAOperator(vnr, all_s_paths, copied_substrate, population_size)
-        ga_operator.initialize()
-        ga_operator.sort_population_and_set_elite_group()
-
-        generation_idx = 0
-        while True:
-            solved, _ = early_stopping.evaluate(
-                elite=ga_operator.elite, evaluation_value=ga_operator.elite_group_fitness
-            )
-
-            if solved:
-                break
-            else:
-                ga_operator.selection()
-                ga_operator.crossover()
-                ga_operator.mutation()
-                ga_operator.sort_population_and_set_elite_group()
-                generation_idx += 1
-
-        assert original_copied_substrate == copied_substrate
-
-        return ga_operator.elite_group, ga_operator.elite_group_fitness
