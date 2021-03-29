@@ -38,24 +38,42 @@ class MultiGAVNEAgent(BaselineVNEAgent):
                 patience=config.STOP_PATIENCE_COUNT, verbose=False, delta=0.0001, copied_substrate=COPIED_SUBSTRATE
             )
 
-            multi_ga_operator = MultiGAOperator(vnr, s_nodes_combinations)
-            multi_ga_operator.initialize()
-            multi_ga_operator.sort_population_and_set_elite_group()
+            multi_ga_operator = MultiGAOperator(vnr, s_nodes_combinations, COPIED_SUBSTRATE)
+
+            ### INITIALIZE ###
+            is_ok, results = multi_ga_operator.initialize()
+
+            if not is_ok:
+                (v_link, v_bandwidth_demand) = results
+                self.num_link_embedding_fails += 1
+
+                if v_bandwidth_demand:
+                    msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
+                        vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
+                    )
+                else:
+                    msg = "VNR {0} REJECTED ({1}): 'not found for any substrate path for v_link: {2} {3}".format(
+                        vnr.id, self.num_link_embedding_fails, v_link, vnr
+                    )
+
+                self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
+                action.vnrs_postponement[vnr.id] = vnr
+                continue
 
             generation_idx = 0
             while True:
+                multi_ga_operator.selection()
+                multi_ga_operator.crossover()
+                multi_ga_operator.mutation()
+                multi_ga_operator.sort_population_and_set_elite_group()
+                generation_idx += 1
+
                 solved, _ = early_stopping.evaluate(
                     elite=multi_ga_operator.elite, evaluation_value=multi_ga_operator.elite.fitness
                 )
 
                 if solved:
                     break
-                else:
-                    multi_ga_operator.selection()
-                    multi_ga_operator.crossover()
-                    multi_ga_operator.mutation()
-                    multi_ga_operator.sort_population_and_set_elite_group()
-                    generation_idx += 1
 
             assert original_copied_substrate == COPIED_SUBSTRATE
 

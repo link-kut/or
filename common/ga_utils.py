@@ -1,8 +1,10 @@
 import copy
+import enum
 import random
 from collections import namedtuple
 import numpy as np
 from termcolor import colored
+import torch.multiprocessing as mp
 
 from common import utils
 from main import config
@@ -11,19 +13,43 @@ ChromosomeFitness = namedtuple('ChromosomeFitness', ['chromosome', 'embedding_s_
 
 
 class MultiGAOperator:
-    def __init__(self, vnr, s_nodes_combinations):
+    def __init__(self, vnr, s_nodes_combinations, copied_substrate):
         self.vnr = vnr
+        self.s_nodes_combinations = s_nodes_combinations
+        self.num_combinations = len(self.s_nodes_combinations)
+        self.copied_substrate = copied_substrate
         self.population_size_dist = [config.POPULATION_SIZE_PER_COMBINATION] * len(s_nodes_combinations)
         self.elite = None
+        self.all_s_paths_for_combination = {}
+        self.workers = None
 
     def initialize(self):
-        pass
+        for combination_idx, embedding_s_nodes in enumerate(self.s_nodes_combinations):
+            is_ok, results = utils.find_all_s_paths_2(self.copied_substrate, embedding_s_nodes, self.vnr)
 
-    def sort_population_and_set_elite_group(self):
-        pass
+            if not is_ok:
+                return None, results
 
-    def evaluate_fitness(self, embedding_s_paths):
-        pass
+            self.all_s_paths_for_combination[combination_idx] = results
+
+        original_copied_substrate = copy.deepcopy(self.copied_substrate)
+
+        self.ga_workers = [
+            GAWorker(
+                vnr=self.vnr,
+                all_s_paths=self.all_s_paths_for_combination[combination_idx],
+                copied_substrate=self.copied_substrate,
+                population_size=self.population_size_dist[combination_idx]
+            ) for combination_idx in range(self.num_combinations)
+        ]
+
+        for w in self.ga_workers:
+            w.start()
+
+        for w in self.ga_workers:
+            w.join()
+
+        return True, None
 
     def selection(self):
         pass
@@ -33,6 +59,58 @@ class MultiGAOperator:
 
     def mutation(self):
         pass
+
+    def sort_population_and_set_elite_group(self):
+        pass
+
+    def evaluate_fitness(self, embedding_s_paths):
+        pass
+
+
+class GAWorkerStatus(enum.Enum):
+    INITIALIZED = 0
+    SELECTED = 1
+    CROSSOVERED = 2
+    MUTATED = 3
+    POPULATION_SORTED_AND_ELITE_GROUP_SET = 4
+
+
+class GAWorker(mp.Process):
+    def __init__(self, vnr, all_s_paths, copied_substrate, population_size):
+        super(GAWorker, self).__init__()
+
+        self.ga_operator = GAOperator(
+            vnr=vnr,
+            all_s_paths=all_s_paths,
+            copied_substrate=copied_substrate,
+            population_size=population_size
+        )
+
+        self.status = GAWorkerStatus.INITIALIZED
+
+    def run(self):
+        if self.status == GAWorkerStatus.INITIALIZED:
+            self.ga_operator.selection()
+            self.status = GAWorkerStatus.SELECTED
+
+        elif self.status == GAWorkerStatus.SELECTED:
+            self.ga_operator.crossover()
+            self.status = GAWorkerStatus.CROSSOVERED
+
+        elif self.status == GAWorkerStatus.CROSSOVERED:
+            self.ga_operator.mutation()
+            self.status = GAWorkerStatus.MUTATED
+
+        elif self.status == GAWorkerStatus.MUTATED:
+            self.ga_operator.sort_population_and_set_elite_group()
+            self.status = GAWorkerStatus.POPULATION_SORTED_AND_ELITE_GROUP_SET
+
+        elif self.status == GAWorkerStatus.POPULATION_SORTED_AND_ELITE_GROUP_SET:
+            self.ga_operator.selection()
+            self.status = GAWorkerStatus.SELECTED
+
+        else:
+            raise ValueError()
 
 
 class GAOperator:

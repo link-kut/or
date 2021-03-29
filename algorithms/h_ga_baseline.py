@@ -83,22 +83,20 @@ class GABaselineVNEAgent(BaselineVNEAgent):
         )
         ga_operator = GAOperator(vnr, all_s_paths, copied_substrate, config.POPULATION_SIZE)
         ga_operator.initialize()
-        ga_operator.sort_population_and_set_elite()
-
         generation_idx = 0
         while True:
+            generation_idx += 1
+            ga_operator.selection()
+            ga_operator.crossover()
+            ga_operator.mutation()
+            ga_operator.sort_population_and_set_elite()
+
             solved, best_elite = early_stopping.evaluate(
                 elite=ga_operator.elite, evaluation_value=ga_operator.elite.fitness
             )
 
             if solved:
                 break
-            else:
-                ga_operator.selection()
-                ga_operator.crossover()
-                ga_operator.mutation()
-                ga_operator.sort_population_and_set_elite()
-                generation_idx += 1
 
         assert original_copied_substrate == copied_substrate
 
