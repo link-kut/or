@@ -73,12 +73,10 @@ class GABaselineVNEAgent(BaselineVNEAgent):
             return None
 
         # GENETIC ALGORITHM START: mapping the virtual nodes and substrate_net nodes
-        embedding_s_paths = {}
-
         print("[[VNR {0}] GA Started for {1} Virtual Links]".format(vnr.id, len(vnr.net.edges(data=True))))
 
         # LINK EMBEDDING VIA GENETIC ALGORITHM
-        previous_copied_substrate = copy.deepcopy(copied_substrate)
+        original_copied_substrate = copy.deepcopy(copied_substrate)
 
         early_stopping = GAEarlyStopping(
             patience=config.STOP_PATIENCE_COUNT, verbose=True, delta=0.0001, copied_substrate=copied_substrate
@@ -102,7 +100,7 @@ class GABaselineVNEAgent(BaselineVNEAgent):
                 ga_operator.sort_population_and_set_elite()
                 generation_idx += 1
 
-        assert previous_copied_substrate == copied_substrate
+        assert original_copied_substrate == copied_substrate
 
         # s_path is selected from elite chromosome
         # early_stopping.print_best_elite()
@@ -122,4 +120,4 @@ class GABaselineVNEAgent(BaselineVNEAgent):
 
                 copied_substrate.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
 
-        return embedding_s_paths
+        return best_elite.embedding_s_paths

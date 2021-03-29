@@ -5,7 +5,7 @@ import itertools
 from algorithms.a_baseline import BaselineVNEAgent
 from algorithms.h_ga_baseline import GAOperator
 from common import utils
-from common.ga_utils import GAEarlyStopping
+from common.ga_utils import GAEarlyStopping, MultiGAOperator
 from main import config
 from common.utils import peek_from_iterable
 import networkx as nx
@@ -24,31 +24,66 @@ class MultiGAVNEAgent(BaselineVNEAgent):
         )
 
         for vnr in sorted_vnrs:
-            new_copied_substrate = copy.deepcopy(COPIED_SUBSTRATE)
-            s_nodes_combinations = self.find_substrate_nodes_combinations(vnr, new_copied_substrate)
+            original_copied_substrate = copy.deepcopy(COPIED_SUBSTRATE)
+
+            s_nodes_combinations = self.find_substrate_nodes_combinations(vnr, COPIED_SUBSTRATE)
+
+            assert original_copied_substrate == COPIED_SUBSTRATE
 
             if s_nodes_combinations is None:
                 action.vnrs_postponement[vnr.id] = vnr
                 continue
 
-            population_size_dist = [config.POPULATION_SIZE_PER_COMBINATION] * len(s_nodes_combinations)
+            early_stopping = GAEarlyStopping(
+                patience=config.STOP_PATIENCE_COUNT, verbose=False, delta=0.0001, copied_substrate=COPIED_SUBSTRATE
+            )
+
+            multi_ga_operator = MultiGAOperator(vnr, s_nodes_combinations)
+            multi_ga_operator.initialize()
+            multi_ga_operator.sort_population_and_set_elite_group()
+
+            generation_idx = 0
+            while True:
+                solved, _ = early_stopping.evaluate(
+                    elite=multi_ga_operator.elite, evaluation_value=multi_ga_operator.elite.fitness
+                )
+
+                if solved:
+                    break
+                else:
+                    multi_ga_operator.selection()
+                    multi_ga_operator.crossover()
+                    multi_ga_operator.mutation()
+                    multi_ga_operator.sort_population_and_set_elite_group()
+                    generation_idx += 1
+
+            assert original_copied_substrate == COPIED_SUBSTRATE
+
+
+
 
             for combination_idx, s_nodes_combination in enumerate(s_nodes_combinations):
 
-                embedding_s_paths = self.find_substrate_path_for_combination(
+                elite_group, elite_group_fitness = self.find_substrate_path_for_combination(
                     new_copied_substrate, vnr, s_nodes_combination, population_size_dist[combination_idx]
                 )
 
-                if embedding_s_paths is None:
-                    action.vnrs_postponement[vnr.id] = vnr
-                    continue
+                if elite_group_fitness is None:
+                    print("combination_idx: {0} is not valid".format(combination_idx))
+
+                print("[Combination Idx: {0} (Population Size: {1}/{2})] --> Elite Group Fitness: {3:.6f}".format(
+                    combination_idx,
+                    population_size_dist[combination_idx],
+                    config.POPULATION_SIZE_PER_COMBINATION * len(s_nodes_combinations),
+                    elite_group_fitness
+                ))
 
     def find_substrate_nodes_combinations(self, vnr, COPIED_SUBSTRATE):
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
             vnr=vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
         )
 
-        print(sorted_v_nodes_with_node_ranking, "!!!!!")
+        #print(sorted_v_nodes_with_node_ranking, "!!!!!")
 
         all_combinations = []
 
@@ -61,8 +96,9 @@ class MultiGAVNEAgent(BaselineVNEAgent):
             already_embedding_s_nodes=[]
         )
 
-        for idx, combination in enumerate(all_combinations):
-            print(idx, combination)
+        print("TOTAL {0} combinations".format(len(all_combinations)))
+        # for idx, combination in enumerate(all_combinations):
+        #     print(idx, combination)
 
         s_nodes_combinations = []
         for combination_idx, combination in enumerate(all_combinations):
@@ -139,8 +175,9 @@ class MultiGAVNEAgent(BaselineVNEAgent):
                 already_embedding_s_nodes.remove(s_node_id)
 
     def find_substrate_path_for_combination(self, copied_substrate, vnr, embedding_s_nodes, population_size):
+        # embedding_s_nodes: {v_node_id: (selected_s_node_id, v_cpu_demand), ....}
         # embedding_s_nodes: {8: (73, 48), 5: (21, 20), 7: (55, 36), 4: (40, 16)}
-        is_ok, results = utils.find_all_s_paths(copied_substrate, embedding_s_nodes, vnr)
+        is_ok, results = utils.find_all_s_paths_2(copied_substrate, embedding_s_nodes, vnr)
 
         if is_ok:
             all_s_paths = results
@@ -153,37 +190,40 @@ class MultiGAVNEAgent(BaselineVNEAgent):
                     vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
                 )
             else:
-                msg = "VNR {0} REJECTED ({1}): 'not found for any substrate path for v_link: {2}' {3}".format(
+                msg = "VNR {0} REJECTED ({1}): 'not found for any substrate path for v_link: {2} {3}".format(
                     vnr.id, self.num_link_embedding_fails, v_link, vnr
                 )
 
             self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-            return None
+            return None, None
 
         embedding_s_paths_for_combination = {}
         # GENETIC ALGORITHM START: mapping the virtual nodes and substrate_net nodes
-        for v_link_idx, (src_v_node, dst_v_node, edge_data) in enumerate(vnr.net.edges(data=True)):
-            v_link = (src_v_node, dst_v_node)
+        original_copied_substrate = copy.deepcopy(copied_substrate)
 
-            early_stopping = GAEarlyStopping(
-                patience=config.STOP_PATIENCE_COUNT, verbose=True, delta=0.0001
+        early_stopping = GAEarlyStopping(
+            patience=config.STOP_PATIENCE_COUNT, verbose=False, delta=0.0001, copied_substrate=copied_substrate
+        )
+
+        ga_operator = GAOperator(vnr, all_s_paths, copied_substrate, population_size)
+        ga_operator.initialize()
+        ga_operator.sort_population_and_set_elite_group()
+
+        generation_idx = 0
+        while True:
+            solved, _ = early_stopping.evaluate(
+                elite=ga_operator.elite, evaluation_value=ga_operator.elite_group_fitness
             )
-            ga_operator = GAOperator(vnr, all_s_paths, embedding_s_nodes, copied_substrate, population_size)
-            ga_operator.initialize()
-            ga_operator.sort_population_and_set_elite_group()
 
-            generation_idx = 0
-            while True:
-                solved = early_stopping.evaluate(evaluation_value=ga_operator.elite_group_fitness)
+            if solved:
+                break
+            else:
+                ga_operator.selection()
+                ga_operator.crossover()
+                ga_operator.mutation()
+                ga_operator.sort_population_and_set_elite_group()
+                generation_idx += 1
 
-                if solved:
-                    break
-                else:
-                    ga_operator.selection()
-                    ga_operator.crossover()
-                    ga_operator.mutation()
-                    ga_operator.sort_population_and_set_elite_group()
-                    generation_idx += 1
-
+        assert original_copied_substrate == copied_substrate
 
         return ga_operator.elite_group, ga_operator.elite_group_fitness

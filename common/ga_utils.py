@@ -10,6 +10,31 @@ from main import config
 ChromosomeFitness = namedtuple('ChromosomeFitness', ['chromosome', 'embedding_s_paths', 'fitness'])
 
 
+class MultiGAOperator:
+    def __init__(self, vnr, s_nodes_combinations):
+        self.vnr = vnr
+        self.population_size_dist = [config.POPULATION_SIZE_PER_COMBINATION] * len(s_nodes_combinations)
+        self.elite = None
+
+    def initialize(self):
+        pass
+
+    def sort_population_and_set_elite_group(self):
+        pass
+
+    def evaluate_fitness(self, embedding_s_paths):
+        pass
+
+    def selection(self):
+        pass
+
+    def crossover(self):
+        pass
+
+    def mutation(self):
+        pass
+
+
 class GAOperator:
     def __init__(self, vnr, all_s_paths, copied_substrate, population_size):
         self.vnr = vnr
@@ -53,8 +78,9 @@ class GAOperator:
 
     def sort_population_and_set_elite_group(self):
         self.population.sort(key=lambda p: p.fitness, reverse=True)
+        self.elite = self.population[0]
         self.elite_group = self.population[:config.ELITE_GROUP_SIZE]
-        self.elite_group_fitness = np.average(self.elite_group)
+        self.elite_group_fitness = np.average([elite.fitness for elite in self.elite_group])
 
     def evaluate_fitness(self, embedding_s_paths):
         is_under_bandwidth = False
