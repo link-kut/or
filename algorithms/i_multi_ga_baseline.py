@@ -170,5 +170,3 @@ class MultiGAVNEAgent(BaselineVNEAgent):
             copied_substrate.net.nodes[s_node_id]['CPU'] += v_cpu_demand
             if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
                 already_embedding_s_nodes.remove(s_node_id)
-
-
