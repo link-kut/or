@@ -30,6 +30,7 @@ if not os.path.exists(model_save_path):
     os.makedirs(model_save_path)
 
 logger = get_logger("vne", PROJECT_HOME)
+logger_a3c_gcn_train = get_logger("a3c_gcn_train", PROJECT_HOME)
 
 
 class TYPE_OF_VIRTUAL_NODE_RANKING(enum.Enum):

@@ -7,19 +7,9 @@ if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
 
 from main.a3c_gcn_train.A3C_worker import Worker
-from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
 from algorithms.model.A3C import A3C_Model
 from algorithms.model.utils import SharedAdam
 from common import config
-from common.config import logger
-
-agents = [
-    A3CGraphCNVNEAgent(0.3, logger)
-]
-
-agent_labels = [
-    "A3C-GCN",
-]
 
 
 def main():

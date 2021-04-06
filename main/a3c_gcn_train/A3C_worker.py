@@ -3,7 +3,7 @@ import torch.multiprocessing as mp
 from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
 from algorithms.model.utils import push_and_pull, record
 from algorithms.model.A3C import A3C_Model
-from common.config import logger
+from common.config import logger_a3c_gcn_train
 from environments.vne_env_A3C_train import A3CVNEEnvironment
 from common import config
 
@@ -23,8 +23,8 @@ class Worker(mp.Process):
         self.local_net = A3C_Model(
             chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
         )
-        self.env = A3CVNEEnvironment(logger)
-        self.agent = A3CGraphCNVNEAgent(0.3, logger)
+        self.env = A3CVNEEnvironment(logger_a3c_gcn_train)
+        self.agent = A3CGraphCNVNEAgent(0.3, logger_a3c_gcn_train)
 
     def run(self):
         time_step = 0
