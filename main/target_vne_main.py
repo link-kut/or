@@ -26,14 +26,8 @@ elif config.TARGET_ALGORITHM == config.ALGORITHMS.RANDOMIZED_VINE:
 elif config.TARGET_ALGORITHM == config.ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING:
     agent = TopologyAwareNodeRankingVNEAgent(beta=0.3, logger=logger)
 
-elif config.TARGET_ALGORITHM == config.ALGORITHMS.GENETIC_ALGORITHM:
-    agent = GABaselineVNEAgent(logger)
-
 elif config.TARGET_ALGORITHM == config.ALGORITHMS.A3C_GCN:
     agent = A3CGraphCNVNEAgent(beta=0.3, logger=logger)
-
-elif config.TARGET_ALGORITHM == config.ALGORITHMS.MULTI_GENETIC_ALGORITHM:
-    agent = MultiGAVNEAgent(logger)
 
 else:
     raise ValueError()
@@ -117,21 +111,19 @@ def main():
 
             if time_step > config.FIGURE_START_TIME_STEP - 1 and time_step % 100 == 0:
                 draw_performance(
-                    run, time_step,
-                    performance_revenue / (run + 1),
-                    performance_acceptance_ratio / (run + 1),
-                    performance_rc_ratio / (run + 1),
-                    performance_link_fail_ratio / (run + 1),
-                    config.graph_save_path
+                    agents=agents, agent_labels=agent_labels, run=run, time_step=time_step,
+                    performance_revenue=performance_revenue / (run + 1),
+                    performance_acceptance_ratio=performance_acceptance_ratio / (run + 1),
+                    performance_rc_ratio=performance_rc_ratio / (run + 1),
+                    performance_link_fail_ratio=performance_link_fail_ratio / (run + 1),
                 )
 
         draw_performance(
-            run, time_step,
-            performance_revenue / (run + 1),
-            performance_acceptance_ratio / (run + 1),
-            performance_rc_ratio / (run + 1),
-            performance_link_fail_ratio / (run + 1),
-            config.graph_save_path,
+            agents=agents, agent_labels=agent_labels, run=run, time_step=time_step,
+            performance_revenue=performance_revenue / (run + 1),
+            performance_acceptance_ratio=performance_acceptance_ratio / (run + 1),
+            performance_rc_ratio=performance_rc_ratio / (run + 1),
+            performance_link_fail_ratio=performance_link_fail_ratio / (run + 1),
             send_image_to_slack=True
         )
 
@@ -139,98 +131,6 @@ def main():
             run + 1, time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_ts))
         )
         logger.info(msg), print(msg)
-
-
-def draw_performance(
-        run, time_step, performance_revenue, performance_acceptance_ratio,
-        performance_rc_ratio, performance_link_fail_ratio, graph_save_path, send_image_to_slack=False
-):
-    files = glob.glob(os.path.join(graph_save_path, "*"))
-    for f in files:
-        os.remove(f)
-
-    plt.style.use('seaborn-dark-palette')
-
-    x_range = range(config.FIGURE_START_TIME_STEP, time_step + 1, config.TIME_WINDOW_SIZE)
-
-    plt.subplot(411)
-
-    for agent_id in range(len(agents)):
-        plt.plot(
-            x_range,
-            performance_revenue[agent_id, config.FIGURE_START_TIME_STEP: time_step + 1: config.TIME_WINDOW_SIZE],
-            label=agent_labels[agent_id]
-        )
-
-    plt.ylabel("Revenue")
-    plt.xlabel("Time unit")
-    plt.title("Revenue")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
-    plt.grid(True)
-
-    plt.subplot(412)
-    for agent_id in range(len(agents)):
-        plt.plot(
-            x_range,
-            performance_acceptance_ratio[agent_id, config.FIGURE_START_TIME_STEP: time_step + 1: config.TIME_WINDOW_SIZE],
-            label=agent_labels[agent_id]
-        )
-
-    plt.ylabel("Acceptance Ratio")
-    plt.xlabel("Time unit")
-    plt.title("Acceptance Ratio")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
-    plt.grid(True)
-
-    plt.subplot(413)
-    for agent_id in range(len(agents)):
-        plt.plot(
-            x_range,
-            performance_rc_ratio[agent_id, config.FIGURE_START_TIME_STEP: time_step + 1: config.TIME_WINDOW_SIZE],
-            label=agent_labels[agent_id]
-        )
-
-    plt.ylabel("R/C Ratio")
-    plt.xlabel("Time unit")
-    plt.title("R/C Ratio")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
-    plt.grid(True)
-
-    plt.subplot(414)
-    for agent_id in range(len(agents)):
-        plt.plot(
-            x_range,
-            performance_link_fail_ratio[agent_id, config.FIGURE_START_TIME_STEP: time_step + 1: config.TIME_WINDOW_SIZE],
-            label=agent_labels[agent_id]
-        )
-
-    plt.ylabel("Link Fails Ratio")
-    plt.xlabel("Time unit")
-    plt.title("Link Embedding Fails / Total Fails Ratio")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
-    plt.grid(True)
-
-    plt.tight_layout()
-
-    plt.subplots_adjust(top=0.9)
-
-    plt.suptitle('EXECUTING RUNS: {0}/{1} FROM HOST: {2}'.format(
-        run + 1, config.NUM_RUNS, config.HOST
-    ))
-
-    now = datetime.datetime.now()
-
-    new_file_path = os.path.join(graph_save_path, "results_{0}.png".format(now.strftime("%Y_%m_%d_%H_%M")))
-    plt.savefig(new_file_path)
-
-    if send_image_to_slack:
-        utils.send_file_to_slack(new_file_path)
-        print("SEND IMAGE FILE {0} TO SLACK !!!".format(new_file_path))
-
-    if HOST.startswith("COLAB"):
-        plt.show()
-
-    plt.clf()
 
 
 if __name__ == "__main__":

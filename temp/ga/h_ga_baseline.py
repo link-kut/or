@@ -2,7 +2,7 @@ import copy
 
 from algorithms.a_baseline import BaselineVNEAgent
 from common import utils
-from common.ga_utils import GAOperator, GAEarlyStopping
+from temp.ga.ga_utils import GAOperator, GAEarlyStopping
 from main import config
 
 
