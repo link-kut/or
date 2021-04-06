@@ -39,11 +39,11 @@ class TYPE_OF_VIRTUAL_NODE_RANKING(enum.Enum):
 
 class ALGORITHMS(enum.Enum):
     BASELINE = "BL"
-    TOPOLOGY_AWARE_DEGREE = "TA_D"
+    TOPOLOGY_AWARE_DEGREE = "TA_DEG"
     EGO_NETWORK = "EN"
     DETERMINISTIC_VINE = "D_VINE"
     RANDOMIZED_VINE = "R_VINE"
-    TOPOLOGY_AWARE_NODE_RANKING = "TA_NR"
+    TOPOLOGY_AWARE_NODE_RANKING = "TA_NOR"
     A3C_GCN = "A3C_GCN"
 
 #The arithmetic mean of the ten instances is recorded as the final result.

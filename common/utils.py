@@ -84,12 +84,12 @@ def step_prefix(time_step):
     return "[STEP: {0:5d}]".format(time_step)
 
 
-def agent_step_prefix(agent_id, time_step):
-    return "[STEP: {0:5d}/A{1}]".format(time_step, agent_id)
+def agent_step_prefix(agent_label, time_step):
+    return "[STEP: {0:5d}/{1:>7s}]".format(time_step, agent_label)
 
 
-def run_agent_step_prefix(run, agent_id, time_step):
-    return "[STEP: {0:5d}/A{1}/R{2}]".format(time_step, agent_id, run)
+def run_agent_step_prefix(run, agent_label, time_step):
+    return "[STEP: {0:5d}/{1:>7s}/R{2}]".format(time_step, agent_label, run)
 
 
 def send_file_to_slack(filepath):

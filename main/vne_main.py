@@ -30,27 +30,27 @@ for target_algorithm in target_algorithms:
         agent_labels.append(ALGORITHMS.BASELINE.value)
 
     elif target_algorithm == ALGORITHMS.TOPOLOGY_AWARE_DEGREE.name:
-        agent = TopologyAwareBaselineVNEAgent(beta=0.3, logger=logger)
+        agents.append(TopologyAwareBaselineVNEAgent(beta=0.3, logger=logger))
         agent_labels.append(ALGORITHMS.TOPOLOGY_AWARE_DEGREE.value)
 
     elif target_algorithm == ALGORITHMS.EGO_NETWORK.name:
-        agent = EgoNetworkBasedVNEAgent(beta=0.9, logger=logger)
+        agents.append(EgoNetworkBasedVNEAgent(beta=0.9, logger=logger))
         agent_labels.append(ALGORITHMS.EGO_NETWORK.value)
 
     elif target_algorithm == ALGORITHMS.DETERMINISTIC_VINE.name:
-        agent = DeterministicVNEAgent(logger)
+        agents.append(DeterministicVNEAgent(logger))
         agent_labels.append(ALGORITHMS.DETERMINISTIC_VINE.value)
 
     elif target_algorithm == ALGORITHMS.RANDOMIZED_VINE.name:
-        agent = RandomizedVNEAgent(logger)
+        agents.append(RandomizedVNEAgent(logger))
         agent_labels.append(ALGORITHMS.RANDOMIZED_VINE.value)
 
     elif target_algorithm == ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING.name:
-        agent = TopologyAwareNodeRankingVNEAgent(beta=0.3, logger=logger)
+        agents.append(TopologyAwareNodeRankingVNEAgent(beta=0.3, logger=logger))
         agent_labels.append(ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING.value)
 
     elif target_algorithm == ALGORITHMS.A3C_GCN.name:
-        agent = A3CGraphCNVNEAgent(beta=0.3, logger=logger)
+        agents.append(A3CGraphCNVNEAgent(beta=0.3, logger=logger))
         agent_labels.append(ALGORITHMS.A3C_GCN.value)
 
     else:
@@ -92,7 +92,7 @@ def main():
                 before_action_msg = "state {0} | ".format(repr(states[agent_id]))
                 before_action_simple_msg = "state {0} | ".format(states[agent_id])
                 logger.info("{0} {1}".format(
-                    utils.run_agent_step_prefix(run + 1, agent_id, time_step), before_action_msg
+                    utils.run_agent_step_prefix(run + 1, agent_labels[agent_id], time_step), before_action_msg
                 ))
 
                 # action = bl_agent.get_action(state)
@@ -102,7 +102,7 @@ def main():
                     str(action) if action.vnrs_embedding is not None and action.vnrs_postponement is not None else " - "
                 )
                 logger.info("{0} {1}".format(
-                    utils.run_agent_step_prefix(run + 1, agent_id, time_step), action_msg
+                    utils.run_agent_step_prefix(run + 1, agent_labels[agent_id], time_step), action_msg
                 ))
 
                 next_state, reward, done, info = envs[agent_id].step(action)
@@ -117,11 +117,11 @@ def main():
                 after_action_msg += " | {0:3.1f} steps/sec.".format(time_step / elapsed_time)
 
                 logger.info("{0} {1}".format(
-                    utils.run_agent_step_prefix(run + 1, agent_id, time_step), after_action_msg
+                    utils.run_agent_step_prefix(run + 1, agent_labels[agent_id], time_step), after_action_msg
                 ))
 
                 print("{0} {1} {2} {3}".format(
-                    utils.run_agent_step_prefix(run + 1, agent_id, time_step),
+                    utils.run_agent_step_prefix(run + 1, agent_labels[agent_id], time_step),
                     before_action_simple_msg,
                     action_msg,
                     after_action_msg
