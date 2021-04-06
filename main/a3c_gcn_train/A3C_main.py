@@ -1,17 +1,15 @@
 import os, sys
-import torch.nn.functional as F
 import torch.multiprocessing as mp
 
-from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
 from algorithms.model.A3C import A3C_Model
 from algorithms.model.utils import SharedAdam
-from main.A3C_worker import Worker
 
 current_path = os.path.dirname(os.path.realpath(__file__))
-PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
+PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir, os.pardir))
 if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
 
+from main.a3c_gcn_train.A3C_worker import Worker
 from main.common_main import *
 
 agents = [
