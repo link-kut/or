@@ -1,16 +1,17 @@
 import os, sys
 import torch.multiprocessing as mp
 
-from algorithms.model.A3C import A3C_Model
-from algorithms.model.utils import SharedAdam
-
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir, os.pardir))
 if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
 
 from main.a3c_gcn_train.A3C_worker import Worker
-from main.common_main import *
+from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
+from algorithms.model.A3C import A3C_Model
+from algorithms.model.utils import SharedAdam
+from common import config
+from common.config import logger
 
 agents = [
     A3CGraphCNVNEAgent(0.3, logger)
@@ -19,6 +20,7 @@ agents = [
 agent_labels = [
     "A3C-GCN",
 ]
+
 
 def main():
     global_net = A3C_Model(chev_conv_state_dim=5, action_dim=config.SUBSTRATE_NODES)

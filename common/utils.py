@@ -350,6 +350,7 @@ def print_env_and_agent_info(env, agent, logger):
     if not (response == "Y" or response == "y"):
         sys.exit(-1)
 
+
 def draw_performance(
         agents, agent_labels, run, time_step,
         performance_revenue, performance_acceptance_ratio,
@@ -376,7 +377,7 @@ def draw_performance(
     plt.ylabel("Revenue")
     plt.xlabel("Time unit")
     plt.title("Revenue")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
+    #plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
     plt.grid(True)
 
     plt.subplot(412)
@@ -390,7 +391,7 @@ def draw_performance(
     plt.ylabel("Acceptance Ratio")
     plt.xlabel("Time unit")
     plt.title("Acceptance Ratio")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
+    # plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
     plt.grid(True)
 
     plt.subplot(413)
@@ -404,7 +405,7 @@ def draw_performance(
     plt.ylabel("R/C Ratio")
     plt.xlabel("Time unit")
     plt.title("R/C Ratio")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
+    # plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
     plt.grid(True)
 
     plt.subplot(414)
@@ -418,7 +419,7 @@ def draw_performance(
     plt.ylabel("Link Fails Ratio")
     plt.xlabel("Time unit")
     plt.title("Link Embedding Fails / Total Fails Ratio")
-    plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
+    # plt.legend(loc="best", fancybox=True, framealpha=0.3, fontsize=12)
     plt.grid(True)
 
     plt.tight_layout()

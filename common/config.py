@@ -3,22 +3,13 @@ import os, sys
 import enum
 import shutil
 
-from common.logger import get_logger
-
 current_path = os.path.dirname(os.path.realpath(__file__))
-PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir, os.pardir))
+PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
 if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
 
-from algorithms.a_baseline import BaselineVNEAgent
-from algorithms.b_topology_aware_baseline import TopologyAwareBaselineVNEAgent
-from algorithms.c_ego_network_baseline import EgoNetworkBasedVNEAgent
-from algorithms.d_deterministic_vine import DeterministicVNEAgent
-from algorithms.e_randomized_vine import RandomizedVNEAgent
-from algorithms.f_node_rank_baseline import TopologyAwareNodeRankingVNEAgent
-from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
+from common.logger import get_logger
 
-PROJECT_HOME = os.getcwd()[:-5]
 graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
 log_save_path = os.path.join(PROJECT_HOME, "out", "logs")
 csv_save_path = os.path.join(PROJECT_HOME, "out", "parameters")
@@ -38,7 +29,7 @@ if not os.path.exists(csv_save_path):
 if not os.path.exists(model_save_path):
     os.makedirs(model_save_path)
 
-logger = get_logger("vne")
+logger = get_logger("vne", PROJECT_HOME)
 
 
 class TYPE_OF_VIRTUAL_NODE_RANKING(enum.Enum):
@@ -113,41 +104,6 @@ config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))
 
 target_algorithms = config_parser.get('ALGORITHMS', 'TARGET_ALGORITHMS').split(', ')
-
-agents = []
-agent_labels = []
-
-for target_algorithm in target_algorithms:
-    if target_algorithm == ALGORITHMS.BASELINE.name:
-        agents.append(BaselineVNEAgent(logger))
-        agent_labels.append(ALGORITHMS.BASELINE.value)
-
-    elif target_algorithm == ALGORITHMS.TOPOLOGY_AWARE_DEGREE.name:
-        agent = TopologyAwareBaselineVNEAgent(beta=0.3, logger=logger)
-        agent_labels.append(ALGORITHMS.TOPOLOGY_AWARE_DEGREE.value)
-
-    elif target_algorithm == ALGORITHMS.EGO_NETWORK.name:
-        agent = EgoNetworkBasedVNEAgent(beta=0.9, logger=logger)
-        agent_labels.append(ALGORITHMS.EGO_NETWORK.value)
-
-    elif target_algorithm == ALGORITHMS.DETERMINISTIC_VINE.name:
-        agent = DeterministicVNEAgent(logger)
-        agent_labels.append(ALGORITHMS.DETERMINISTIC_VINE.value)
-
-    elif target_algorithm == ALGORITHMS.RANDOMIZED_VINE.name:
-        agent = RandomizedVNEAgent(logger)
-        agent_labels.append(ALGORITHMS.RANDOMIZED_VINE.value)
-
-    elif target_algorithm == ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING.name:
-        agent = TopologyAwareNodeRankingVNEAgent(beta=0.3, logger=logger)
-        agent_labels.append(ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING.value)
-
-    elif target_algorithm == ALGORITHMS.A3C_GCN.name:
-        agent = A3CGraphCNVNEAgent(beta=0.3, logger=logger)
-        agent_labels.append(ALGORITHMS.A3C_GCN.value)
-
-    else:
-        raise ValueError(target_algorithm)
 
 if 'GENERAL' in config_parser and 'SLACK_API_TOKEN' in config_parser['GENERAL']:
     SLACK_API_TOKEN = config_parser['GENERAL']['SLACK_API_TOKEN']

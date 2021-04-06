@@ -12,7 +12,49 @@ if PROJECT_HOME not in sys.path:
 from common import utils, config
 from common.utils import draw_performance
 from environments.vne_env import VNEEnvironment
-from common.config import agents, logger, agent_labels
+from common.config import logger, target_algorithms, ALGORITHMS
+from algorithms.a_baseline import BaselineVNEAgent
+from algorithms.b_topology_aware_baseline import TopologyAwareBaselineVNEAgent
+from algorithms.c_ego_network_baseline import EgoNetworkBasedVNEAgent
+from algorithms.d_deterministic_vine import DeterministicVNEAgent
+from algorithms.e_randomized_vine import RandomizedVNEAgent
+from algorithms.f_node_rank_baseline import TopologyAwareNodeRankingVNEAgent
+from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
+
+agents = []
+agent_labels = []
+
+for target_algorithm in target_algorithms:
+    if target_algorithm == ALGORITHMS.BASELINE.name:
+        agents.append(BaselineVNEAgent(logger))
+        agent_labels.append(ALGORITHMS.BASELINE.value)
+
+    elif target_algorithm == ALGORITHMS.TOPOLOGY_AWARE_DEGREE.name:
+        agent = TopologyAwareBaselineVNEAgent(beta=0.3, logger=logger)
+        agent_labels.append(ALGORITHMS.TOPOLOGY_AWARE_DEGREE.value)
+
+    elif target_algorithm == ALGORITHMS.EGO_NETWORK.name:
+        agent = EgoNetworkBasedVNEAgent(beta=0.9, logger=logger)
+        agent_labels.append(ALGORITHMS.EGO_NETWORK.value)
+
+    elif target_algorithm == ALGORITHMS.DETERMINISTIC_VINE.name:
+        agent = DeterministicVNEAgent(logger)
+        agent_labels.append(ALGORITHMS.DETERMINISTIC_VINE.value)
+
+    elif target_algorithm == ALGORITHMS.RANDOMIZED_VINE.name:
+        agent = RandomizedVNEAgent(logger)
+        agent_labels.append(ALGORITHMS.RANDOMIZED_VINE.value)
+
+    elif target_algorithm == ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING.name:
+        agent = TopologyAwareNodeRankingVNEAgent(beta=0.3, logger=logger)
+        agent_labels.append(ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING.value)
+
+    elif target_algorithm == ALGORITHMS.A3C_GCN.name:
+        agent = A3CGraphCNVNEAgent(beta=0.3, logger=logger)
+        agent_labels.append(ALGORITHMS.A3C_GCN.value)
+
+    else:
+        raise ValueError(target_algorithm)
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))

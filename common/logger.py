@@ -1,13 +1,8 @@
 import logging, os, sys
 from logging.handlers import RotatingFileHandler
 
-current_path = os.path.dirname(os.path.realpath(__file__))
-PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
-if PROJECT_HOME not in sys.path:
-    sys.path.append(PROJECT_HOME)
 
-
-def get_logger(name):
+def get_logger(name, project_home):
     """
     Args:
         name(str):생성할 log 파일명입니다.
@@ -19,11 +14,11 @@ def get_logger(name):
     logger.propagate = False
     logger.setLevel(logging.INFO)
 
-    if not os.path.exists(os.path.join(PROJECT_HOME, "out", "logs")):
-        os.makedirs(os.path.join(PROJECT_HOME, "out", "logs"))
+    if not os.path.exists(os.path.join(project_home, "out", "logs")):
+        os.makedirs(os.path.join(project_home, "out", "logs"))
 
     rotate_handler = RotatingFileHandler(
-        os.path.join(PROJECT_HOME, "out", "logs", name + ".log"),
+        os.path.join(project_home, "out", "logs", name + ".log"),
         'a',
         1024 * 1024 * 2,
         5
