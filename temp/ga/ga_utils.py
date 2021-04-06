@@ -1,5 +1,3 @@
-import copy
-import enum
 import random
 import time
 from collections import namedtuple
@@ -7,8 +5,7 @@ import numpy as np
 from termcolor import colored
 import torch.multiprocessing as mp
 
-from common import utils
-from main import config
+from common import utils, config
 
 ChromosomeFitness = namedtuple('ChromosomeFitness', ['chromosome', 'embedding_s_paths', 'fitness'])
 

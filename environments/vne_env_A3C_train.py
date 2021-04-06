@@ -1,11 +1,9 @@
-import gym
 import networkx as nx
 from random import randint, expovariate
 
 from algorithms.a_baseline import Action
-from common import utils
+from common import utils, config
 from environments.vne_env import VNEEnvironment
-from main import config
 
 
 class Substrate:

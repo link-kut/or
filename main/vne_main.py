@@ -1,37 +1,18 @@
-import os, sys
-
-from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
-from algorithms.f_node_rank_baseline import TopologyAwareNodeRankingVNEAgent
-from main.config import graph_save_path, csv_save_path
+import copy
+import os
+import sys
+import numpy as np
+import time
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
 if PROJECT_HOME not in sys.path:
     sys.path.append(PROJECT_HOME)
 
-from main.common_main import *
-
-agents = [
-    BaselineVNEAgent(logger),
-    # TopologyAwareBaselineVNEAgent(0.3, logger),
-    # # EgoNetworkBasedVNEAgent(0.9, logger),
-    # EgoNetworkBasedVNEAgent(0.3, logger),
-    # DeterministicVNEAgent(logger),
-    # RandomizedVNEAgent(logger),
-    GABaselineVNEAgent(logger),
-    # A3CGraphCNVNEAgent(0.3, logger),
-]
-
-agent_labels = [
-    "BL",
-    # "TA_0.3",
-    # # "EN_0.9",
-    # "EN_0.3",
-    # "D-ViNE",
-    # "R-ViNE"
-    "GA"
-    # "A3C-GCN",
-]
+from common import utils, config
+from common.utils import draw_performance
+from environments.vne_env import VNEEnvironment
+from common.config import agents, logger, agent_labels
 
 performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
 performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))

@@ -9,7 +9,7 @@ from environments.vne_env import VNR
 
 import heapq
 
-from main import config
+from common import config
 
 heap = []
 

@@ -1,16 +1,12 @@
-import os, sys
 from algorithms.a_baseline import BaselineVNEAgent
-from common import utils
-from main import config
+from common import utils, config
 
-import copy
 import torch
 import networkx as nx
 import numpy as np
 
 # from torch.nn import Linear
 # from torch_geometric.nn import GCNConv
-from torch_geometric.data import Data
 from torch_geometric.utils import from_networkx
 from algorithms.model.A3C import A3C_Model
 
@@ -25,7 +21,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         self.action_count = 0
         self.state_action_reward_next_state = {}
         self.eligibility_trace = np.zeros(shape=(100,))
-        self.type = config.TARGET_ALGORITHM.A3C_GCN
+        self.type = config.ALGORITHMS.A3C_GCN
 
     # copied env for A3C
     def get_reward(self, copied_substrate, vnr, selected_s_node_id,
@@ -222,7 +218,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
                 shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
 
                 # Check the path length
-                if len(shortest_s_path) == config.MAX_EMBEDDING_PATH_LENGTH:
+                if len(shortest_s_path) > config.MAX_EMBEDDING_PATH_LENGTH:
                     self.num_link_embedding_fails += 1
                     msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
                         vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr

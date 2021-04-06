@@ -2,9 +2,7 @@ import networkx as nx
 import copy
 
 # Baseline Agent
-from common import utils
-from main import config
-
+from common import utils, config
 
 class Action:
     def __init__(self):
@@ -29,7 +27,7 @@ class BaselineVNEAgent:
         self.num_link_embedding_fails = 0
         self.time_step = 0
         self.next_embedding_epoch = config.TIME_WINDOW_SIZE
-        self.type = config.TARGET_ALGORITHM.BASELINE
+        self.type = config.ALGORITHMS.BASELINE
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -141,7 +139,7 @@ class BaselineVNEAgent:
                 shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
 
                 # Check the path length
-                if len(shortest_s_path) == config.MAX_EMBEDDING_PATH_LENGTH:
+                if len(shortest_s_path) > config.MAX_EMBEDDING_PATH_LENGTH:
                     self.num_link_embedding_fails += 1
                     msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
                         vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr

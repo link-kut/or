@@ -8,29 +8,7 @@ if PROJECT_HOME not in sys.path:
 from main.common_main import *
 
 
-if config.TARGET_ALGORITHM == config.ALGORITHMS.BASELINE:
-    agent = BaselineVNEAgent(logger)
 
-elif config.TARGET_ALGORITHM == config.ALGORITHMS.TOPOLOGY_AWARE_DEGREE:
-    agent = TopologyAwareBaselineVNEAgent(beta=0.3, logger=logger)
-
-elif config.TARGET_ALGORITHM == config.ALGORITHMS.EGO_NETWORK:
-    agent = EgoNetworkBasedVNEAgent(beta=0.9, logger=logger)
-
-elif config.TARGET_ALGORITHM == config.ALGORITHMS.DETERMINISTIC_VINE:
-    agent = DeterministicVNEAgent(logger)
-
-elif config.TARGET_ALGORITHM == config.ALGORITHMS.RANDOMIZED_VINE:
-    agent = RandomizedVNEAgent(logger)
-
-elif config.TARGET_ALGORITHM == config.ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING:
-    agent = TopologyAwareNodeRankingVNEAgent(beta=0.3, logger=logger)
-
-elif config.TARGET_ALGORITHM == config.ALGORITHMS.A3C_GCN:
-    agent = A3CGraphCNVNEAgent(beta=0.3, logger=logger)
-
-else:
-    raise ValueError()
 
 agents = [agent]
 agent_labels = [config.TARGET_ALGORITHM.value]

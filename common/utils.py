@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 plt.figure(figsize=(20, 10))
 
-from main import config
+from common import config
 
 client = WebClient(token=config.SLACK_API_TOKEN)
 

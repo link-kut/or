@@ -1,17 +1,15 @@
 import networkx as nx
-import copy
 
 # Baseline Agent
 from algorithms.a_baseline import BaselineVNEAgent
-from common import utils
-from main import config
+from common import utils, config
 
 
 class EgoNetworkBasedVNEAgent(BaselineVNEAgent):
     def __init__(self, beta, logger):
         super(EgoNetworkBasedVNEAgent, self).__init__(logger)
         self.beta = beta
-        self.type = config.TARGET_ALGORITHM.EGO_NETWORK
+        self.type = config.ALGORITHMS.EGO_NETWORK
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''

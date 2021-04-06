@@ -1,24 +1,17 @@
-from algorithms.a_baseline import BaselineVNEAgent
 from algorithms.d_deterministic_vine import DeterministicVNEAgent
-from common import utils
-from main import config
-import copy
-import networkx as nx
-from networkx.algorithms.flow import shortest_augmenting_path
-import pulp as plp
-import pandas as pd
+from common import utils, config
 import numpy as np
-import sys
 from scipy.special import softmax
 
 import warnings
+
 warnings.filterwarnings(action='ignore')
 
 
 class RandomizedVNEAgent(DeterministicVNEAgent):
     def __init__(self, logger):
         super(RandomizedVNEAgent, self).__init__(logger)
-        self.type = config.TARGET_ALGORITHM.RANDOMIZED_VINE
+        self.type = config.ALGORITHMS.RANDOMIZED_VINE
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''

@@ -2,16 +2,16 @@ import copy
 import time
 
 from algorithms.a_baseline import BaselineVNEAgent
-from common import utils
+from common import utils, config
+from common.config import ALGORITHMS
 from temp.ga.ga_utils import GAEarlyStopping, MultiGAOperator
-from main import config
 from common.utils import peek_from_iterable
 
 
 class MultiGAVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
         super(MultiGAVNEAgent, self).__init__(logger)
-        self.type = config.TARGET_ALGORITHM.MULTI_GENETIC_ALGORITHM
+        self.type = ALGORITHMS.MULTI_GENETIC_ALGORITHM
 
     def embedding(self, VNRs_COLLECTED, COPIED_SUBSTRATE, action):
         sorted_vnrs = sorted(

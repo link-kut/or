@@ -1,14 +1,11 @@
 from algorithms.a_baseline import BaselineVNEAgent
-from common import utils
-from main import config
-import copy
+from common import utils, config
 import networkx as nx
 from networkx.algorithms.flow import shortest_augmenting_path
 import pulp as plp
 from collections import defaultdict
 
 import pandas as pd
-import sys
 
 import warnings
 
@@ -18,7 +15,7 @@ warnings.filterwarnings(action='ignore')
 class DeterministicVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
         super(DeterministicVNEAgent, self).__init__(logger)
-        self.type = config.TARGET_ALGORITHM.DETERMINISTIC_VINE
+        self.type = config.ALGORITHMS.DETERMINISTIC_VINE
 
     @staticmethod
     def change_to_augmented_substrate(copied_substrate, vnr):

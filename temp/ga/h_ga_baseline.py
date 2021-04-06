@@ -1,15 +1,15 @@
 import copy
 
 from algorithms.a_baseline import BaselineVNEAgent
-from common import utils
+from common import utils, config
+from common.config import ALGORITHMS
 from temp.ga.ga_utils import GAOperator, GAEarlyStopping
-from main import config
 
 
 class GABaselineVNEAgent(BaselineVNEAgent):
     def __init__(self, logger):
         super(GABaselineVNEAgent, self).__init__(logger)
-        self.type = config.TARGET_ALGORITHM.GENETIC_ALGORITHM
+        self.type = ALGORITHMS.GENETIC_ALGORITHM
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         subset_S_per_v_node = {}
