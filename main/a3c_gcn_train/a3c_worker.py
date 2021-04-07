@@ -62,16 +62,16 @@ class Worker(mp.Process):
                 buffer_substrate_feature.append(state.substrate_features)
                 buffer_edge_index.append(state.substrate_edge_index)
 
-                buffer_v_node_capacity.append(state.vnr_features[0])
-                buffer_v_node_bandwidth.append(state.vnr_features[1])
-                buffer_v_pending.append(state.vnr_features[2])
+                buffer_v_node_capacity.append(state.vnr_features[0][0])
+                buffer_v_node_bandwidth.append(state.vnr_features[0][1])
+                buffer_v_pending.append(state.vnr_features[0][2])
 
                 buffer_action.append(action)
                 buffer_reward.append(reward)
                 buffer_done.append(done)
 
                 buffer_next_substrate_feature.append(next_state.substrate_features)
-                buffer_next_edge_index.append(next_state.substrate_geometric_data.edge_index)
+                buffer_next_edge_index.append(next_state.substrate_edge_index)
 
                 if total_step % config.UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
                     # sync
