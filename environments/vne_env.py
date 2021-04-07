@@ -236,7 +236,7 @@ class VNEEnvironment(gym.Env):
         self.revenue = None
         self.acceptance_ratio = None
         self.rc_ratio = None
-        self.link_embedding_fails_against_total_fails_ratio= None
+        self.link_embedding_fails_against_total_fails_ratio = None
 
     def reset(self):
         self.VNRs_SERVING = {}

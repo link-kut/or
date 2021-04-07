@@ -4,7 +4,7 @@ from algorithms.g_a3c_gcn_vine import A3C_GCN_VNEAgent
 from algorithms.model.utils import push_and_pull, record
 from algorithms.model.A3C import A3C_Model
 from common.config import logger_a3c_gcn_train
-from environments.vne_env_a3c_train import A3C_GCN_TRAIN_VNEEnvironment
+from main.a3c_gcn_train.vne_env_a3c_train import A3C_GCN_TRAIN_VNEEnvironment
 from common import config
 
 
@@ -51,9 +51,9 @@ class Worker(mp.Process):
                 for step in self.agent.state_action_reward_next_state:
                     buffer_substrate_feature.append(self.agent.state_action_reward_next_state[step]['substrate_features'])
                     buffer_edge_index.append(self.agent.state_action_reward_next_state[step]['edge_index'])
-                    buffer_v_node_capacity.append(self.agent.state_action_reward_next_state[step]['v_node_cpu'])
-                    buffer_v_node_bandwidth.append(self.agent.state_action_reward_next_state[step]['v_node_bw'])
-                    buffer_v_pending.append(self.agent.state_action_reward_next_state[step]['pending_node'])
+                    buffer_v_node_capacity.append(self.agent.state_action_reward_next_state[step]['v_cpu_demand'])
+                    buffer_v_node_bandwidth.append(self.agent.state_action_reward_next_state[step]['v_bw_demand'])
+                    buffer_v_pending.append(self.agent.state_action_reward_next_state[step]['num_pending_v_nodes'])
                     buffer_action.append(self.agent.state_action_reward_next_state[step]['action'])
                     buffer_reward.append(self.agent.state_action_reward_next_state[step]['reward'])
                     buffer_next_substrate_feature.append(self.agent.state_action_reward_next_state[step]['substrate_features'])
@@ -80,6 +80,6 @@ class Worker(mp.Process):
 
                 state = next_state
                 total_step += 1
-                self.agent.init_state_action_reward_next_state()
+                self.agent.action_count = 0
 
         self.message_queue.put(None)
