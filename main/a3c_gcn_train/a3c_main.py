@@ -29,7 +29,7 @@ def main():
     # workers = [Worker(global_net, optimizer, global_episode, global_episode_reward, message_queue, i) for i in range(mp.cpu_count())]
     workers = [
         Worker(
-            global_net, optimizer, global_episode, global_episode_reward, message_queue, idx
+            global_net, optimizer, global_episode, global_episode_reward, message_queue, idx, PROJECT_HOME
         ) for idx in range(config.NUM_WORKERS)
     ]
 

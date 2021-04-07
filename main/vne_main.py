@@ -4,6 +4,15 @@ import sys
 import numpy as np
 import time
 
+from algorithms.a_baseline import BaselineVNEAgent
+from algorithms.b_topology_aware_baseline import TopologyAwareBaselineVNEAgent
+from algorithms.c_ego_network_baseline import EgoNetworkBasedVNEAgent
+from algorithms.d_deterministic_vine import DeterministicVNEAgent
+from algorithms.e_randomized_vine import RandomizedVNEAgent
+from algorithms.f_node_rank_baseline import TopologyAwareNodeRankingVNEAgent
+from algorithms.g_a3c_gcn_vine import A3C_GCN_VNEAgent
+from common.logger import get_logger
+
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir))
 if PROJECT_HOME not in sys.path:
@@ -12,57 +21,18 @@ if PROJECT_HOME not in sys.path:
 from common import utils, config
 from common.utils import draw_performance
 from environments.vne_env import VNEEnvironment
-from common.config import logger, target_algorithms, ALGORITHMS
-from algorithms.a_baseline import BaselineVNEAgent
-from algorithms.b_topology_aware_baseline import TopologyAwareBaselineVNEAgent
-from algorithms.c_ego_network_baseline import EgoNetworkBasedVNEAgent
-from algorithms.d_deterministic_vine import DeterministicVNEAgent
-from algorithms.e_randomized_vine import RandomizedVNEAgent
-from algorithms.f_node_rank_baseline import TopologyAwareNodeRankingVNEAgent
-from algorithms.g_a3c_gcn_vine import A3CGraphCNVNEAgent
 
-agents = []
-agent_labels = []
-
-for target_algorithm in target_algorithms:
-    if target_algorithm == ALGORITHMS.BASELINE.name:
-        agents.append(BaselineVNEAgent(logger))
-        agent_labels.append(ALGORITHMS.BASELINE.value)
-
-    elif target_algorithm == ALGORITHMS.TOPOLOGY_AWARE_DEGREE.name:
-        agents.append(TopologyAwareBaselineVNEAgent(beta=0.3, logger=logger))
-        agent_labels.append(ALGORITHMS.TOPOLOGY_AWARE_DEGREE.value)
-
-    elif target_algorithm == ALGORITHMS.EGO_NETWORK.name:
-        agents.append(EgoNetworkBasedVNEAgent(beta=0.9, logger=logger))
-        agent_labels.append(ALGORITHMS.EGO_NETWORK.value)
-
-    elif target_algorithm == ALGORITHMS.DETERMINISTIC_VINE.name:
-        agents.append(DeterministicVNEAgent(logger))
-        agent_labels.append(ALGORITHMS.DETERMINISTIC_VINE.value)
-
-    elif target_algorithm == ALGORITHMS.RANDOMIZED_VINE.name:
-        agents.append(RandomizedVNEAgent(logger))
-        agent_labels.append(ALGORITHMS.RANDOMIZED_VINE.value)
-
-    elif target_algorithm == ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING.name:
-        agents.append(TopologyAwareNodeRankingVNEAgent(beta=0.3, logger=logger))
-        agent_labels.append(ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING.value)
-
-    elif target_algorithm == ALGORITHMS.A3C_GCN.name:
-        agents.append(A3CGraphCNVNEAgent(beta=0.3, logger=logger))
-        agent_labels.append(ALGORITHMS.A3C_GCN.value)
-
-    else:
-        raise ValueError(target_algorithm)
-
-performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
-performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
-performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
-performance_link_fail_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
+logger = get_logger("vne", PROJECT_HOME)
 
 
 def main():
+    agents, agent_labels = get_agents()
+
+    performance_revenue = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
+    performance_acceptance_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
+    performance_rc_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
+    performance_link_fail_ratio = np.zeros(shape=(len(agents), config.GLOBAL_MAX_STEPS + 1))
+
     start_ts = time.time()
     for run in range(config.NUM_RUNS):
         run_start_ts = time.time()
@@ -159,6 +129,113 @@ def main():
             run + 1, time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_ts))
         )
         logger.info(msg), print(msg)
+
+
+def get_agents():
+    agents = []
+    agent_labels = []
+
+    for target_algorithm in config.target_algorithms:
+        if target_algorithm == config.ALGORITHMS.BASELINE.name:
+            agents.append(
+                BaselineVNEAgent(
+                    logger=logger,
+                    time_window_size=config.TIME_WINDOW_SIZE,
+                    agent_type=config.ALGORITHMS.BASELINE,
+                    type_of_virtual_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2,
+                    allow_embedding_to_same_substrate_node=config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE,
+                    max_embedding_path_length=config.MAX_EMBEDDING_PATH_LENGTH
+                )
+            )
+            agent_labels.append(config.ALGORITHMS.BASELINE.value)
+
+        elif target_algorithm == config.ALGORITHMS.TOPOLOGY_AWARE_DEGREE.name:
+            agents.append(
+                TopologyAwareBaselineVNEAgent(
+                    beta=0.3,
+                    logger=logger,
+                    time_window_size=config.TIME_WINDOW_SIZE,
+                    agent_type=config.ALGORITHMS.BASELINE,
+                    type_of_virtual_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1,
+                    allow_embedding_to_same_substrate_node=config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE,
+                    max_embedding_path_length=config.MAX_EMBEDDING_PATH_LENGTH
+                )
+            )
+            agent_labels.append(config.ALGORITHMS.TOPOLOGY_AWARE_DEGREE.value)
+
+        elif target_algorithm == config.ALGORITHMS.EGO_NETWORK.name:
+            agents.append(
+                EgoNetworkBasedVNEAgent(
+                    beta=0.9,
+                    logger=logger,
+                    time_window_size=config.TIME_WINDOW_SIZE,
+                    agent_type=config.ALGORITHMS.BASELINE,
+                    type_of_virtual_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_1,
+                    allow_embedding_to_same_substrate_node=config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE,
+                    max_embedding_path_length=config.MAX_EMBEDDING_PATH_LENGTH
+                )
+            )
+            agent_labels.append(config.ALGORITHMS.EGO_NETWORK.value)
+
+        elif target_algorithm == config.ALGORITHMS.DETERMINISTIC_VINE.name:
+            agents.append(
+                DeterministicVNEAgent(
+                    logger=logger,
+                    time_window_size=config.TIME_WINDOW_SIZE,
+                    agent_type=config.ALGORITHMS.BASELINE,
+                    type_of_virtual_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2,
+                    allow_embedding_to_same_substrate_node=config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE,
+                    max_embedding_path_length=config.MAX_EMBEDDING_PATH_LENGTH
+                )
+            )
+            agent_labels.append(config.ALGORITHMS.DETERMINISTIC_VINE.value)
+
+        elif target_algorithm == config.ALGORITHMS.RANDOMIZED_VINE.name:
+            agents.append(
+                RandomizedVNEAgent(
+                    logger=logger,
+                    time_window_size=config.TIME_WINDOW_SIZE,
+                    agent_type=config.ALGORITHMS.BASELINE,
+                    type_of_virtual_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2,
+                    allow_embedding_to_same_substrate_node=config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE,
+                    max_embedding_path_length=config.MAX_EMBEDDING_PATH_LENGTH
+                )
+            )
+            agent_labels.append(config.ALGORITHMS.RANDOMIZED_VINE.value)
+
+        elif target_algorithm == config.ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING.name:
+            agents.append(
+                TopologyAwareNodeRankingVNEAgent(
+                    beta=0.3,
+                    logger=logger,
+                    time_window_size=config.TIME_WINDOW_SIZE,
+                    agent_type=config.ALGORITHMS.BASELINE,
+                    type_of_virtual_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2,
+                    allow_embedding_to_same_substrate_node=config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE,
+                    max_embedding_path_length=config.MAX_EMBEDDING_PATH_LENGTH
+                )
+            )
+            agent_labels.append(config.ALGORITHMS.TOPOLOGY_AWARE_NODE_RANKING.value)
+
+        elif target_algorithm == config.ALGORITHMS.A3C_GCN.name:
+            agents.append(
+                A3C_GCN_VNEAgent(
+                    local_model=None,
+                    beta=0.3,
+                    logger=logger,
+                    time_window_size=config.TIME_WINDOW_SIZE,
+                    agent_type=config.ALGORITHMS.BASELINE,
+                    type_of_virtual_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2,
+                    allow_embedding_to_same_substrate_node=config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE,
+                    max_embedding_path_length=config.MAX_EMBEDDING_PATH_LENGTH
+                )
+            )
+            agent_labels.append(config.ALGORITHMS.A3C_GCN.value)
+
+        else:
+            raise ValueError(target_algorithm)
+
+    return agents, agent_labels
 
 
 if __name__ == "__main__":

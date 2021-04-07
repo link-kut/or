@@ -7,16 +7,20 @@ from common import config, utils
 from environments.vne_env import Substrate, VNR
 
 
-class A3C_GCN_Train_State:
-    def __init__(self, substrate, vnr):
-        self.substrate = substrate
-        self.vnr = vnr
+class A3C_GCN_State:
+    def __init__(self, substrate_features, substrate_edge_index, current_v_node, vnr_features):
+        self.substrate_features = substrate_features
+        self.substrate_edge_index = substrate_edge_index
+        self.current_v_node = current_v_node
+        self.vnr_features = vnr_features
 
     def __str__(self):
-        state_str = str(self.substrate)
-        vnr_str = str(self.vnr)
+        substrate_features_str = str(self.substrate_features)
+        substrate_edge_index_str = str(self.substrate_edge_index)
+        current_v_node_str = str(self.current_v_node)
+        vnr_features_str = str(self.vnr_features)
 
-        state_str = " ".join([state_str, vnr_str])
+        state_str = " ".join([substrate_features_str, substrate_edge_index_str, current_v_node_str, vnr_features_str])
 
         return state_str
 
@@ -24,7 +28,7 @@ class A3C_GCN_Train_State:
         return self.__str__()
 
 
-class A3C_GCN_Train_Action:
+class A3C_GCN_Action:
     def __init__(self):
         self.v_node = None
         self.s_node = None
@@ -100,12 +104,14 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.current_v_node, current_v_node_data, _ = self.sorted_v_nodes[self.num_processed_v_nodes]
         self.current_v_cpu_demand = current_v_node_data['CPU']
 
-        substrate_features, vnr_features = self.get_state(self.current_v_node, self.current_v_cpu_demand)
-        initial_state = A3C_GCN_Train_State(substrate_features, vnr_features)
+        substrate_features, substrate_edge_index, vnr_features = self.get_state_information(
+            self.current_v_node, self.current_v_cpu_demand
+        )
+        initial_state = A3C_GCN_State(substrate_features, substrate_edge_index, self.current_v_node, vnr_features)
 
         return initial_state
 
-    def step(self, action: A3C_GCN_Train_Action):
+    def step(self, action: A3C_GCN_Action):
         self.time_step += 1
 
         is_action_failed = False
@@ -168,9 +174,6 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         # 이 지점에서 self.num_processed_v_nodes += 1 매우 중요: 이후 next_state 및 reward 계산에 영향을 줌
         self.num_processed_v_nodes += 1
 
-        substrate_features, vnr_features = self.get_state(self.current_v_node, self.current_v_cpu_demand)
-        next_state = A3C_GCN_Train_State(substrate_features, vnr_features)
-
         reward = self.get_reward(
             is_action_failed, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action
         )
@@ -179,11 +182,19 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         if is_action_failed or self.num_processed_v_nodes == len(self.vnr.net.nodes):
             done = True
 
+        self.current_v_node, current_v_node_data, _ = self.sorted_v_nodes[self.num_processed_v_nodes]
+        self.current_v_cpu_demand = current_v_node_data['CPU']
+
+        substrate_features, substrate_edge_index, vnr_features = self.get_state_information(
+            self.current_v_node, self.current_v_cpu_demand
+        )
+        next_state = A3C_GCN_State(substrate_features, substrate_edge_index, self.current_v_node, vnr_features)
+
         info = {}
 
         return next_state, reward, done, info
 
-    def get_state(self, current_v_node, current_v_cpu_demand):
+    def get_state_information(self, current_v_node, current_v_cpu_demand):
         # Substrate Initial State
         s_cpu_capacity = self.substrate.initial_s_cpu_capacity
         s_bandwidth_capacity = self.substrate.initial_s_node_total_bandwidth
@@ -216,16 +227,19 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         substrate_features = torch.transpose(substrate_features, 0, 1)
         # substrate_features.size() --> (100, 5)
 
-        # # GCN for Feature Extract
-        # geometric_data = torch_geometric.utils.from_networkx(self.substrate.net)
+        # GCN for Feature Extract
+        substrate_geometric_data = torch_geometric.utils.from_networkx(self.substrate.net)
 
         vnr_features = []
         vnr_features.append(current_v_cpu_demand)
         vnr_features.append(sum((self.vnr.net[current_v_node][link_id]['bandwidth'] for link_id in self.vnr.net[current_v_node])))
         vnr_features.append(len(self.sorted_v_nodes) - self.num_processed_v_nodes)
-        vnr_features = torch.tensor(vnr_features)
+        vnr_features = torch.tensor(vnr_features).unsqueeze(dim=0)
 
-        return substrate_features, vnr_features
+        # substrate_features.size() --> (100, 5)
+        # vnr_features.size()) --> (1, 3)
+
+        return substrate_features, substrate_geometric_data.edge_index, vnr_features
 
     def get_reward(self, is_action_failed, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action):
         # calculate r_a

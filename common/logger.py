@@ -14,9 +14,6 @@ def get_logger(name, project_home):
     logger.propagate = False
     logger.setLevel(logging.INFO)
 
-    if not os.path.exists(os.path.join(project_home, "out", "logs")):
-        os.makedirs(os.path.join(project_home, "out", "logs"))
-
     rotate_handler = RotatingFileHandler(
         os.path.join(project_home, "out", "logs", name + ".log"),
         'a',

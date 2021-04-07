@@ -1,16 +1,23 @@
 import torch_geometric
 
 from algorithms.a_baseline import BaselineVNEAgent
-from common import utils, config
+from common import utils
 
 import torch
-import networkx as nx
 import numpy as np
+
+from main.a3c_gcn_train.vne_env_a3c_train import A3C_GCN_Action
 
 
 class A3C_GCN_VNEAgent(BaselineVNEAgent):
-    def __init__(self, local_model, beta, logger):
-        super(A3C_GCN_VNEAgent, self).__init__(logger)
+    def __init__(
+            self, local_model, beta, logger, time_window_size, agent_type, type_of_virtual_node_ranking,
+            allow_embedding_to_same_substrate_node, max_embedding_path_length
+    ):
+        super(A3C_GCN_VNEAgent, self).__init__(
+            logger, time_window_size, agent_type, type_of_virtual_node_ranking,
+            allow_embedding_to_same_substrate_node, max_embedding_path_length
+        )
         self.local_model = local_model
         self.beta = beta
         self.initial_s_CPU = []
@@ -18,72 +25,18 @@ class A3C_GCN_VNEAgent(BaselineVNEAgent):
         self.count_node_mapping = 0
         self.action_count = 0
         self.eligibility_trace = np.zeros(shape=(100,))
-        self.type = config.ALGORITHMS.A3C_GCN
 
+    def get_node_action(self, state):
+        action = A3C_GCN_Action()
+        action.v_node = state.current_v_node
 
-    def get_s_node(self):
-        pass
+        action.s_node = self.local_model.select_node(
+            substrate_features=state.substrate_features,
+            substrate_edge_index=state.substrate_edge_index,
+            vnr_features=state.vnr_features
+        )
 
-
-    # copied env for A3C
-    def get_reward(
-            self, copied_substrate, vnr, selected_s_node_id, num_v_node, v_cpu_demand, v_node_idx, current_embedding
-    ):
-        num_embedded_v_node = v_node_idx + 1
-
-        if copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand:
-            copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
-            current_embedding[selected_s_node_id] = 1
-            # r_a = 100*\gamma Positive reward
-            r_a = 100 * (num_embedded_v_node / num_v_node)
-        else:
-            r_a = -100 * (num_embedded_v_node / num_v_node)
-
-        r_c = vnr.revenue / vnr.revenue
-        r_s = copied_substrate.net.nodes[selected_s_node_id]['CPU'] / copied_substrate.initial_s_cpu_capacity[selected_s_node_id]
-
-        reward = r_a * r_c * r_s
-
-        return reward
-
-    def get_substrate_features(self, copied_substrate, current_embedding):
-        s_cpu_remaining = []
-        s_bandwidth_remaining = []
-        substrate_features = []
-
-        # Input State
-        s_cpu_capacity = copied_substrate.initial_s_cpu_capacity
-        s_bandwidth_capacity = copied_substrate.initial_s_node_total_bandwidth
-
-        # S_cpu_Free, S_bw_Free
-        for s_node_id, s_node_data in copied_substrate.net.nodes(data=True):
-            s_cpu_remaining.append(s_node_data['CPU'])
-
-            total_node_bandwidth = 0.0
-            for link_id in copied_substrate.net[s_node_id]:
-                total_node_bandwidth += copied_substrate.net[s_node_id][link_id]['bandwidth']
-
-            s_bandwidth_remaining.append(total_node_bandwidth)
-
-        assert len(s_cpu_capacity) == len(s_bandwidth_capacity) == len(s_cpu_remaining) == len(s_bandwidth_remaining) == len(current_embedding)
-
-        # Generate substrate feature matrix
-        substrate_features.append(s_cpu_capacity)
-        substrate_features.append(s_bandwidth_capacity)
-        substrate_features.append(s_cpu_remaining)
-        substrate_features.append(s_bandwidth_remaining)
-        substrate_features.append(current_embedding)
-
-        # Convert to the torch.tensor
-        substrate_features = torch.tensor(substrate_features)
-        substrate_features = torch.transpose(substrate_features, 0, 1)
-        # substrate_features = torch.reshape(substrate_features, (-1,))
-
-        # GCN for Feature Extract
-        geometric_data = torch_geometric.utils.from_networkx(copied_substrate.net)
-
-        #print(substrate_features.size(), "!!!!!!!!!!") --> (100, 5)
-        return substrate_features, geometric_data
+        return action
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -107,8 +60,9 @@ class A3C_GCN_VNEAgent(BaselineVNEAgent):
         already_embedding_s_nodes = []
         current_embedding = [0] * len(copied_substrate.net.nodes)
 
+        # self.config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
-            vnr=vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
+            vnr=vnr, type_of_node_ranking=self.type_of_virtual_node_ranking
         )
 
         #new_model_path = os.path.join(model_save_path, "A3C_model.pth")
@@ -150,7 +104,7 @@ class A3C_GCN_VNEAgent(BaselineVNEAgent):
 
             assert selected_s_node_id != -1
             embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
-            if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+            if not self.allow_embedding_to_same_substrate_node:
                 already_embedding_s_nodes.append(selected_s_node_id)
 
             self.action_count += 1

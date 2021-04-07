@@ -1,5 +1,5 @@
 from algorithms.d_deterministic_vine import DeterministicVNEAgent
-from common import utils, config
+from common import utils
 import numpy as np
 from scipy.special import softmax
 
@@ -9,9 +9,14 @@ warnings.filterwarnings(action='ignore')
 
 
 class RandomizedVNEAgent(DeterministicVNEAgent):
-    def __init__(self, logger):
-        super(RandomizedVNEAgent, self).__init__(logger)
-        self.type = config.ALGORITHMS.RANDOMIZED_VINE
+    def __init__(
+            self, logger, time_window_size, agent_type, type_of_virtual_node_ranking,
+            allow_embedding_to_same_substrate_node, max_embedding_path_length, substrate_nodes
+    ):
+        super(RandomizedVNEAgent, self).__init__(
+            logger, time_window_size, agent_type, type_of_virtual_node_ranking,
+            allow_embedding_to_same_substrate_node, max_embedding_path_length, substrate_nodes
+        )
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -25,7 +30,7 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
         already_embedding_s_nodes = []
 
         # Generate the augmented substrate network with location info.
-        self.change_to_augmented_substrate(copied_substrate, vnr)
+        self.change_to_augmented_substrate(copied_substrate, vnr, self.substrate_nodes)
 
         opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(copied_substrate, vnr)
 
@@ -45,12 +50,12 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
                 subset_S_per_v_node[v_node_id],
                 key=lambda s_node_id:
                     sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
-                                      (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
-                        opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+                                      (opt_lp_f_vars['v'] == v_node_id + self.substrate_nodes)]['solution_value'].values +
+                        opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + self.substrate_nodes) &
                                       (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values
                         ) *
                     opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
-                                  (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values,
+                                  (opt_lp_x_vars['v'] == v_node_id + self.substrate_nodes)]['solution_value'].values,
                 default=None
             )
 
@@ -62,9 +67,9 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
             #     selected_s_node_p_value.append(
             #         sum(opt_lp_f_vars[
             #                 (opt_lp_f_vars['u'] == s_node_id) &
-            #                 (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
+            #                 (opt_lp_f_vars['v'] == v_node_id + self.substrate_nodes)]['solution_value'].values +
             #             opt_lp_f_vars[
-            #                 (opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+            #                 (opt_lp_f_vars['u'] == v_node_id + self.substrate_nodes) &
             #                 (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values))
 
             # Calculate the probability
@@ -77,7 +82,7 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
                     vnr.id, self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-                self.revoke_from_augmented_substrate(copied_substrate, vnr)
+                self.revoke_from_augmented_substrate(copied_substrate, vnr, self.substrate_nodes)
                 return None
             else:
                 probability = softmax(selected_s_node_p_value)
@@ -89,16 +94,16 @@ class RandomizedVNEAgent(DeterministicVNEAgent):
                     vnr.id, self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-                self.revoke_from_augmented_substrate(copied_substrate, vnr)
+                self.revoke_from_augmented_substrate(copied_substrate, vnr, self.substrate_nodes)
                 return None
 
             assert selected_s_node_id != -1
             embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
-            if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+            if not self.allow_embedding_to_same_substrate_node:
                 already_embedding_s_nodes.append(selected_s_node_id)
 
             assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
 
-        self.revoke_from_augmented_substrate(copied_substrate, vnr)
+        self.revoke_from_augmented_substrate(copied_substrate, vnr, self.substrate_nodes)
         return embedding_s_nodes

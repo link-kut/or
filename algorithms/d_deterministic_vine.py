@@ -1,5 +1,5 @@
 from algorithms.a_baseline import BaselineVNEAgent
-from common import utils, config
+from common import utils
 import networkx as nx
 from networkx.algorithms.flow import shortest_augmenting_path
 import pulp as plp
@@ -13,18 +13,24 @@ warnings.filterwarnings(action='ignore')
 
 
 class DeterministicVNEAgent(BaselineVNEAgent):
-    def __init__(self, logger):
-        super(DeterministicVNEAgent, self).__init__(logger)
-        self.type = config.ALGORITHMS.DETERMINISTIC_VINE
+    def __init__(
+            self, logger, time_window_size, agent_type, type_of_virtual_node_ranking,
+            allow_embedding_to_same_substrate_node, max_embedding_path_length, substrate_nodes
+    ):
+        super(DeterministicVNEAgent, self).__init__(
+            logger, time_window_size, agent_type, type_of_virtual_node_ranking,
+            allow_embedding_to_same_substrate_node, max_embedding_path_length
+        )
+        self.substrate_nodes = substrate_nodes
 
     @staticmethod
-    def change_to_augmented_substrate(copied_substrate, vnr):
+    def change_to_augmented_substrate(copied_substrate, vnr, substrate_nodes):
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             v_cpu_demand = v_node_data['CPU']
             v_node_location = v_node_data['LOCATION']
 
             # Meta node add
-            meta_node_id = v_node_id + config.SUBSTRATE_NODES
+            meta_node_id = v_node_id + substrate_nodes
             copied_substrate.net.add_node(meta_node_id)
             copied_substrate.net.nodes[meta_node_id]['CPU'] = v_cpu_demand
             copied_substrate.net.nodes[meta_node_id]['LOCATION'] = v_node_location
@@ -33,15 +39,15 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             for a_node_id, a_node_data, in copied_substrate.net.nodes(data=True):
                 a_cpu_demand = a_node_data['CPU']
                 a_node_location = a_node_data['LOCATION']
-                if v_node_location == a_node_location and a_node_id < config.SUBSTRATE_NODES:
+                if v_node_location == a_node_location and a_node_id < substrate_nodes:
                     copied_substrate.net.add_edge(meta_node_id, a_node_id)
                     copied_substrate.net.edges[meta_node_id, a_node_id].update({'bandwidth': 1000000})
 
     @staticmethod
-    def revoke_from_augmented_substrate(copied_substrate, vnr):
+    def revoke_from_augmented_substrate(copied_substrate, vnr, substrate_nodes):
         for v_node_id, v_node_data in vnr.net.nodes(data=True):
             # Meta node add
-            meta_node_id = v_node_id + config.SUBSTRATE_NODES
+            meta_node_id = v_node_id + substrate_nodes
             copied_substrate.net.remove_node(meta_node_id)
 
     def find_substrate_nodes(self, copied_substrate, vnr):
@@ -56,7 +62,7 @@ class DeterministicVNEAgent(BaselineVNEAgent):
         already_embedding_s_nodes = []
 
         # Generate the augmented substrate network with location info.
-        self.change_to_augmented_substrate(copied_substrate, vnr)
+        self.change_to_augmented_substrate(copied_substrate, vnr, self.substrate_nodes)
 
         opt_lp_f_vars, opt_lp_x_vars = self.calculate_LP_variables(copied_substrate, vnr)
 
@@ -74,12 +80,12 @@ class DeterministicVNEAgent(BaselineVNEAgent):
             #     subset_S_per_v_node[v_node_id],
             #     key=lambda s_node_id:
             #         sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
-            #                           (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
-            #             opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+            #                           (opt_lp_f_vars['v'] == v_node_id + self.substrate_nodes)]['solution_value'].values +
+            #             opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + self.substrate_nodes) &
             #                           (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values
             #             ) *
             #         opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
-            #                       (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values,
+            #                       (opt_lp_x_vars['v'] == v_node_id + self.substrate_nodes)]['solution_value'].values,
             #     default=None
             # )
 
@@ -87,11 +93,11 @@ class DeterministicVNEAgent(BaselineVNEAgent):
                 subset_S_per_v_node[v_node_id],
                 key=lambda s_node_id:
                 sum(opt_lp_f_vars[(opt_lp_f_vars['u'] == s_node_id) &
-                                  (opt_lp_f_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values +
-                    opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + config.SUBSTRATE_NODES) &
+                                  (opt_lp_f_vars['v'] == v_node_id + self.substrate_nodes)]['solution_value'].values +
+                    opt_lp_f_vars[(opt_lp_f_vars['u'] == v_node_id + self.substrate_nodes) &
                                   (opt_lp_f_vars['v'] == s_node_id)]['solution_value'].values) *
                     opt_lp_x_vars[(opt_lp_x_vars['u'] == s_node_id) &
-                                  (opt_lp_x_vars['v'] == v_node_id + config.SUBSTRATE_NODES)]['solution_value'].values[0],
+                                  (opt_lp_x_vars['v'] == v_node_id + self.substrate_nodes)]['solution_value'].values[0],
                 default=None
             )
 
@@ -101,18 +107,18 @@ class DeterministicVNEAgent(BaselineVNEAgent):
                     vnr.id, self.num_node_embedding_fails, v_cpu_demand, vnr
                 )
                 self.logger.info("{0} {1}".format(utils.step_prefix(self.time_step), msg))
-                self.revoke_from_augmented_substrate(copied_substrate, vnr)
+                self.revoke_from_augmented_substrate(copied_substrate, vnr, self.substrate_nodes)
                 return None
 
             assert selected_s_node_id != -1
             embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
-            if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+            if not self.allow_embedding_to_same_substrate_node:
                 already_embedding_s_nodes.append(selected_s_node_id)
 
             assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
             copied_substrate.net.nodes[selected_s_node_id]['CPU'] -= v_cpu_demand
 
-        self.revoke_from_augmented_substrate(copied_substrate, vnr)
+        self.revoke_from_augmented_substrate(copied_substrate, vnr, self.substrate_nodes)
 
         return embedding_s_nodes
 
@@ -196,7 +202,7 @@ class DeterministicVNEAgent(BaselineVNEAgent):
         for a_node_id, a_node_data in augmented_substrate.net.nodes(data=True):
             a_nodes_id.append(a_node_id)
             nodes_CPU.append(a_node_data['CPU'])
-            if a_node_id >= config.SUBSTRATE_NODES:
+            if a_node_id >= self.substrate_nodes:
                 meta_nodes_id.append(a_node_id)
                 meta_nodes_location[a_node_id] = a_node_data['LOCATION']
             else:
@@ -206,8 +212,8 @@ class DeterministicVNEAgent(BaselineVNEAgent):
         id_idx = 0
         for v_edge_src, v_edge_dst, v_edge_data in vnr.net.edges(data=True):
             v_flow_id.append(id_idx)
-            v_flow_start.append(v_edge_src + config.SUBSTRATE_NODES)
-            v_flow_end.append(v_edge_dst + config.SUBSTRATE_NODES)
+            v_flow_start.append(v_edge_src + self.substrate_nodes)
+            v_flow_end.append(v_edge_dst + self.substrate_nodes)
             v_flow_demand.append(v_edge_data['bandwidth'])
             id_idx += 1
 

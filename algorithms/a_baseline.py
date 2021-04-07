@@ -2,7 +2,7 @@ import networkx as nx
 import copy
 
 # Baseline Agent
-from common import utils, config
+from common import utils
 
 class Action:
     def __init__(self):
@@ -19,15 +19,22 @@ class Action:
 
         return action_str
 
-
+# BaselineVNEAgent(logger=logger, time_window_size=config.TIME_WINDOW_SIZE, )
 class BaselineVNEAgent:
-    def __init__(self, logger):
+    def __init__(
+            self, logger, time_window_size, agent_type, type_of_virtual_node_ranking,
+            allow_embedding_to_same_substrate_node, max_embedding_path_length
+    ):
         self.logger = logger
         self.num_node_embedding_fails = 0
         self.num_link_embedding_fails = 0
         self.time_step = 0
-        self.next_embedding_epoch = config.TIME_WINDOW_SIZE
-        self.type = config.ALGORITHMS.BASELINE
+        self.time_window_size = time_window_size
+        self.next_embedding_epoch = time_window_size
+        self.agent_type = agent_type
+        self.type_of_virtual_node_ranking = type_of_virtual_node_ranking
+        self.allow_embedding_to_same_substrate_node = allow_embedding_to_same_substrate_node
+        self.max_embedding_path_length = max_embedding_path_length
 
     def find_substrate_nodes(self, copied_substrate, vnr):
         '''
@@ -40,8 +47,9 @@ class BaselineVNEAgent:
         embedding_s_nodes = {}
         already_embedding_s_nodes = []
 
+        # self.config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
-            vnr=vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
+            vnr=vnr, type_of_node_ranking=self.type_of_virtual_node_ranking
         )
 
         for v_node_id, v_node_data, _ in sorted_v_nodes_with_node_ranking:
@@ -95,7 +103,7 @@ class BaselineVNEAgent:
             assert selected_s_node_id != -1
             embedding_s_nodes[v_node_id] = (selected_s_node_id, v_cpu_demand)
 
-            if not config.ALLOW_EMBEDDING_TO_SAME_SUBSTRATE_NODE:
+            if not self.allow_embedding_to_same_substrate_node:
                 already_embedding_s_nodes.append(selected_s_node_id)
 
             assert copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand
@@ -139,7 +147,7 @@ class BaselineVNEAgent:
                 shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
 
                 # Check the path length
-                if len(shortest_s_path) > config.MAX_EMBEDDING_PATH_LENGTH:
+                if len(shortest_s_path) > self.max_embedding_path_length:
                     self.num_link_embedding_fails += 1
                     msg = "VNR {0} REJECTED ({1}): 'no suitable LINK for bandwidth demand: {2} {3}".format(
                         vnr.id, self.num_link_embedding_fails, v_bandwidth_demand, vnr
@@ -226,7 +234,7 @@ class BaselineVNEAgent:
 
         assert len(action.vnrs_postponement) + len(action.vnrs_embedding) == len(VNRs_COLLECTED)
 
-        self.next_embedding_epoch += config.TIME_WINDOW_SIZE
+        self.next_embedding_epoch += self.time_window_size
 
         action.num_node_embedding_fails = self.num_node_embedding_fails
         action.num_link_embedding_fails = self.num_link_embedding_fails

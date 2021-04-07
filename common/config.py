@@ -21,17 +21,12 @@ if not os.path.exists(graph_save_path):
 
 if not os.path.exists(log_save_path):
     os.makedirs(log_save_path)
-else:
-    shutil.rmtree(log_save_path)
 
 if not os.path.exists(csv_save_path):
     os.makedirs(csv_save_path)
 
 if not os.path.exists(model_save_path):
     os.makedirs(model_save_path)
-
-logger = get_logger("vne", PROJECT_HOME)
-logger_a3c_gcn_train = get_logger("a3c_gcn_train", PROJECT_HOME)
 
 
 class TYPE_OF_VIRTUAL_NODE_RANKING(enum.Enum):
