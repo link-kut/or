@@ -3,7 +3,10 @@ from common import config
 from environments.vne_env import VNEEnvironment, State
 
 
-class A3CVNEEnvironment(VNEEnvironment):
+class A3C_GCN_TRAIN_VNEEnvironment(VNEEnvironment):
+    def __init__(self, logger):
+        super(A3C_GCN_TRAIN_VNEEnvironment, self).__init__(logger)
+
     def step(self, action: Action):
         self.time_step += 1
 

@@ -11,6 +11,7 @@ if PROJECT_HOME not in sys.path:
 from common.logger import get_logger
 
 graph_save_path = os.path.join(PROJECT_HOME, "out", "graphs")
+rl_train_graph_save_path = os.path.join(PROJECT_HOME, "out", "rl_train_graphs")
 log_save_path = os.path.join(PROJECT_HOME, "out", "logs")
 csv_save_path = os.path.join(PROJECT_HOME, "out", "parameters")
 model_save_path = os.path.join(PROJECT_HOME, "out", "models")

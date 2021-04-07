@@ -11,9 +11,10 @@ from torch_geometric.utils import from_networkx
 from algorithms.model.A3C import A3C_Model
 
 
-class A3CGraphCNVNEAgent(BaselineVNEAgent):
-    def __init__(self, beta, logger):
-        super(A3CGraphCNVNEAgent, self).__init__(logger)
+class A3C_GCN_VNEAgent(BaselineVNEAgent):
+    def __init__(self, local_model, beta, logger):
+        super(A3C_GCN_VNEAgent, self).__init__(logger)
+        self.local_model = local_model
         self.beta = beta
         self.initial_s_CPU = []
         self.initial_s_bandwidth = []
@@ -24,13 +25,10 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         self.type = config.ALGORITHMS.A3C_GCN
 
     # copied env for A3C
-    def get_reward(self, copied_substrate, vnr, selected_s_node_id,
-                                 num_v_node, v_cpu_demand, vnr_length_index, current_embedding):
-        reward = 0.0
-
-        r_a = 0.0
-        r_c = 0.0
-        r_s = 0.0
+    def get_reward(
+            self, copied_substrate, vnr, selected_s_node_id,
+            num_v_node, v_cpu_demand, vnr_length_index, current_embedding
+    ):
         num_embedded_v_node = vnr_length_index + 1
 
         if copied_substrate.net.nodes[selected_s_node_id]['CPU'] >= v_cpu_demand:
@@ -97,6 +95,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         S_CPU_Free: the amount of the CPU resources that are currently free on every substrate node
         S_BW_Free: the bandwdith resources that are yet to be allocated on all substrate node
         Current_Embedding: the embedding result of the current VNR
+
         V_CPU_Request: the number of virtual CPUs the current virtual node needs to fulfill its requirement
         V_BW_Request: the total bandwidth the current virtual node demands according to the current VNR
         Pending_V_Nodes: the number of unallocated virtual nodes in the current VN 
@@ -105,7 +104,6 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
         embedding_s_nodes = {}
         already_embedding_s_nodes = []
         current_embedding = [0] * len(copied_substrate.net.nodes)
-        model = A3C_Model(5, config.SUBSTRATE_NODES)
 
         sorted_v_nodes_with_node_ranking = utils.get_sorted_v_nodes_with_node_ranking(
             vnr=vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
@@ -129,7 +127,7 @@ class A3CGraphCNVNEAgent(BaselineVNEAgent):
             # state = torch.cat((substrate_features, v_CPU_request, v_BW_demand, pending_v_nodes), 0)
             # state = torch.unsqueeze(state, 0)
 
-            selected_s_node_id = model.select_node(state, data.edge_index, v_CPU_request, v_BW_demand, pending_v_nodes)
+            selected_s_node_id = self.local_model.select_node(state, data.edge_index, v_CPU_request, v_BW_demand, pending_v_nodes)
 
             self.state_action_reward_next_state[self.action_count] = {
                 'substrate_features': state,
