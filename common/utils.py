@@ -351,46 +351,6 @@ def print_env_and_agent_info(env, agent, logger):
         sys.exit(-1)
 
 
-def draw_rl_train_performance(episode_rewards, critic_losses, actor_objectives):
-    files = glob.glob(os.path.join(config.rl_train_graph_save_path, "*"))
-    for f in files:
-        os.remove(f)
-
-    plt.style.use('seaborn-dark-palette')
-
-    x_range = range(0, len(episode_rewards))
-
-    plt.subplot(311)
-    plt.plot(x_range, episode_rewards)
-    plt.ylabel("Episode Rewards")
-    plt.xlabel("Time Steps")
-    plt.title("Episode Rewards")
-    plt.grid(True)
-
-    plt.subplot(312)
-    plt.plot(x_range, critic_losses)
-    plt.ylabel("Critic Loss")
-    plt.xlabel("Time Steps")
-    plt.title("Critic Loss")
-    plt.grid(True)
-
-    plt.subplot(313)
-    plt.plot(x_range, actor_objectives)
-    plt.ylabel("Actor Objective")
-    plt.xlabel("Time Steps")
-    plt.title("Actor Objective")
-    plt.grid(True)
-
-    now = datetime.datetime.now()
-
-    new_file_path = os.path.join(
-        config.rl_train_graph_save_path, "rl_train_{0}.png".format(now.strftime("%Y_%m_%d_%H_%M"))
-    )
-    plt.savefig(new_file_path)
-
-    plt.clf()
-
-
 def draw_performance(
         agents, agent_labels, run, time_step,
         performance_revenue, performance_acceptance_ratio,

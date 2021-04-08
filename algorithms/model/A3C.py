@@ -66,10 +66,12 @@ class A3C_Model(nn.Module):
         logits, values = self.forward(substrate_features, substrate_edge_index, v_cpu_demand_t, v_bw_demand_t, num_pending_v_nodes_t)
         td = v_t - values
         c_loss = td.pow(2)
+
         probs = F.softmax(logits, dim=1)
         m = self.distribution(probs)
         exp_v = m.log_prob(action) * td.detach().squeeze()
         a_loss = -exp_v
+
         total_loss = (c_loss + a_loss).mean()
 
-        return total_loss
+        return total_loss, c_loss, -1.0 * a_loss

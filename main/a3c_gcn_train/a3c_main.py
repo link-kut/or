@@ -8,7 +8,7 @@ if PROJECT_HOME not in sys.path:
 
 from main.a3c_gcn_train.a3c_worker import Worker
 from algorithms.model.A3C import A3C_Model
-from algorithms.model.utils import SharedAdam
+from algorithms.model.utils import SharedAdam, draw_rl_train_performance
 from common import config
 
 
@@ -36,11 +36,19 @@ def main():
     for w in workers:
         w.start()
 
-    res = []  # record episode reward to plot
+    global_episode_rewards = []  # record episode reward to plot
+    critic_losses = []
+    actor_objectives = []
     while True:
-        r = message_queue.get()
-        if r is not None:
-            res.append(r)
+        message = message_queue.get()
+        if message is not None:
+            global_episode_reward, critic_loss, actor_objective = message
+            global_episode_rewards.append(global_episode_reward)
+            critic_losses.append(critic_loss)
+            actor_objectives.append(actor_objective)
+            draw_rl_train_performance(
+                global_episode_rewards, critic_losses, actor_objectives, config.rl_train_graph_save_path
+            )
         else:
             break
 
