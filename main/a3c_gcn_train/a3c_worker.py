@@ -40,6 +40,9 @@ class Worker(mp.Process):
             max_embedding_path_length=config.MAX_EMBEDDING_PATH_LENGTH
         )
 
+        self.critic_loss = 0.0
+        self.actor_objective = 0.0
+
     def run(self):
         time_step = 0
         total_step = 0
@@ -79,7 +82,7 @@ class Worker(mp.Process):
 
                 if total_step % config.UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
                     # sync
-                    self.push_and_pull(
+                    self.optimize_net(
                         self.optimizer, self.local_model, self.global_net, done,
                         buffer_substrate_feature, buffer_edge_index, buffer_v_node_capacity,
                         buffer_v_node_bandwidth, buffer_v_pending,
@@ -93,7 +96,7 @@ class Worker(mp.Process):
                         = [], [], [], [], [], [], [], [], [], []
 
                 if done:  # done and print information
-                    record(self.global_episode, self.global_episode_reward, episode_reward, self.message_queue, self.name)
+                    self.record(episode_reward)
 
                 state = next_state
                 total_step += 1
@@ -101,7 +104,7 @@ class Worker(mp.Process):
 
         self.message_queue.put(None)
 
-    def push_and_pull(self, optimizer, local_net, global_net, done, buffer_substrate_feature, buffer_edge_index,
+    def optimize_net(self, optimizer, local_net, global_net, done, buffer_substrate_feature, buffer_edge_index,
                       buffer_v_node_capacity, buffer_v_node_bandwidth, buffer_v_node_pending,
                       buffer_action, buffer_reward, buffer_next_substrate_feature, buffer_next_edge_index,
                       buffer_done, gamma, model_save_path):
@@ -128,7 +131,7 @@ class Worker(mp.Process):
             buffer_v_target.reverse()
 
             # input current_state
-            loss = local_net.loss_func(
+            loss, self.critic_loss, self.actor_objective = local_net.loss_func(
                 buffer_substrate_feature[idx], buffer_edge_index[idx],
                 buffer_v_node_capacity[idx], buffer_v_node_bandwidth[idx], buffer_v_node_pending[idx],
                 self.v_wrap(
@@ -153,6 +156,19 @@ class Worker(mp.Process):
             new_model_path = os.path.join(model_save_path, "A3C_model.pth")
             torch.save(global_net.state_dict(), new_model_path)
 
+    def record(self, episode_reward):
+        with self.global_episode.get_lock():
+            self.global_episode.value += 1
+
+        with self.global_episode_reward.get_lock():
+            if self.global_episode_reward.value == 0.:
+                self.global_episode_reward.value = episode_reward
+            else:
+                self.global_episode_reward.value = self.global_episode_reward.value * 0.9 + episode_reward * 0.1
+
+        self.message_queue.put((self.global_episode_reward.value, self.critic_loss, self.actor_objective))
+
+        print(self.name, "Ep:", self.global_episode.value, "| Ep_r: %.0f" % self.global_episode_reward.value)
 
     @staticmethod
     def v_wrap(np_array, dtype=np.float32):

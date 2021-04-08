@@ -19,6 +19,9 @@ model_save_path = os.path.join(PROJECT_HOME, "out", "models")
 if not os.path.exists(graph_save_path):
     os.makedirs(graph_save_path)
 
+if not os.path.exists(rl_train_graph_save_path):
+    os.makedirs(rl_train_graph_save_path)
+
 if not os.path.exists(log_save_path):
     os.makedirs(log_save_path)
 
