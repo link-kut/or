@@ -61,7 +61,8 @@ class Worker(mp.Process):
 
                 action = self.agent.get_node_action(state)
                 next_state, reward, done, info = self.env.step(action)
-                print("!!!!!!", action.s_node)
+                print("name: ", self.name, "action: ", action.s_node)
+                print("name: ", self.name, "done: ", done)
 
                 episode_reward += reward
 
