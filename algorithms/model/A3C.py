@@ -61,9 +61,9 @@ class A3C_Model(nn.Module):
 
         return m.sample().numpy()[0]
 
-    def loss_func(self, substrate_features, substrate_edge_index, v_cpu_demand_t, v_bw_demand_t, num_pending_v_nodes_t, action, v_t):
+    def loss_func(self, substrate_features, substrate_edge_index, vnr_features, action, v_t):
         self.train()
-        logits, values = self.forward(substrate_features, substrate_edge_index, v_cpu_demand_t, v_bw_demand_t, num_pending_v_nodes_t)
+        logits, values = self.forward(substrate_features, substrate_edge_index, vnr_features)
         td = v_t - values
         c_loss = td.pow(2)
 

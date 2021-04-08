@@ -122,6 +122,8 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
             self.current_embedding[action.s_node] == 1
         ]
 
+        sum_v_bandwidth_demand = 0.0  # for r_c calculation
+        sum_s_bandwidth_embedded = 0.0  # for r_c calculation
         if any(node_embedding_fail_conditions):
             embedding_success = False
         else:
@@ -130,8 +132,6 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
             self.embedding_s_nodes[action.v_node] = action.s_node
 
             # Start to try link embedding
-            sum_v_bandwidth_demand = 0.0 # for r_c calculation
-            sum_s_bandwidth_embedded = 0.0 # for r_c calculation
             for already_embedded_v_node in self.already_embedded_v_nodes:
                 if self.vnr.net.has_edge(action.v_node, already_embedded_v_node):
                     v_bandwidth_demand = self.vnr.net[action.v_node][already_embedded_v_node]['bandwidth']

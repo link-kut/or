@@ -4,7 +4,6 @@ import torch
 import torch.multiprocessing as mp
 
 from algorithms.g_a3c_gcn_vine import A3C_GCN_VNEAgent
-from algorithms.model.utils import record
 from algorithms.model.A3C import A3C_Model
 from common.logger import get_logger
 from main.a3c_gcn_train.vne_env_a3c_train import A3C_GCN_TRAIN_VNEEnvironment
@@ -50,11 +49,10 @@ class Worker(mp.Process):
             state = self.env.reset()
             done = False
 
-            buffer_substrate_feature, buffer_edge_index, buffer_v_node_capacity, \
-            buffer_v_node_bandwidth, buffer_v_pending, buffer_action, buffer_reward, \
-            buffer_next_substrate_feature, buffer_next_edge_index, buffer_next_v_node_capacity, \
-            buffer_next_v_node_bandwidth, buffer_next_v_pending, \
-                = [], [], [], [], [], [], [], [], [], [], [], []
+            buffer_substrate_feature, buffer_edge_index, buffer_vnr_feature, \
+            buffer_action, buffer_reward, \
+            buffer_next_substrate_feature, buffer_next_edge_index, buffer_next_vnr_feature, \
+                = [], [], [], [], [], [], [], []
 
             episode_reward = 0.0
             
@@ -63,40 +61,35 @@ class Worker(mp.Process):
 
                 action = self.agent.get_node_action(state)
                 next_state, reward, done, info = self.env.step(action)
+                print("!!!!!!", action.s_node)
 
                 episode_reward += reward
 
                 buffer_substrate_feature.append(state.substrate_features)
                 buffer_edge_index.append(state.substrate_edge_index)
 
-                buffer_v_node_capacity.append(state.vnr_features[0][0])
-                buffer_v_node_bandwidth.append(state.vnr_features[0][1])
-                buffer_v_pending.append(state.vnr_features[0][2])
+                buffer_vnr_feature.append(state.vnr_features)
 
-                buffer_action.append(action)
+                buffer_action.append(action.s_node)
                 buffer_reward.append(reward)
 
                 buffer_next_substrate_feature.append(next_state.substrate_features)
                 buffer_next_edge_index.append(next_state.substrate_edge_index)
-                buffer_next_v_node_capacity.append(next_state.vnr_features[0][0])
-                buffer_next_v_node_bandwidth.append(next_state.vnr_features[0][1])
-                buffer_next_v_pending.append(next_state.vnr_features[0][2])
+                buffer_next_vnr_feature.append(next_state.vnr_features)
 
                 if total_step % config.UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
                     # sync
                     self.optimize_net(
                         self.optimizer, self.local_model, self.global_net, done,
-                        buffer_substrate_feature, buffer_edge_index, buffer_v_node_capacity,
-                        buffer_v_node_bandwidth, buffer_v_pending,
-                        buffer_action, buffer_reward, buffer_next_substrate_feature, buffer_next_edge_index,
-                        buffer_next_v_node_capacity, buffer_next_v_node_bandwidth, buffer_next_v_pending,
-                        config.GAMMA, config.model_save_path
+                        next_state.substrate_features, next_state.substrate_edge_index, next_state.vnr_features,
+                        buffer_substrate_feature, buffer_edge_index, buffer_vnr_feature,
+                        buffer_action, buffer_reward, config.GAMMA, config.model_save_path
                     )
 
-                    buffer_substrate_feature, buffer_edge_index, buffer_v_node_capacity, \
-                    buffer_v_node_bandwidth, buffer_v_pending, buffer_action, buffer_reward, \
-                    buffer_next_substrate_feature, buffer_next_edge_index, buffer_done \
-                        = [], [], [], [], [], [], [], [], [], []
+                    buffer_substrate_feature, buffer_edge_index, buffer_vnr_feature, \
+                    buffer_action, buffer_reward, \
+                    buffer_next_substrate_feature, buffer_next_edge_index, buffer_next_vnr_feature, \
+                        = [], [], [], [], [], [], [], []
 
                 if done:  # done and print information
                     self.record(episode_reward)
@@ -107,38 +100,36 @@ class Worker(mp.Process):
 
         self.message_queue.put(None)
 
-    def optimize_net(self, optimizer, local_net, global_net, done, buffer_substrate_feature, buffer_edge_index,
-                      buffer_v_node_capacity, buffer_v_node_bandwidth, buffer_v_node_pending,
-                      buffer_action, buffer_reward, buffer_next_substrate_feature, buffer_next_edge_index,
-                      buffer_next_v_node_capacity, buffer_next_v_node_bandwidth, buffer_next_v_pending,
+    def optimize_net(self, optimizer, local_net, global_net, done,
+                      next_substrate_feature, next_edge_index, next_vnr_feature,
+                      buffer_substrate_feature, buffer_edge_index,
+                      buffer_vnr_feature, buffer_action, buffer_reward,
                       gamma, model_save_path):
+
         if done:
             v_s_ = 0.  # terminal
         else:
             v_s_ = local_net.forward(
-                buffer_next_substrate_feature,
-                buffer_next_edge_index,
-                buffer_next_v_node_capacity,
-                buffer_next_v_node_bandwidth,
-                buffer_next_v_pending)[-1].data.numpy()[0, 0]  # input next_state
+                next_substrate_feature,
+                next_edge_index,
+                next_vnr_feature
+            )[-1].data.numpy()[0, 0]  # input next_state
 
-        # print(v_s_)
         buffer_v_target = []
-        # for r in buffer_reward[::-1]:    # reverse buffer r
-        #     v_s_ = r + gamma * v_s_
-        #     buffer_v_target.append(v_s_)
-        v_s_ = buffer_reward[idx] + gamma * v_s_
-        buffer_v_target.append(v_s_)
+        for r in buffer_reward[::-1]:    # reverse buffer r
+            v_s_ = r + gamma * v_s_
+            buffer_v_target.append(v_s_)
         buffer_v_target.reverse()
 
         # input current_state
-        loss = local_net.loss_func(
-            buffer_substrate_feature[idx], buffer_edge_index[idx],
-            buffer_v_node_capacity[idx], buffer_v_node_bandwidth[idx], buffer_v_node_pending[idx],
+        loss, _, _ = local_net.loss_func(
+            self.v_wrap(np.vstack(buffer_substrate_feature)), self.v_wrap(np.vstack(buffer_edge_index), dtype=np.int64),
+            self.v_wrap(np.vstack(buffer_vnr_feature)),
             self.v_wrap(
-                np.array(buffer_action[idx]), dtype=np.int64
+                np.array(buffer_action), dtype=np.int64
             ) if buffer_action[0].dtype == np.int64 else self.v_wrap(
-                np.vstack(buffer_action[0])), v_s_
+                np.vstack(buffer_action)),
+            self.v_wrap(np.array(buffer_v_target)[:, None])
         )
 
         # print("loss: ", loss)
