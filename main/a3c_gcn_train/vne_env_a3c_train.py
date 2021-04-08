@@ -114,7 +114,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
     def step(self, action: A3C_GCN_Action):
         self.time_step += 1
 
-        is_action_failed = False
+        embedding_success = True
         v_cpu_demand = None
 
         node_embedding_fail_conditions = [
@@ -123,63 +123,69 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         ]
 
         if any(node_embedding_fail_conditions):
-            is_action_failed = True
+            embedding_success = False
         else:
+            # Success for node embedding
             v_cpu_demand = self.vnr.net.nodes[action.v_node]['CPU']
             self.embedding_s_nodes[action.v_node] = action.s_node
 
-        sum_v_bandwidth_demand = 0.0 # for r_c calculation
-        sum_s_bandwidth_embedded = 0.0 # for r_c calculation
-        for already_embedded_v_node in self.already_embedded_v_nodes:
-            if self.vnr.net.has_edge(action.v_node, already_embedded_v_node):
-                v_bandwidth_demand = self.vnr.net[action.v_node][already_embedded_v_node]['bandwidth']
+            # Start to try link embedding
+            sum_v_bandwidth_demand = 0.0 # for r_c calculation
+            sum_s_bandwidth_embedded = 0.0 # for r_c calculation
+            for already_embedded_v_node in self.already_embedded_v_nodes:
+                if self.vnr.net.has_edge(action.v_node, already_embedded_v_node):
+                    v_bandwidth_demand = self.vnr.net[action.v_node][already_embedded_v_node]['bandwidth']
 
-                sum_v_bandwidth_demand += v_bandwidth_demand
+                    sum_v_bandwidth_demand += v_bandwidth_demand
 
-                subnet = nx.subgraph_view(
-                    self.substrate.net,
-                    filter_edge=lambda node_1_id, node_2_id: \
-                        True if self.substrate.net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
-                )
+                    subnet = nx.subgraph_view(
+                        self.substrate.net,
+                        filter_edge=lambda node_1_id, node_2_id: \
+                            True if self.substrate.net.edges[(node_1_id, node_2_id)]['bandwidth'] >= v_bandwidth_demand else False
+                    )
 
-                src_s_node = self.embedding_s_nodes[already_embedded_v_node]
-                dst_s_node = self.embedding_s_nodes[action.v_node]
-                if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
-                    is_action_failed = True
-                    del self.embedding_s_nodes[action.v_node]
-                else:
-                    MAX_K = 1
-                    shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
-                    if len(shortest_s_path) > config.MAX_EMBEDDING_PATH_LENGTH:
-                        is_action_failed = True
+                    src_s_node = self.embedding_s_nodes[already_embedded_v_node]
+                    dst_s_node = self.embedding_s_nodes[action.v_node]
+                    if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
+                        embedding_success = False
+                        del self.embedding_s_nodes[action.v_node]
+                        break
                     else:
-                        # SUCCESS --> EMBED VIRTUAL LINK!
-                        s_links_in_path = []
-                        for node_idx in range(len(shortest_s_path) - 1):
-                            s_links_in_path.append((shortest_s_path[node_idx], shortest_s_path[node_idx + 1]))
+                        MAX_K = 1
+                        shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
+                        if len(shortest_s_path) > config.MAX_EMBEDDING_PATH_LENGTH:
+                            embedding_success = False
+                            break
+                        else:
+                            # SUCCESS --> EMBED VIRTUAL LINK!
+                            s_links_in_path = []
+                            for node_idx in range(len(shortest_s_path) - 1):
+                                s_links_in_path.append((shortest_s_path[node_idx], shortest_s_path[node_idx + 1]))
 
-                        for s_link in s_links_in_path:
-                            assert self.substrate.net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
-                            self.substrate.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
-                            sum_s_bandwidth_embedded += v_bandwidth_demand
+                            for s_link in s_links_in_path:
+                                assert self.substrate.net.edges[s_link]['bandwidth'] >= v_bandwidth_demand
+                                self.substrate.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
+                                sum_s_bandwidth_embedded += v_bandwidth_demand
 
-        if is_action_failed:
-            del self.embedding_s_nodes[action.v_node]
-        else:
-            # SUCCESS --> EMBED VIRTUAL NODE!
+        if embedding_success:
+            # ALL SUCCESS --> EMBED VIRTUAL NODE!
             assert self.substrate.net.nodes[action.s_node]['CPU'] >= v_cpu_demand
             self.substrate.net.nodes[action.s_node]['CPU'] -= v_cpu_demand
             self.current_embedding[action.s_node] = 1
+        else:
+            if action.v_node in self.embedding_s_nodes:
+                del self.embedding_s_nodes[action.v_node]
+
 
         # 이 지점에서 self.num_processed_v_nodes += 1 매우 중요: 이후 next_state 및 reward 계산에 영향을 줌
         self.num_processed_v_nodes += 1
 
         reward = self.get_reward(
-            is_action_failed, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action
+            embedding_success, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action
         )
 
         done = False
-        if is_action_failed or self.num_processed_v_nodes == len(self.vnr.net.nodes):
+        if not embedding_success or self.num_processed_v_nodes == len(self.vnr.net.nodes):
             done = True
 
         self.current_v_node, current_v_node_data, _ = self.sorted_v_nodes[self.num_processed_v_nodes]
@@ -241,23 +247,28 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
 
         return substrate_features, substrate_geometric_data.edge_index, vnr_features
 
-    def get_reward(self, is_action_failed, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action):
+    def get_reward(self, embedding_success, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action):
         # calculate r_a
         gamma_action = self.num_processed_v_nodes / len(self.vnr.net.nodes)
-
-        r_a = -100 * gamma_action if is_action_failed else 100 * gamma_action
+        r_a = -100 * gamma_action if embedding_success else 100 * gamma_action
 
         # calculate r_c
-        step_revenue = v_cpu_demand + sum_v_bandwidth_demand
-        step_cost = v_cpu_demand + sum_s_bandwidth_embedded
-        delta_revenue = step_revenue - self.previous_step_revenue
-        delta_cost = step_cost - self.previous_step_cost
-        r_c = delta_revenue / delta_cost
-        self.previous_step_revenue = step_revenue
-        self.previous_step_cost = step_cost
+        if embedding_success:
+            step_revenue = v_cpu_demand + sum_v_bandwidth_demand
+            step_cost = v_cpu_demand + sum_s_bandwidth_embedded
+            delta_revenue = step_revenue - self.previous_step_revenue
+            delta_cost = step_cost - self.previous_step_cost
+            r_c = delta_revenue / delta_cost
+            self.previous_step_revenue = step_revenue
+            self.previous_step_cost = step_cost
+        else:
+            r_c = 1.0
 
         # calculate r_s
-        r_s = self.substrate.net.nodes[action.s_node]['CPU'] / self.substrate.initial_s_cpu_capacity[action.s_node]
+        if embedding_success:
+            r_s = self.substrate.net.nodes[action.s_node]['CPU'] / self.substrate.initial_s_cpu_capacity[action.s_node]
+        else:
+            r_s = 1.0
 
         # calculate eligibility trace
         for s_node in self.substrate.net.nodes:
