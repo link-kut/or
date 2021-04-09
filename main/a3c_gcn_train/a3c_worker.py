@@ -55,7 +55,6 @@ class Worker(mp.Process):
                 = [], [], [], [], [], [], [], []
 
             episode_reward = 0.0
-            
             while not done:
                 time_step += 1
 
@@ -154,6 +153,15 @@ class Worker(mp.Process):
                 self.global_episode_reward.value = episode_reward
             else:
                 self.global_episode_reward.value = self.global_episode_reward.value * 0.9 + episode_reward * 0.1
+
+        print("*** [EPISODE {0:>5d}:{1}] Episode Reward: {2:7.4f}, "
+              "Last Critic Loss: {3:8.4f}, Last Actor Objective: {4:10.7f}".format(
+            self.global_episode.value,
+            self.name,
+            self.global_episode_reward.value,
+            self.critic_loss,
+            self.actor_objective
+        ))
 
         self.message_queue.put((self.global_episode_reward.value, self.critic_loss, self.actor_objective))
 

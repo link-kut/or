@@ -46,21 +46,15 @@ def main():
             global_episode_rewards.append(global_episode_reward_from_worker)
             critic_losses.append(critic_loss)
             actor_objectives.append(actor_objective)
-
-            print("*** [EPISODE {0:>5d}] Episode Reward: {1:7.4f}, "
-                  "Last Critic Loss: {2:8.4f} Last Actor Objective: {3:9.6f}".format(
-                    global_episode.value, global_episode_reward_from_worker, critic_loss, actor_objective
-            ))
-
-            draw_rl_train_performance(
-                global_episode_rewards, critic_losses, actor_objectives, config.rl_train_graph_save_path
-            )
         else:
             break
 
     for w in workers:
         w.join()
 
+    draw_rl_train_performance(
+        global_episode_rewards[::10], critic_losses[::10], actor_objectives[::10], config.rl_train_graph_save_path
+    )
 
 if __name__ == "__main__":
     main()
