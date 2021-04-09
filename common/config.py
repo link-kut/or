@@ -96,9 +96,9 @@ FIGURE_START_TIME_STEP = int(GLOBAL_MAX_STEPS * 0.02)
 # FOR A3C ALGORITHM
 UPDATE_GLOBAL_ITER = 1
 GAMMA = 0.9
-MAX_EPISODES = 3000
+MAX_EPISODES = 20000
 NUM_SUBSTRATE_FEATURES = 5
-NUM_WORKERS = 2
+NUM_WORKERS = 5
 
 config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))

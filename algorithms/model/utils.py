@@ -77,11 +77,31 @@ def push_and_pull(optimizer, local_net, global_net, done, buffer_substrate_featu
         torch.save(global_net.state_dict(), new_model_path)
 
 
-def load_model(self, model_save_path, model):
+def load_model(model_save_path, model):
     saved_models = glob.glob(os.path.join(model_save_path, "A3C_*.pth"))
     model_params = torch.load(saved_models)
 
     model.load_state_dict(model_params)
+
+def get_gradients_for_current_parameters(global_net):
+    gradients = {}
+
+    for layer_name, layer in global_net.layers_info.items():
+        named_parameters = layer.to(torch.device).named_parameters()
+        gradients[layer_name] = {}
+        for name, param in named_parameters:
+            gradients[layer_name][name] = param.grad
+
+    return gradients
+
+def check_gradient_nan_or_zero(gradients):
+    for layer_name, layer in gradients.items():
+        for name, gradients in layer.items():
+            if torch.unique(gradients).shape[0] == 1 and torch.sum(gradients).item() == 0.0:
+                print(layer_name, name, "zero gradients")
+            if torch.isnan(gradients).any():
+                print(layer_name, name, "nan gradients")
+                raise ValueError()
 
 
 def draw_rl_train_performance(

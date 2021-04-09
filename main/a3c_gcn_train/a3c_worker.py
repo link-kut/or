@@ -7,6 +7,7 @@ from algorithms.g_a3c_gcn_vine import A3C_GCN_VNEAgent
 from algorithms.model.A3C import A3C_Model
 from common.logger import get_logger
 from main.a3c_gcn_train.vne_env_a3c_train import A3C_GCN_TRAIN_VNEEnvironment
+from algorithms.model.utils import check_gradient_nan_or_zero, get_gradients_for_current_parameters
 from common import config
 
 
@@ -140,6 +141,8 @@ class Worker(mp.Process):
         loss.backward()
         for lp, gp in zip(local_net.parameters(), global_net.parameters()):
             gp._grad = lp.grad
+            gradients = get_gradients_for_current_parameters(global_net)
+            check_gradient_nan_or_zero(gradients)
         optimizer.step()
 
         # pull global parameters
