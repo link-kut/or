@@ -53,8 +53,14 @@ def main():
         w.join()
 
     draw_rl_train_performance(
-        global_episode_rewards[::10], critic_losses[::10], actor_objectives[::10], config.rl_train_graph_save_path
+        config.MAX_EPISODES,
+        global_episode_rewards,
+        critic_losses,
+        actor_objectives,
+        config.rl_train_graph_save_path,
+        period=10
     )
+
 
 if __name__ == "__main__":
     main()

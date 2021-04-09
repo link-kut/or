@@ -84,35 +84,35 @@ def load_model(self, model_save_path, model):
     model.load_state_dict(model_params)
 
 
-def draw_rl_train_performance(episode_rewards, critic_losses, actor_objectives, rl_train_graph_save_path):
+def draw_rl_train_performance(
+        max_episodes, episode_rewards, critic_losses, actor_objectives, rl_train_graph_save_path, period
+):
     files = glob.glob(os.path.join(rl_train_graph_save_path, "*"))
     for f in files:
         os.remove(f)
 
+    plt.figure(figsize=(48, 12))
     plt.style.use('seaborn-dark-palette')
+    plt.rcParams['figure.constrained_layout.use'] = True
 
-    x_range = range(0, len(episode_rewards))
+    fig, axes = plt.subplots(nrows=3, ncols=1)
 
-    plt.subplot(311)
-    plt.plot(x_range, episode_rewards)
-    plt.ylabel("Episode Rewards")
-    plt.xlabel("Time Steps")
-    plt.title("Episode Rewards")
-    plt.grid(True)
+    x_range = range(0, max_episodes, period)
 
-    plt.subplot(312)
-    plt.plot(x_range, critic_losses)
-    plt.ylabel("Critic Loss")
-    plt.xlabel("Time Steps")
-    plt.title("Critic Loss")
-    plt.grid(True)
+    axes[0].plot(x_range, episode_rewards[0:max_episodes:period])
+    axes[0].set_xlabel("Episodes")
+    axes[0].set_title("Episode Rewards")
+    axes[0].grid(True)
 
-    plt.subplot(313)
-    plt.plot(x_range, actor_objectives)
-    plt.ylabel("Actor Objective")
-    plt.xlabel("Time Steps")
-    plt.title("Actor Objective")
-    plt.grid(True)
+    axes[1].plot(x_range, critic_losses[0:max_episodes:period])
+    axes[1].set_xlabel("Episodes")
+    axes[1].set_title("Critic Loss")
+    axes[1].grid(True)
+
+    axes[2].plot(x_range, actor_objectives[0:max_episodes:period])
+    axes[2].set_xlabel("Episodes")
+    axes[2].set_title("Actor Objective")
+    axes[2].grid(True)
 
     now = datetime.datetime.now()
 
@@ -122,6 +122,7 @@ def draw_rl_train_performance(episode_rewards, critic_losses, actor_objectives, 
     plt.savefig(new_file_path)
 
     plt.clf()
+
 
 class SharedAdam(torch.optim.Adam):
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.99), eps=1e-8, weight_decay=0):
