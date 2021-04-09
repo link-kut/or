@@ -141,8 +141,8 @@ class Worker(mp.Process):
         loss.backward()
         for lp, gp in zip(local_net.parameters(), global_net.parameters()):
             gp._grad = lp.grad
-            gradients = get_gradients_for_current_parameters(global_net)
-            check_gradient_nan_or_zero(gradients)
+            # gradients = get_gradients_for_current_parameters(global_net)
+            # check_gradient_nan_or_zero(gradients)
         optimizer.step()
 
         # pull global parameters
