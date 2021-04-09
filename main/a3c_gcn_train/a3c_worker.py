@@ -61,8 +61,8 @@ class Worker(mp.Process):
 
                 action = self.agent.get_node_action(state)
                 next_state, reward, done, info = self.env.step(action)
-                print("name: ", self.name, "action: ", action.s_node)
-                print("name: ", self.name, "done: ", done)
+                # msg = f"[{self.name}:STEP {time_step}:EPISODE {self.global_episode.value}] Action: {action.s_node}, Done: {done}"
+                # print(msg)
 
                 episode_reward += reward
 
@@ -123,7 +123,7 @@ class Worker(mp.Process):
         buffer_v_target.reverse()
 
         # input current_state
-        loss, _, _ = local_net.loss_func(
+        loss, self.critic_loss, self.actor_objective = local_net.loss_func(
             self.v_wrap(np.vstack(buffer_substrate_feature)), self.v_wrap(np.vstack(buffer_edge_index), dtype=np.int64),
             self.v_wrap(np.vstack(buffer_vnr_feature)),
             self.v_wrap(
@@ -148,11 +148,7 @@ class Worker(mp.Process):
         new_model_path = os.path.join(model_save_path, "A3C_model.pth")
         torch.save(global_net.state_dict(), new_model_path)
 
-
     def record(self, episode_reward):
-        with self.global_episode.get_lock():
-            self.global_episode.value += 1
-
         with self.global_episode_reward.get_lock():
             if self.global_episode_reward.value == 0.:
                 self.global_episode_reward.value = episode_reward
@@ -161,7 +157,8 @@ class Worker(mp.Process):
 
         self.message_queue.put((self.global_episode_reward.value, self.critic_loss, self.actor_objective))
 
-        print(self.name, "Ep:", self.global_episode.value, "| Ep_r: %.0f" % self.global_episode_reward.value)
+        with self.global_episode.get_lock():
+            self.global_episode.value += 1
 
     @staticmethod
     def v_wrap(np_array, dtype=np.float32):

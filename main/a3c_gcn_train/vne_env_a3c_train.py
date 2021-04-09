@@ -258,7 +258,10 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
             step_cost = v_cpu_demand + sum_s_bandwidth_embedded
             delta_revenue = step_revenue - self.previous_step_revenue
             delta_cost = step_cost - self.previous_step_cost
-            r_c = delta_revenue / delta_cost
+            if delta_cost == 0.0:
+                r_c = 1.0
+            else:
+                r_c = delta_revenue / delta_cost
             self.previous_step_revenue = step_revenue
             self.previous_step_cost = step_cost
         else:
