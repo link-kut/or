@@ -123,7 +123,8 @@ class Worker(mp.Process):
 
         # input current_state
         loss, self.critic_loss, self.actor_objective = local_net.loss_func(
-            self.v_wrap(np.vstack(buffer_substrate_feature)), self.v_wrap(np.vstack(buffer_edge_index), dtype=np.int64),
+            self.v_wrap(np.vstack(buffer_substrate_feature)),
+            self.v_wrap(np.vstack(buffer_edge_index), dtype=np.int64),
             self.v_wrap(np.vstack(buffer_vnr_feature)),
             self.v_wrap(
                 np.array(buffer_action), dtype=np.int64
