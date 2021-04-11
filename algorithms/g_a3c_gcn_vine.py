@@ -3,6 +3,7 @@ import torch_geometric
 
 from algorithms.a_baseline import BaselineVNEAgent
 from algorithms.model.A3C import A3C_Model
+from algorithms.model.MLP import MLP_Model
 from common import utils, config
 
 import torch
@@ -31,8 +32,11 @@ class A3C_GCN_VNEAgent(BaselineVNEAgent):
         self.a3c_gcn_agent = A3C_Model(
             chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
         )
-        self.new_model_path = os.path.join(model_save_path, "A3C_model.pth")
-        self.a3c_gcn_agent.load_state_dict(torch.load(self.new_model_path))
+        # self.a3c_gcn_agent = MLP_Model(
+        #     chev_conv_state_dim=5, action_dim=config.SUBSTRATE_NODES
+        # )
+        # self.new_model_path = os.path.join(model_save_path, "A3C_model.pth")
+        # self.a3c_gcn_agent.load_state_dict(torch.load(self.new_model_path))
 
 
     def get_node_action(self, state):

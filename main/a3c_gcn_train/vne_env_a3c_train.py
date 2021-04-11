@@ -250,7 +250,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
     def get_reward(self, embedding_success, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action):
         # calculate r_a
         gamma_action = self.num_processed_v_nodes / len(self.vnr.net.nodes)
-        r_a = -100 * gamma_action if embedding_success else 100 * gamma_action
+        r_a = 100 * gamma_action if embedding_success else -100 * gamma_action
 
         # calculate r_c
         if embedding_success:
