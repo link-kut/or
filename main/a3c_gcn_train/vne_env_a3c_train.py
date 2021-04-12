@@ -1,3 +1,5 @@
+import copy
+
 import gym
 import networkx as nx
 import torch
@@ -57,6 +59,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.total_embedded_vnrs = 0
 
         self.substrate = Substrate()
+        self.copied_substrate = copy.deepcopy(self.substrate)
         self.vnr = None
         self.already_embedded_v_nodes = []
         self.embedding_s_nodes = None
@@ -82,12 +85,14 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.rc_ratio = 0.0
         self.link_embedding_fails_against_total_fails_ratio = 0.0
 
+        self.substrate = copy.deepcopy(self.copied_substrate)
         self.vnr = VNR(
             id=0,
             vnr_duration_mean_rate=config.VNR_DURATION_MEAN_RATE,
             delay=config.VNR_DELAY,
             time_step_arrival=0
         )
+        self.already_embedded_v_nodes = []
 
         self.embedding_s_nodes = {}
         self.num_processed_v_nodes = 0
@@ -124,6 +129,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
 
         sum_v_bandwidth_demand = 0.0  # for r_c calculation
         sum_s_bandwidth_embedded = 0.0  # for r_c calculation
+
         if any(node_embedding_fail_conditions):
             embedding_success = False
         else:
@@ -172,6 +178,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
             assert self.substrate.net.nodes[action.s_node]['CPU'] >= v_cpu_demand
             self.substrate.net.nodes[action.s_node]['CPU'] -= v_cpu_demand
             self.current_embedding[action.s_node] = 1
+            self.already_embedded_v_nodes.append(action.v_node)
         else:
             if action.v_node in self.embedding_s_nodes:
                 del self.embedding_s_nodes[action.v_node]
