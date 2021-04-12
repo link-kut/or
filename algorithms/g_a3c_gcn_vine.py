@@ -33,7 +33,7 @@ class A3C_GCN_VNEAgent(BaselineVNEAgent):
             chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
         )
         # self.a3c_gcn_agent = MLP_Model(
-        #     chev_conv_state_dim=5, action_dim=config.SUBSTRATE_NODES
+        #     chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
         # )
         # self.new_model_path = os.path.join(model_save_path, "A3C_model.pth")
         # self.a3c_gcn_agent.load_state_dict(torch.load(self.new_model_path))
@@ -84,7 +84,7 @@ class A3C_GCN_VNEAgent(BaselineVNEAgent):
 
         # GCN for Feature Extract
         substrate_geometric_data = torch_geometric.utils.from_networkx(copied_substrate.net)
-        #
+
         vnr_features = []
         vnr_features.append(current_v_cpu_demand)
         vnr_features.append(sum((vnr.net[current_v_node][link_id]['bandwidth'] for link_id in vnr.net[current_v_node])))
