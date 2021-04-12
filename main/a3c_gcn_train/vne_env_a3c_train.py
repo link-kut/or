@@ -185,16 +185,18 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         )
 
         done = False
-        if not embedding_success or self.num_processed_v_nodes == len(self.vnr.net.nodes):
+        if self.num_processed_v_nodes == len(self.vnr.net.nodes):
             done = True
+            next_state = None
 
-        self.current_v_node, current_v_node_data, _ = self.sorted_v_nodes[self.num_processed_v_nodes]
-        self.current_v_cpu_demand = current_v_node_data['CPU']
+        else:
+            self.current_v_node, current_v_node_data, _ = self.sorted_v_nodes[self.num_processed_v_nodes]
+            self.current_v_cpu_demand = current_v_node_data['CPU']
 
-        substrate_features, substrate_edge_index, vnr_features = self.get_state_information(
-            self.current_v_node, self.current_v_cpu_demand
-        )
-        next_state = A3C_GCN_State(substrate_features, substrate_edge_index, self.current_v_node, vnr_features)
+            substrate_features, substrate_edge_index, vnr_features = self.get_state_information(
+                self.current_v_node, self.current_v_cpu_demand
+            )
+            next_state = A3C_GCN_State(substrate_features, substrate_edge_index, self.current_v_node, vnr_features)
 
         info = {}
 

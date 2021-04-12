@@ -60,6 +60,7 @@ class Worker(mp.Process):
                 time_step += 1
 
                 action = self.agent.get_node_action(state)
+                print(action)
                 next_state, reward, done, info = self.env.step(action)
                 # msg = f"[{self.name}:STEP {time_step}:EPISODE {self.global_episode.value}] Action: {action.s_node}, Done: {done}"
                 # print(msg)
