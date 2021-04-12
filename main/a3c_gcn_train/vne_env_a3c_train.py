@@ -187,7 +187,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         done = False
         if self.num_processed_v_nodes == len(self.vnr.net.nodes):
             done = True
-            next_state = None
+            next_state = A3C_GCN_State(None, None, None, None)
 
         else:
             self.current_v_node, current_v_node_data, _ = self.sorted_v_nodes[self.num_processed_v_nodes]

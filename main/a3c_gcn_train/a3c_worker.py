@@ -52,15 +52,13 @@ class Worker(mp.Process):
 
             buffer_substrate_feature, buffer_edge_index, buffer_vnr_feature, \
             buffer_action, buffer_reward, \
-            buffer_next_substrate_feature, buffer_next_edge_index, buffer_next_vnr_feature, \
-                = [], [], [], [], [], [], [], []
+                = [], [], [], [], []
 
             episode_reward = 0.0
             while not done:
                 time_step += 1
 
                 action = self.agent.get_node_action(state)
-                print(action)
                 next_state, reward, done, info = self.env.step(action)
                 # msg = f"[{self.name}:STEP {time_step}:EPISODE {self.global_episode.value}] Action: {action.s_node}, Done: {done}"
                 # print(msg)
@@ -75,10 +73,6 @@ class Worker(mp.Process):
                 buffer_action.append(action.s_node)
                 buffer_reward.append(reward)
 
-                buffer_next_substrate_feature.append(next_state.substrate_features)
-                buffer_next_edge_index.append(next_state.substrate_edge_index)
-                buffer_next_vnr_feature.append(next_state.vnr_features)
-
                 if total_step % config.UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
                     # sync
                     self.optimize_net(
@@ -90,8 +84,7 @@ class Worker(mp.Process):
 
                     buffer_substrate_feature, buffer_edge_index, buffer_vnr_feature, \
                     buffer_action, buffer_reward, \
-                    buffer_next_substrate_feature, buffer_next_edge_index, buffer_next_vnr_feature, \
-                        = [], [], [], [], [], [], [], []
+                        = [], [], [], [], []
 
                 if done:  # done and print information
                     self.record(episode_reward)
