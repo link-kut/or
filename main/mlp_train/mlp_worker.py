@@ -4,7 +4,7 @@ import torch
 import torch.multiprocessing as mp
 
 from algorithms.g_a3c_gcn_vine import A3C_GCN_VNEAgent
-from algorithms.model.A3C import A3C_Model
+from algorithms.model.MLP import MLP_Model
 from common.logger import get_logger
 from main.a3c_gcn_train.vne_env_a3c_train import A3C_GCN_TRAIN_VNEEnvironment
 from algorithms.model.utils import check_gradient_nan_or_zero, get_gradients_for_current_parameters
@@ -22,8 +22,8 @@ class Worker(mp.Process):
         self.global_episode_reward = global_episode_reward
         self.message_queue = message_queue
 
-        self.local_model = A3C_Model(
-            chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
+        self.local_model = MLP_Model(
+            chev_conv_state_dim=5, action_dim=config.SUBSTRATE_NODES
         )
 
         logger_a3c_gcn_train = get_logger("a3c_gcn_train", project_home)
@@ -141,7 +141,8 @@ class Worker(mp.Process):
         loss.backward()
         for lp, gp in zip(local_net.parameters(), global_net.parameters()):
             gp._grad = lp.grad
-            check_gradient_nan_or_zero(gp._grad)
+            # gradients = get_gradients_for_current_parameters(global_net)
+            # check_gradient_nan_or_zero(gradients)
         optimizer.step()
 
         # pull global parameters

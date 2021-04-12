@@ -83,25 +83,14 @@ def load_model(model_save_path, model):
 
     model.load_state_dict(model_params)
 
-def get_gradients_for_current_parameters(global_net):
-    gradients = {}
-
-    for layer_name, layer in global_net.layers_info.items():
-        named_parameters = layer.to(torch.device).named_parameters()
-        gradients[layer_name] = {}
-        for name, param in named_parameters:
-            gradients[layer_name][name] = param.grad
-
-    return gradients
 
 def check_gradient_nan_or_zero(gradients):
-    for layer_name, layer in gradients.items():
-        for name, gradients in layer.items():
-            if torch.unique(gradients).shape[0] == 1 and torch.sum(gradients).item() == 0.0:
-                print(layer_name, name, "zero gradients")
-            if torch.isnan(gradients).any():
-                print(layer_name, name, "nan gradients")
-                raise ValueError()
+    for _ in gradients:
+        if torch.unique(gradients).shape[0] == 1 and torch.sum(gradients).item() == 0.0:
+            print("zero gradients")
+        if torch.isnan(gradients).any():
+            print("nan gradients")
+            raise ValueError()
 
 
 def draw_rl_train_performance(
