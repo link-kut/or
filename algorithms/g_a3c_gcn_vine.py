@@ -3,7 +3,6 @@ import torch_geometric
 
 from algorithms.a_baseline import BaselineVNEAgent
 from algorithms.model.A3C import A3C_Model
-from algorithms.model.MLP import MLP_Model
 from common import utils, config
 
 import torch
