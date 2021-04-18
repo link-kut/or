@@ -23,8 +23,16 @@ class A3C_Model(nn.Module):
         self.actor_conv = ChebConv(in_channels=chev_conv_state_dim, out_channels=60, K=3)
         self.critic_conv = ChebConv(in_channels=chev_conv_state_dim, out_channels=60, K=3)
 
-        self.actor_fc = nn.Linear(6003, action_dim)
-        self.critic_fc = nn.Linear(6003, 1)
+        self.actor_vnr_1_fc = nn.Linear(1, 60)
+        self.actor_vnr_2_fc = nn.Linear(1, 60)
+        self.actor_vnr_3_fc = nn.Linear(1, 60)
+
+        self.critic_vnr_1_fc = nn.Linear(1, 60)
+        self.critic_vnr_2_fc = nn.Linear(1, 60)
+        self.critic_vnr_3_fc = nn.Linear(1, 60)
+
+        self.actor_fc = nn.Linear(6000, action_dim)
+        self.critic_fc = nn.Linear(6000, 1)
 
         set_init([self.actor_conv, self.critic_conv, self.actor_fc, self.critic_fc])
         self.distribution = torch.distributions.Categorical
@@ -32,23 +40,32 @@ class A3C_Model(nn.Module):
     def forward(self, substrate_features, substrate_edge_index, vnr_features):
         gcn_embedding_actor = self.actor_conv(substrate_features, substrate_edge_index)
         gcn_embedding_actor = gcn_embedding_actor.tanh()
-        gcn_embedding_actor = torch.flatten(gcn_embedding_actor).unsqueeze(dim=0)
+        vnr_features = torch.as_tensor(vnr_features, dtype=torch.float)
+        vnr_output_1_actor = self.actor_vnr_1_fc(vnr_features[0][0].unsqueeze(dim=0).unsqueeze(dim=0))
+        vnr_output_2_actor = self.actor_vnr_2_fc(vnr_features[0][1].unsqueeze(dim=0).unsqueeze(dim=0))
+        vnr_output_3_actor = self.actor_vnr_3_fc(vnr_features[0][2].unsqueeze(dim=0).unsqueeze(dim=0))
+        final_embedding_actor = gcn_embedding_actor + vnr_output_1_actor + vnr_output_2_actor + vnr_output_3_actor
+        gcn_embedding_actor = torch.flatten(final_embedding_actor).unsqueeze(dim=0)
 
         gcn_embedding_critic = self.critic_conv(substrate_features, substrate_edge_index)
         gcn_embedding_critic = gcn_embedding_critic.tanh()
-        gcn_embedding_critic = torch.flatten(gcn_embedding_critic).unsqueeze(dim=0)
+        vnr_output_1_critic = self.critic_vnr_1_fc(vnr_features[0][0].unsqueeze(dim=0).unsqueeze(dim=0))
+        vnr_output_2_critic = self.critic_vnr_2_fc(vnr_features[0][1].unsqueeze(dim=0).unsqueeze(dim=0))
+        vnr_output_3_critic = self.critic_vnr_3_fc(vnr_features[0][2].unsqueeze(dim=0).unsqueeze(dim=0))
+        final_embedding_critic = gcn_embedding_critic + vnr_output_1_critic + vnr_output_2_critic + vnr_output_3_critic
+        gcn_embedding_critic = torch.flatten(final_embedding_critic).unsqueeze(dim=0)
 
         # gcn_embedding_actor.shape: (1, 6000)
         # gcn_embedding_critic.shape: (1, 6000)
 
-        concatenated_state_actor = torch.cat([gcn_embedding_actor, vnr_features], dim=1)
-        concatenated_state_critic = torch.cat([gcn_embedding_critic, vnr_features], dim=1)
+        # concatenated_state_actor = torch.cat([gcn_embedding_actor, vnr_features], dim=1)
+        # concatenated_state_critic = torch.cat([gcn_embedding_critic, vnr_features], dim=1)
 
         # concatenated_state_actor.shape: (1, 6003)
         # concatenated_state_critic.shape: (1, 6003)
 
-        logits = self.actor_fc(concatenated_state_actor)
-        values = self.critic_fc(concatenated_state_critic)
+        logits = self.actor_fc(gcn_embedding_actor)
+        values = self.critic_fc(gcn_embedding_critic)
 
         return logits, values
 

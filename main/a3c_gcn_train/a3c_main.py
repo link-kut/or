@@ -17,7 +17,7 @@ def main():
         chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
     )
     global_net.share_memory()  # share the global parameters in multiprocessing
-    optimizer = SharedAdam(global_net.parameters(), lr=1e-5, betas=(0.92, 0.999))  # global optimizer
+    optimizer = SharedAdam(global_net.parameters(), lr=2e-4, betas=(0.92, 0.999))  # global optimizer
     mp.set_start_method('spawn')
 
     global_episode = mp.Value('i', 0)
