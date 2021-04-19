@@ -59,7 +59,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.total_embedded_vnrs = 0
 
         self.substrate = Substrate()
-        self.copied_substrate = copy.deepcopy(self.substrate)
+        self.copied_substrate = None
         self.vnr = None
         self.already_embedded_v_nodes = []
         self.embedding_s_nodes = None
@@ -85,7 +85,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.rc_ratio = 0.0
         self.link_embedding_fails_against_total_fails_ratio = 0.0
 
-        self.substrate = copy.deepcopy(self.copied_substrate)
+        self.substrate = Substrate()
         self.vnr = VNR(
             id=0,
             vnr_duration_mean_rate=config.VNR_DURATION_MEAN_RATE,
@@ -157,7 +157,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
                         del self.embedding_s_nodes[action.v_node]
                         break
                     else:
-                        MAX_K = 1
+                        MAX_K = 10
                         shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
                         if len(shortest_s_path) > config.MAX_EMBEDDING_PATH_LENGTH:
                             embedding_success = False
@@ -192,6 +192,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         )
 
         done = False
+        # if not embedding_success or self.num_processed_v_nodes == len(self.vnr.net.nodes):
         if self.num_processed_v_nodes == len(self.vnr.net.nodes):
             done = True
             next_state = A3C_GCN_State(None, None, None, None)
