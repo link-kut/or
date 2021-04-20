@@ -28,7 +28,7 @@ class Substrate:
         self.min_cpu_capacity = 1.0e10
         self.max_cpu_capacity = 0.0
         for node_id in self.net.nodes:
-            self.net.nodes[node_id]['CPU'] = randint(50, 100)
+            self.net.nodes[node_id]['CPU'] = randint(0, 100)
             self.net.nodes[node_id]['LOCATION'] = randint(0, config.NUM_LOCATION)
             self.initial_s_cpu_capacity.append(self.net.nodes[node_id]['CPU'])
             self.initial_total_cpu_capacity += self.net.nodes[node_id]['CPU']
@@ -40,7 +40,7 @@ class Substrate:
         self.min_bandwidth_capacity = 1.0e10
         self.max_bandwidth_capacity = 0.0
         for edge_id in self.net.edges:
-            self.net.edges[edge_id]['bandwidth'] = randint(50, 100)
+            self.net.edges[edge_id]['bandwidth'] = randint(0, 100)
             self.initial_s_bw_capacity.append(self.net.edges[edge_id]['bandwidth'])
             self.initial_total_bandwidth_capacity += self.net.edges[edge_id]['bandwidth']
             if self.net.edges[edge_id]['bandwidth'] < self.min_bandwidth_capacity:
