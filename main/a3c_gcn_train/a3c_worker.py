@@ -28,6 +28,7 @@ class Worker(mp.Process):
         self.global_episode = global_episode
         self.global_episode_reward = global_episode_reward
         self.message_queue = message_queue
+        self.max_episode_reward = 0
 
         self.local_model = A3C_Model(
             chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
