@@ -15,6 +15,7 @@ rl_train_graph_save_path = os.path.join(PROJECT_HOME, "out", "rl_train_graphs")
 log_save_path = os.path.join(PROJECT_HOME, "out", "logs")
 csv_save_path = os.path.join(PROJECT_HOME, "out", "parameters")
 model_save_path = os.path.join(PROJECT_HOME, "out", "models")
+wandb_save_path = os.path.join(PROJECT_HOME, "out", "wandb")
 
 if not os.path.exists(graph_save_path):
     os.makedirs(graph_save_path)
@@ -30,6 +31,9 @@ if not os.path.exists(csv_save_path):
 
 if not os.path.exists(model_save_path):
     os.makedirs(model_save_path)
+
+if not os.path.exists(wandb_save_path):
+    os.makedirs(wandb_save_path)
 
 
 class TYPE_OF_VIRTUAL_NODE_RANKING(enum.Enum):
@@ -96,9 +100,10 @@ FIGURE_START_TIME_STEP = int(GLOBAL_MAX_STEPS * 0.02)
 # FOR A3C ALGORITHM
 UPDATE_GLOBAL_ITER = 1
 GAMMA = 0.9
-MAX_EPISODES = 100000
+MAX_EPISODES = 3000
 NUM_SUBSTRATE_FEATURES = 5
-NUM_WORKERS = 5
+NUM_WORKERS = 1
+WANDB = False
 
 config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))

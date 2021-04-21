@@ -2,11 +2,15 @@ import glob
 import os, sys
 import datetime
 import matplotlib.pyplot as plt
+import wandb
 from matplotlib import MatplotlibDeprecationWarning
 from torch import nn
 import torch
 import numpy as np
 import warnings
+
+from common import config
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 plt.figure(figsize=(20, 10))
@@ -131,6 +135,25 @@ def draw_rl_train_performance(
     plt.savefig(new_file_path)
 
     plt.clf()
+
+def set_wandb(agent):
+    configuration = {key: getattr(config, key) for key in dir(config) if not key.startswith("__")}
+    wandb_obj = wandb.init(
+        project=config.wandb_project,
+        entity=config.wandb_entity,
+        dir=config.wandb_save_path,
+        config=configuration
+    )
+
+    # wandb_obj.notes = "HELLO"
+
+    run_name = wandb.run.name
+    run_number = run_name.split("-")[-1]
+    wandb.run.name = "{0}".format(
+        run_number
+    )
+    wandb.run.save()
+    wandb.watch(agent.model.base, log="all")
 
 
 class SharedAdam(torch.optim.Adam):

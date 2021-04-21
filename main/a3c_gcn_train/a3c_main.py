@@ -8,7 +8,7 @@ if PROJECT_HOME not in sys.path:
 
 from main.a3c_gcn_train.a3c_worker import Worker
 from algorithms.model.A3C import A3C_Model
-from algorithms.model.utils import SharedAdam, draw_rl_train_performance
+from algorithms.model.utils import SharedAdam, draw_rl_train_performance, set_wandb
 from common import config
 
 
@@ -23,6 +23,9 @@ def main():
     global_episode = mp.Value('i', 0)
     global_episode_reward = mp.Value('d', 0.0)
     message_queue = mp.Queue()
+
+    if config.WANDB:
+        set_wandb(global_net)
 
     # parallel training
     # print("Number of Workers: ", mp.cpu_count())
