@@ -7,7 +7,7 @@ from algorithms.g_a3c_gcn_vine import A3C_GCN_VNEAgent
 from algorithms.model.A3C import A3C_Model
 from common.logger import get_logger
 from main.a3c_gcn_train.vne_env_a3c_train import A3C_GCN_TRAIN_VNEEnvironment
-from algorithms.model.utils import check_gradient_nan_or_zero
+from algorithms.model.utils import check_gradient_nan_or_zero, set_wandb
 from common import config
 
 

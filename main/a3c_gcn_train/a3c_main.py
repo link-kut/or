@@ -1,5 +1,6 @@
 import os, sys
 import torch.multiprocessing as mp
+import wandb
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir, os.pardir))
@@ -18,7 +19,7 @@ def main():
     )
     global_net.share_memory()  # share the global parameters in multiprocessing
     optimizer = SharedAdam(global_net.parameters(), lr=2e-4, betas=(0.92, 0.999))  # global optimizer
-    mp.set_start_method('spawn')
+    mp.set_start_method('fork')
 
     global_episode = mp.Value('i', 0)
     global_episode_reward = mp.Value('d', 0.0)
@@ -49,6 +50,12 @@ def main():
             global_episode_rewards.append(global_episode_reward_from_worker)
             critic_losses.append(critic_loss)
             actor_objectives.append(actor_objective)
+
+            if config.WANDB:
+                message["train global episode reward"] = global_episode_reward_from_worker
+                message["train critic loss"] = critic_loss
+                message["train actor objectives"] = actor_objective
+                wandb.log(message)
         else:
             break
 
