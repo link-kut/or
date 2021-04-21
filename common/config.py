@@ -86,7 +86,7 @@ VNR_CPU_DEMAND_MAX = 50
 VNR_BANDWIDTH_DEMAND_MIN = 1
 VNR_BANDWIDTH_DEMAND_MAX = 50
 
-NUM_LOCATION = 2
+NUM_LOCATION = 1
 MAX_EMBEDDING_PATH_LENGTH = 10
 
 ALPHA = 0.8
@@ -103,7 +103,9 @@ GAMMA = 0.9
 MAX_EPISODES = 3000
 NUM_SUBSTRATE_FEATURES = 5
 NUM_WORKERS = 1
-WANDB = False
+
+#wandb configuration
+WANDB = True
 
 config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))

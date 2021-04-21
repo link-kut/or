@@ -10,6 +10,8 @@ import os
 from algorithms.model.utils import set_init
 from torch_geometric.nn import GCNConv, ChebConv
 
+from common import config
+
 
 class A3C_Model(nn.Module):
     def __init__(self, chev_conv_state_dim, action_dim):

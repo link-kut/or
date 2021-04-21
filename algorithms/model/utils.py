@@ -139,8 +139,8 @@ def draw_rl_train_performance(
 def set_wandb(agent):
     configuration = {key: getattr(config, key) for key in dir(config) if not key.startswith("__")}
     wandb_obj = wandb.init(
-        project=config.wandb_project,
-        entity=config.wandb_entity,
+        project="VNE_A3C_GCN",
+        entity="link-koreatech",
         dir=config.wandb_save_path,
         config=configuration
     )
