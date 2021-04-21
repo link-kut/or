@@ -1,4 +1,6 @@
 import os
+import sys
+
 import numpy as np
 import torch
 import torch.multiprocessing as mp
@@ -7,12 +9,17 @@ from algorithms.g_a3c_gcn_vine import A3C_GCN_VNEAgent
 from algorithms.model.A3C import A3C_Model
 from common.logger import get_logger
 from main.a3c_gcn_train.vne_env_a3c_train import A3C_GCN_TRAIN_VNEEnvironment
-from algorithms.model.utils import check_gradient_nan_or_zero, set_wandb
+from algorithms.model.utils import check_gradient_nan_or_zero
 from common import config
+
+current_path = os.path.dirname(os.path.realpath(__file__))
+PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir, os.pardir))
+if PROJECT_HOME not in sys.path:
+    sys.path.append(PROJECT_HOME)
 
 
 class Worker(mp.Process):
-    def __init__(self, global_net, optimizer, global_episode, global_episode_reward, message_queue, idx, project_home):
+    def __init__(self, global_net, optimizer, global_episode, global_episode_reward, message_queue, idx):
         super(Worker, self).__init__()
         self.name = 'worker-{0}'.format(idx)
 
@@ -26,7 +33,7 @@ class Worker(mp.Process):
             chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
         )
 
-        logger_a3c_gcn_train = get_logger("a3c_gcn_train", project_home)
+        logger_a3c_gcn_train = get_logger("a3c_gcn_train", PROJECT_HOME)
 
         self.env = A3C_GCN_TRAIN_VNEEnvironment(logger_a3c_gcn_train)
         self.agent = A3C_GCN_VNEAgent(
@@ -141,8 +148,8 @@ class Worker(mp.Process):
         # pull global parameters
         local_net.load_state_dict(global_net.state_dict())
 
-        new_model_path = os.path.join(model_save_path, "A3C_model.pth")
-        torch.save(global_net.state_dict(), new_model_path)
+        # new_model_path = os.path.join(model_save_path, "A3C_model.pth")
+        # torch.save(global_net.state_dict(), new_model_path)
 
     def record(self, episode_reward):
         with self.global_episode_reward.get_lock():

@@ -1,6 +1,7 @@
 import os, sys
 import torch.multiprocessing as mp
 import wandb
+import numpy as np
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir, os.pardir))
@@ -12,6 +13,8 @@ from algorithms.model.A3C import A3C_Model
 from algorithms.model.utils import SharedAdam, draw_rl_train_performance, set_wandb
 from common import config
 
+WANDB = True
+
 
 def main():
     global_net = A3C_Model(
@@ -19,13 +22,13 @@ def main():
     )
     global_net.share_memory()  # share the global parameters in multiprocessing
     optimizer = SharedAdam(global_net.parameters(), lr=2e-4, betas=(0.92, 0.999))  # global optimizer
-    mp.set_start_method('fork')
+    mp.set_start_method('spawn')
 
     global_episode = mp.Value('i', 0)
     global_episode_reward = mp.Value('d', 0.0)
     message_queue = mp.Queue()
 
-    if config.WANDB:
+    if WANDB:
         set_wandb(global_net)
 
     # parallel training
@@ -33,7 +36,7 @@ def main():
     # workers = [Worker(global_net, optimizer, global_episode, global_episode_reward, message_queue, i) for i in range(mp.cpu_count())]
     workers = [
         Worker(
-            global_net, optimizer, global_episode, global_episode_reward, message_queue, idx, PROJECT_HOME
+            global_net, optimizer, global_episode, global_episode_reward, message_queue, idx
         ) for idx in range(config.NUM_WORKERS)
     ]
 
@@ -43,6 +46,7 @@ def main():
     global_episode_rewards = []  # record episode reward to plot
     critic_losses = []
     actor_objectives = []
+    train_info_dict = {}
     while True:
         message = message_queue.get()
         if message is not None:
@@ -51,11 +55,12 @@ def main():
             critic_losses.append(critic_loss)
             actor_objectives.append(actor_objective)
 
-            if config.WANDB:
-                message["train global episode reward"] = global_episode_reward_from_worker
-                message["train critic loss"] = critic_loss
-                message["train actor objectives"] = actor_objective
-                wandb.log(message)
+            if WANDB:
+                train_info_dict["train global episode reward"] = global_episode_reward_from_worker
+                train_info_dict["train critic loss"] = critic_loss
+                train_info_dict["train actor objectives"] = actor_objective
+
+                wandb.log(train_info_dict)
         else:
             break
 

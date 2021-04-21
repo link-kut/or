@@ -136,6 +136,7 @@ def draw_rl_train_performance(
 
     plt.clf()
 
+
 def set_wandb(model):
     configuration = {key: getattr(config, key) for key in dir(config) if not key.startswith("__")}
     wandb_obj = wandb.init(
@@ -153,7 +154,7 @@ def set_wandb(model):
         run_number
     )
     wandb.run.save()
-    wandb.watch(model, log="all")
+    #wandb.watch(model, log="all")
 
 
 class SharedAdam(torch.optim.Adam):
