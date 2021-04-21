@@ -148,7 +148,7 @@ class Worker(mp.Process):
         # pull global parameters
         local_net.load_state_dict(global_net.state_dict())
 
-        new_model_path = os.path.join(model_save_path, "A3C_model.pth")
+        new_model_path = os.path.join(model_save_path, "A3C_model_0421.pth")
         torch.save(global_net.state_dict(), new_model_path)
 
     def record(self, episode_reward):

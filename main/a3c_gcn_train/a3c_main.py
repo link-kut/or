@@ -1,7 +1,6 @@
 import os, sys
 import torch.multiprocessing as mp
 import wandb
-import numpy as np
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 PROJECT_HOME = os.path.abspath(os.path.join(current_path, os.pardir, os.pardir))
@@ -13,7 +12,7 @@ from algorithms.model.A3C import A3C_Model
 from algorithms.model.utils import SharedAdam, draw_rl_train_performance, set_wandb
 from common import config
 
-WANDB = True
+WANDB = False
 
 
 def main():

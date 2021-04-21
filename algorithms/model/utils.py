@@ -77,7 +77,7 @@ def push_and_pull(optimizer, local_net, global_net, done, buffer_substrate_featu
         local_net.load_state_dict(global_net.state_dict())
 
         now = datetime.datetime.now()
-        new_model_path = os.path.join(model_save_path, "A3C_model.pth")
+        new_model_path = os.path.join(model_save_path, "A3C_model_0421.pth")
         torch.save(global_net.state_dict(), new_model_path)
 
 

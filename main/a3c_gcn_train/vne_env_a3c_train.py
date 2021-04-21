@@ -242,7 +242,8 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         # Convert to the torch.tensor
         substrate_features = torch.tensor(substrate_features)
         substrate_features = torch.transpose(substrate_features, 0, 1)
-        # substrate_features.size() --> (100, 5)
+        substrate_features = substrate_features.view(1, config.SUBSTRATE_NODES, config.NUM_SUBSTRATE_FEATURES)
+        # substrate_features.size() --> (1, 100, 5)
 
         # GCN for Feature Extract
         substrate_geometric_data = torch_geometric.utils.from_networkx(self.substrate.net)
@@ -251,9 +252,9 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         vnr_features.append(current_v_cpu_demand)
         vnr_features.append(sum((self.vnr.net[current_v_node][link_id]['bandwidth'] for link_id in self.vnr.net[current_v_node])))
         vnr_features.append(len(self.sorted_v_nodes) - self.num_processed_v_nodes)
-        vnr_features = torch.tensor(vnr_features).unsqueeze(dim=0)
+        vnr_features = torch.tensor(vnr_features).view(1, 3)
 
-        # substrate_features.size() --> (100, 5)
+        # substrate_features.size() --> (1, 100, 5)
         # vnr_features.size()) --> (1, 3)
 
         return substrate_features, substrate_geometric_data.edge_index, vnr_features
@@ -263,7 +264,6 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         #     reward = 100
         # else:
         #     reward = -10
-
         # calculate r_a
         gamma_action = self.num_processed_v_nodes / len(self.vnr.net.nodes)
         r_a = 100 * gamma_action if embedding_success else -100 * gamma_action

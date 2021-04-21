@@ -69,12 +69,12 @@ VNR_INTER_ARRIVAL_RATE = 0.05
 
 # Each substrate network is configured to have 100 nodes with over 500 links,
 # which is about the scale of a medium-sized ISP.
-SUBSTRATE_NODES = 50
-SUBSTRATE_LINKS = 250
+SUBSTRATE_NODES = 10
+SUBSTRATE_LINKS = 50
 
 # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
-VNR_NODES_MIN = 1
-VNR_NODES_MAX = 1
+VNR_NODES_MIN = 2
+VNR_NODES_MAX = 3
 
 # Pairs of virtual nodes are randomly connected by links with the probability of 0.5.
 VNR_LINK_PROBABILITY = 0.5

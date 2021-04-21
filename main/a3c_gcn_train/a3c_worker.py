@@ -71,6 +71,10 @@ class Worker(mp.Process):
                 # msg = f"[{self.name}:STEP {time_step}:EPISODE {self.global_episode.value}] Action: {action.s_node}, Done: {done}"
                 # print(msg)
 
+                # print("state: ", state.substrate_features)
+                print(action)
+                # print("next state: ", next_state.substrate_features)
+
                 episode_reward += reward
 
                 buffer_substrate_feature.append(state.substrate_features)
@@ -149,8 +153,8 @@ class Worker(mp.Process):
         # pull global parameters
         local_net.load_state_dict(global_net.state_dict())
 
-        # new_model_path = os.path.join(model_save_path, "A3C_model.pth")
-        # torch.save(global_net.state_dict(), new_model_path)
+        new_model_path = os.path.join(model_save_path, "A3C_model_0421.pth")
+        torch.save(global_net.state_dict(), new_model_path)
 
     def record(self, episode_reward):
         with self.global_episode_reward.get_lock():
