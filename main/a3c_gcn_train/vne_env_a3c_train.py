@@ -132,7 +132,6 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
 
         if any(node_embedding_fail_conditions):
             embedding_success = False
-            print("11111")
         else:
             # Success for node embedding
             v_cpu_demand = self.vnr.net.nodes[action.v_node]['CPU']
@@ -155,14 +154,12 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
                     dst_s_node = self.embedding_s_nodes[action.v_node]
                     if len(subnet.edges) == 0 or not nx.has_path(subnet, source=src_s_node, target=dst_s_node):
                         embedding_success = False
-                        print("22222")
                         del self.embedding_s_nodes[action.v_node]
                         break
                     else:
                         MAX_K = 1
                         shortest_s_path = utils.k_shortest_paths(subnet, source=src_s_node, target=dst_s_node, k=MAX_K)[0]
                         if len(shortest_s_path) > config.MAX_EMBEDDING_PATH_LENGTH:
-                            print("33333")
                             embedding_success = False
                             break
                         else:

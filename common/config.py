@@ -69,8 +69,8 @@ VNR_INTER_ARRIVAL_RATE = 0.05
 
 # Each substrate network is configured to have 100 nodes with over 500 links,
 # which is about the scale of a medium-sized ISP.
-SUBSTRATE_NODES = 100
-SUBSTRATE_LINKS = 500
+SUBSTRATE_NODES = 50
+SUBSTRATE_LINKS = 250
 
 # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
 VNR_NODES_MIN = 5
@@ -102,7 +102,7 @@ UPDATE_GLOBAL_ITER = 1
 GAMMA = 0.9
 MAX_EPISODES = 3000
 NUM_SUBSTRATE_FEATURES = 5
-NUM_WORKERS = 1
+NUM_WORKERS = 2
 WANDB = False
 
 config_parser = configparser.ConfigParser(defaults=None)
