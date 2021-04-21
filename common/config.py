@@ -98,7 +98,7 @@ UPDATE_GLOBAL_ITER = 1
 GAMMA = 0.9
 MAX_EPISODES = 100000
 NUM_SUBSTRATE_FEATURES = 5
-NUM_WORKERS = 1
+NUM_WORKERS = 5
 
 config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))
