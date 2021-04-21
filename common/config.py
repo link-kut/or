@@ -73,8 +73,8 @@ SUBSTRATE_NODES = 50
 SUBSTRATE_LINKS = 250
 
 # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
-VNR_NODES_MIN = 3
-VNR_NODES_MAX = 5
+VNR_NODES_MIN = 1
+VNR_NODES_MAX = 1
 
 # Pairs of virtual nodes are randomly connected by links with the probability of 0.5.
 VNR_LINK_PROBABILITY = 0.5
@@ -100,9 +100,9 @@ FIGURE_START_TIME_STEP = int(GLOBAL_MAX_STEPS * 0.02)
 # FOR A3C ALGORITHM
 UPDATE_GLOBAL_ITER = 1
 GAMMA = 0.9
-MAX_EPISODES = 5000
+MAX_EPISODES = 3000
 NUM_SUBSTRATE_FEATURES = 5
-NUM_WORKERS = 2
+NUM_WORKERS = 1
 
 config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))

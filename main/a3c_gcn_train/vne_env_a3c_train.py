@@ -259,43 +259,44 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         return substrate_features, substrate_geometric_data.edge_index, vnr_features
 
     def get_reward(self, embedding_success, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action):
-        if embedding_success:
-            reward = 100
-        else:
-            reward = -10
+        # if embedding_success:
+        #     reward = 100
+        # else:
+        #     reward = -10
+
         # calculate r_a
-        # gamma_action = self.num_processed_v_nodes / len(self.vnr.net.nodes)
-        # r_a = 100 * gamma_action if embedding_success else -100 * gamma_action
-        #
-        # # calculate r_c
-        # if embedding_success:
-        #     step_revenue = v_cpu_demand + sum_v_bandwidth_demand
-        #     step_cost = v_cpu_demand + sum_s_bandwidth_embedded
-        #     delta_revenue = step_revenue - self.previous_step_revenue
-        #     delta_cost = step_cost - self.previous_step_cost
-        #     if delta_cost == 0.0:
-        #         r_c = 1.0
-        #     else:
-        #         r_c = delta_revenue / delta_cost
-        #     self.previous_step_revenue = step_revenue
-        #     self.previous_step_cost = step_cost
-        # else:
-        #     r_c = 1.0
-        #
-        # # calculate r_s
-        # if embedding_success:
-        #     r_s = self.substrate.net.nodes[action.s_node]['CPU'] / self.substrate.initial_s_cpu_capacity[action.s_node]
-        # else:
-        #     r_s = 1.0
-        #
-        # # calculate eligibility trace
-        # for s_node in self.substrate.net.nodes:
-        #     if action.s_node == s_node:
-        #         self.egb_trace[s_node] = self.decay_factor_for_egb_trace * (self.egb_trace[s_node] + 1)
-        #     else:
-        #         self.egb_trace[s_node] = self.decay_factor_for_egb_trace * self.egb_trace[s_node]
-        #
+        gamma_action = self.num_processed_v_nodes / len(self.vnr.net.nodes)
+        r_a = 100 * gamma_action if embedding_success else -100 * gamma_action
+
+        # calculate r_c
+        if embedding_success:
+            step_revenue = v_cpu_demand + sum_v_bandwidth_demand
+            step_cost = v_cpu_demand + sum_s_bandwidth_embedded
+            delta_revenue = step_revenue - self.previous_step_revenue
+            delta_cost = step_cost - self.previous_step_cost
+            if delta_cost == 0.0:
+                r_c = 1.0
+            else:
+                r_c = delta_revenue / delta_cost
+            self.previous_step_revenue = step_revenue
+            self.previous_step_cost = step_cost
+        else:
+            r_c = 1.0
+
+        # calculate r_s
+        if embedding_success:
+            r_s = self.substrate.net.nodes[action.s_node]['CPU'] / self.substrate.initial_s_cpu_capacity[action.s_node]
+        else:
+            r_s = 1.0
+
+        # calculate eligibility trace
+        for s_node in self.substrate.net.nodes:
+            if action.s_node == s_node:
+                self.egb_trace[s_node] = self.decay_factor_for_egb_trace * (self.egb_trace[s_node] + 1)
+            else:
+                self.egb_trace[s_node] = self.decay_factor_for_egb_trace * self.egb_trace[s_node]
+
         # reward = r_a * r_c * r_s / (self.egb_trace[action.s_node] + 1e-6)
-        # reward = r_a
+        reward = r_a * r_c * r_s
 
         return reward
