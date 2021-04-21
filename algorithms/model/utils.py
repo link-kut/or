@@ -136,13 +136,13 @@ def draw_rl_train_performance(
 
     plt.clf()
 
-def set_wandb(agent):
+def set_wandb(model):
     configuration = {key: getattr(config, key) for key in dir(config) if not key.startswith("__")}
     wandb_obj = wandb.init(
         project="VNE_A3C_GCN",
-        entity="link-koreatech",
-        dir=config.wandb_save_path,
-        config=configuration
+        entity="glenn89",
+        dir=config.wandb_save_path
+        # config=configuration
     )
 
     # wandb_obj.notes = "HELLO"
@@ -153,7 +153,7 @@ def set_wandb(agent):
         run_number
     )
     wandb.run.save()
-    wandb.watch(agent.model.base, log="all")
+    wandb.watch(model, log="all")
 
 
 class SharedAdam(torch.optim.Adam):

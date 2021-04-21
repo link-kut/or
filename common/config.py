@@ -103,7 +103,7 @@ GAMMA = 0.9
 MAX_EPISODES = 5000
 NUM_SUBSTRATE_FEATURES = 5
 NUM_WORKERS = 2
-WANDB = False
+WANDB = True
 
 config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))
