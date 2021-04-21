@@ -7,6 +7,8 @@ import torch.multiprocessing as mp
 import gym
 import os
 
+from common import config
+
 from algorithms.model.utils import set_init
 from torch_geometric.nn import GCNConv, ChebConv
 
@@ -33,8 +35,8 @@ class A3C_Model(nn.Module):
         self.critic_vnr_2_fc = nn.Linear(1, 60)
         self.critic_vnr_3_fc = nn.Linear(1, 60)
 
-        self.actor_fc = nn.Linear(6000, action_dim)
-        self.critic_fc = nn.Linear(6000, 1)
+        self.actor_fc = nn.Linear(config.SUBSTRATE_NODES * 60, action_dim)
+        self.critic_fc = nn.Linear(config.SUBSTRATE_NODES * 60, 1)
 
         set_init([self.actor_conv, self.critic_conv, self.actor_fc, self.critic_fc])
         self.distribution = torch.distributions.Categorical

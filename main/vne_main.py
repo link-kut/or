@@ -3,6 +3,7 @@ import os
 import sys
 import numpy as np
 import time
+import wandb
 
 from algorithms.a_baseline import BaselineVNEAgent
 from algorithms.b_topology_aware_baseline import TopologyAwareBaselineVNEAgent
