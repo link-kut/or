@@ -69,18 +69,18 @@ VNR_INTER_ARRIVAL_RATE = 0.05
 
 # Each substrate network is configured to have 100 nodes with over 500 links,
 # which is about the scale of a medium-sized ISP.
-SUBSTRATE_NODES = 10
-SUBSTRATE_LINKS = 50
+SUBSTRATE_NODES = 3
+SUBSTRATE_LINKS = 3
 
 # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
-VNR_NODES_MIN = 2
+VNR_NODES_MIN = 3
 VNR_NODES_MAX = 3
 
 # Pairs of virtual nodes are randomly connected by links with the probability of 0.5.
 VNR_LINK_PROBABILITY = 0.5
 
 # CPU and bandwidth requirements of virtual nodes and links are real numbers uniformly distributed between 1 and 50.
-VNR_CPU_DEMAND_MIN = 1
+VNR_CPU_DEMAND_MIN = 50
 VNR_CPU_DEMAND_MAX = 50
 
 VNR_BANDWIDTH_DEMAND_MIN = 1
@@ -100,7 +100,7 @@ FIGURE_START_TIME_STEP = int(GLOBAL_MAX_STEPS * 0.02)
 # FOR A3C ALGORITHM
 UPDATE_GLOBAL_ITER = 1
 GAMMA = 0.9
-MAX_EPISODES = 3000
+MAX_EPISODES = 50000
 NUM_SUBSTRATE_FEATURES = 5
 NUM_WORKERS = 1
 

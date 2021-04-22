@@ -63,10 +63,10 @@ class Worker(mp.Process):
                 = [], [], [], [], []
 
             episode_reward = 0.0
+            time_step = 0
             while not done:
-                time_step += 1
-
                 action = self.agent.get_node_action(state)
+                action.s_node = np.int64(time_step)
                 next_state, reward, done, info = self.env.step(action)
                 # msg = f"[{self.name}:STEP {time_step}:EPISODE {self.global_episode.value}] Action: {action.s_node}, Done: {done}"
                 # print(msg)
@@ -102,6 +102,7 @@ class Worker(mp.Process):
                     self.record(episode_reward)
 
                 state = next_state
+                time_step += 1
                 total_step += 1
                 self.agent.action_count = 0
 

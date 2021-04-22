@@ -118,6 +118,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
 
     def step(self, action: A3C_GCN_Action):
         self.time_step += 1
+        r_s = 1.0
 
         embedding_success = True
         v_cpu_demand = None
@@ -174,6 +175,13 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
                                 self.substrate.net.edges[s_link]['bandwidth'] -= v_bandwidth_demand
                                 sum_s_bandwidth_embedded += v_bandwidth_demand
 
+        # calculate r_s
+        if embedding_success:
+            r_s = self.substrate.net.nodes[action.s_node]['CPU'] / self.substrate.initial_s_cpu_capacity[
+                action.s_node]
+        else:
+            r_s = 1.0
+
         if embedding_success:
             # ALL SUCCESS --> EMBED VIRTUAL NODE!
             assert self.substrate.net.nodes[action.s_node]['CPU'] >= v_cpu_demand
@@ -189,7 +197,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.num_processed_v_nodes += 1
 
         reward = self.get_reward(
-            embedding_success, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action
+            embedding_success, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action, r_s
         )
 
         done = False
@@ -259,12 +267,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
 
         return substrate_features, substrate_geometric_data.edge_index, vnr_features
 
-    def get_reward(self, embedding_success, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action):
-        # if embedding_success:
-        #     reward = 100
-        # else:
-        #     reward = -10
-        # calculate r_a
+    def get_reward(self, embedding_success, v_cpu_demand, sum_v_bandwidth_demand, sum_s_bandwidth_embedded, action, r_s):
         gamma_action = self.num_processed_v_nodes / len(self.vnr.net.nodes)
         r_a = 100 * gamma_action if embedding_success else -100 * gamma_action
 
@@ -283,12 +286,6 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         else:
             r_c = 1.0
 
-        # calculate r_s
-        if embedding_success:
-            r_s = self.substrate.net.nodes[action.s_node]['CPU'] / self.substrate.initial_s_cpu_capacity[action.s_node]
-        else:
-            r_s = 1.0
-
         # calculate eligibility trace
         for s_node in self.substrate.net.nodes:
             if action.s_node == s_node:
@@ -296,7 +293,11 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
             else:
                 self.egb_trace[s_node] = self.decay_factor_for_egb_trace * self.egb_trace[s_node]
 
-        # reward = r_a * r_c * r_s / (self.egb_trace[action.s_node] + 1e-6)
-        reward = r_a * r_c * r_s
+        print("r_a: ", r_a)
+        print("r_c: ", r_c)
+        print("r_s: ", r_s)
+
+        reward = r_a * r_c * r_s / (self.egb_trace[action.s_node] + 1e-6)
+        print(reward)
 
         return reward
