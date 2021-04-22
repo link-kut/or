@@ -71,10 +71,6 @@ class Worker(mp.Process):
                 # msg = f"[{self.name}:STEP {time_step}:EPISODE {self.global_episode.value}] Action: {action.s_node}, Done: {done}"
                 # print(msg)
 
-                # print("state: ", state.substrate_features)
-                print(action)
-                # print("next state: ", next_state.substrate_features)
-
                 episode_reward += reward
 
                 buffer_substrate_feature.append(state.substrate_features)
