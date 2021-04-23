@@ -77,8 +77,8 @@ SUBSTRATE_NODE_CAPACITY_MIN = 50
 SUBSTRATE_NODE_CAPACITY_MAX = 100
 
 # The number of links in a SUBSTRATE is configured by a uniform distribution between 50 and 100.
-SUBSTRATE_LINK_CAPACITY_MIN = 50
-SUBSTRATE_LINK_CAPACITY_MAX = 100
+SUBSTRATE_LINK_CAPACITY_MIN = 500
+SUBSTRATE_LINK_CAPACITY_MAX = 500
 
 # The number of nodes in a VNR is configured by a uniform distribution between 5 and 20.
 VNR_NODES_MIN = 5
@@ -88,10 +88,10 @@ VNR_NODES_MAX = 5
 VNR_LINK_PROBABILITY = 0.5
 
 # CPU and bandwidth requirements of virtual nodes and links are real numbers uniformly distributed between 1 and 50.
-VNR_CPU_DEMAND_MIN = 1
+VNR_CPU_DEMAND_MIN = 50
 VNR_CPU_DEMAND_MAX = 50
 
-VNR_BANDWIDTH_DEMAND_MIN = 1
+VNR_BANDWIDTH_DEMAND_MIN = 50
 VNR_BANDWIDTH_DEMAND_MAX = 50
 
 NUM_LOCATION = 2

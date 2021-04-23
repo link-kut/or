@@ -126,7 +126,7 @@ class Worker(mp.Process):
 
         # input current_state
         loss, self.critic_loss, self.actor_objective = local_net.loss_func(
-            self.v_wrap(np.vstack(buffer_substrate_feature)),
+            self.v_wrap(np.vstack(buffer_substrate_feature)).view(-1, config.SUBSTRATE_NODES, config.NUM_SUBSTRATE_FEATURES),
             self.v_wrap(np.vstack(buffer_edge_index[0]), dtype=np.int64),
             self.v_wrap(np.vstack(buffer_vnr_feature)),
             self.v_wrap(

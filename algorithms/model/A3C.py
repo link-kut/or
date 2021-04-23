@@ -48,9 +48,9 @@ class A3C_Model(nn.Module):
 
         vnr_features = torch.as_tensor(vnr_features, dtype=torch.float)
         vnr_features = vnr_features.view(-1, 3)
-        vnr_output_1_actor = self.actor_vnr_1_fc(vnr_features[:, 0])
-        vnr_output_2_actor = self.actor_vnr_2_fc(vnr_features[:, 1])
-        vnr_output_3_actor = self.actor_vnr_3_fc(vnr_features[:, 2])
+        vnr_output_1_actor = self.actor_vnr_1_fc(vnr_features[:, 0].view(-1, 1))
+        vnr_output_2_actor = self.actor_vnr_2_fc(vnr_features[:, 1].view(-1, 1))
+        vnr_output_3_actor = self.actor_vnr_3_fc(vnr_features[:, 2].view(-1, 1))
         vnr_output_1_actor = vnr_output_1_actor.view(-1, 1, 60)
         vnr_output_2_actor = vnr_output_2_actor.view(-1, 1, 60)
         vnr_output_3_actor = vnr_output_3_actor.view(-1, 1, 60)
@@ -59,13 +59,14 @@ class A3C_Model(nn.Module):
             [gcn_embedding_actor, vnr_output_1_actor, vnr_output_2_actor, vnr_output_3_actor], dim=1
         )
         gcn_embedding_actor = torch.flatten(final_embedding_actor).unsqueeze(dim=0)
+        gcn_embedding_actor = gcn_embedding_actor.view(-1, (config.SUBSTRATE_NODES + 3) * 60)
 
         # Critic
         gcn_embedding_critic = self.critic_conv(substrate_features, substrate_edge_index)
         gcn_embedding_critic = gcn_embedding_critic.tanh()
-        vnr_output_1_critic = self.critic_vnr_1_fc(vnr_features[:, 0])
-        vnr_output_2_critic = self.critic_vnr_2_fc(vnr_features[:, 1])
-        vnr_output_3_critic = self.critic_vnr_3_fc(vnr_features[:, 2])
+        vnr_output_1_critic = self.critic_vnr_1_fc(vnr_features[:, 0].view(-1, 1))
+        vnr_output_2_critic = self.critic_vnr_2_fc(vnr_features[:, 1].view(-1, 1))
+        vnr_output_3_critic = self.critic_vnr_3_fc(vnr_features[:, 2].view(-1, 1))
         vnr_output_1_critic = vnr_output_1_critic.view(-1, 1, 60)
         vnr_output_2_critic = vnr_output_2_critic.view(-1, 1, 60)
         vnr_output_3_critic = vnr_output_3_critic.view(-1, 1, 60)
@@ -74,6 +75,7 @@ class A3C_Model(nn.Module):
             [gcn_embedding_critic, vnr_output_1_critic, vnr_output_2_critic, vnr_output_3_critic], dim=1
         )
         gcn_embedding_critic = torch.flatten(final_embedding_critic).unsqueeze(dim=0)
+        gcn_embedding_critic = gcn_embedding_critic.view(-1, (config.SUBSTRATE_NODES + 3) * 60)
 
         # gcn_embedding_actor.shape: (1, 6000)
         # gcn_embedding_critic.shape: (1, 6000)

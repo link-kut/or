@@ -263,7 +263,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         vnr_features.append(current_v_cpu_demand)
         vnr_features.append(sum((self.vnr.net[current_v_node][link_id]['bandwidth'] for link_id in self.vnr.net[current_v_node])))
         vnr_features.append(len(self.sorted_v_nodes) - self.num_processed_v_nodes)
-        vnr_features = torch.tensor(vnr_features).view(1, 3)
+        vnr_features = torch.tensor(vnr_features).view(1, 1, 3)
 
         # substrate_features.size() --> (1, 100, 5)
         # vnr_features.size()) --> (1, 3)
