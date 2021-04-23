@@ -12,7 +12,7 @@ from algorithms.model.A3C import A3C_Model
 from algorithms.model.utils import SharedAdam, draw_rl_train_performance, set_wandb
 from common import config
 
-WANDB = True
+WANDB = False
 
 
 def main():
