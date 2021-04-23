@@ -296,11 +296,6 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
             else:
                 self.egb_trace[s_node] = self.decay_factor_for_egb_trace * self.egb_trace[s_node]
 
-        print("r_a: ", r_a)
-        print("r_c: ", r_c)
-        print("r_s: ", r_s)
-
         reward = r_a * r_c * r_s / (self.egb_trace[action.s_node] + 1e-6)
-        print(reward)
 
         return reward
