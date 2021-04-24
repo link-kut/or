@@ -87,7 +87,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.link_embedding_fails_against_total_fails_ratio = 0.0
 
         self.num_reset += 1
-        if self.num_reset % 10 == 0:
+        if self.num_reset % 1 == 0:
             self.substrate = copy.deepcopy(self.copied_substrate)
         self.vnr = VNR(
             id=0,

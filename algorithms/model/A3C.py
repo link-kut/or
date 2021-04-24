@@ -112,5 +112,7 @@ class A3C_Model(nn.Module):
         a_loss = -exp_v
 
         total_loss = (c_loss + a_loss).mean()
+        c_loss_mean = c_loss.mean()
+        a_loss_mean = a_loss.mean()
 
-        return total_loss, c_loss.item(), -1.0 * a_loss.item()
+        return total_loss, c_loss_mean.item(), -1.0 * a_loss_mean.item()
