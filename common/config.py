@@ -88,8 +88,8 @@ VNR_NODES_MAX = 5
 VNR_LINK_PROBABILITY = 0.5
 
 # CPU and bandwidth requirements of virtual nodes and links are real numbers uniformly distributed between 1 and 50.
-VNR_CPU_DEMAND_MIN = 50
-VNR_CPU_DEMAND_MAX = 50
+VNR_CPU_DEMAND_MIN = 30
+VNR_CPU_DEMAND_MAX = 30
 
 VNR_BANDWIDTH_DEMAND_MIN = 50
 VNR_BANDWIDTH_DEMAND_MAX = 50
@@ -108,9 +108,10 @@ FIGURE_START_TIME_STEP = int(GLOBAL_MAX_STEPS * 0.02)
 # FOR A3C ALGORITHM
 UPDATE_GLOBAL_ITER = 5
 GAMMA = 0.9
-MAX_EPISODES = 5000
+MAX_EPISODES = 50000
 NUM_SUBSTRATE_FEATURES = 5
-NUM_WORKERS = 1
+NUM_WORKERS = 2
+NUM_VNR_FOR_TRAIN = 5
 
 config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))

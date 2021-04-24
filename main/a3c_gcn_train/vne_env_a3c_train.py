@@ -61,6 +61,8 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
 
         self.substrate = Substrate()
         self.copied_substrate = copy.deepcopy(self.substrate)
+        self.vnrs = []
+        self.vnr_idx = 0
         self.vnr = None
         self.already_embedded_v_nodes = []
         self.embedding_s_nodes = None
@@ -87,14 +89,20 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.link_embedding_fails_against_total_fails_ratio = 0.0
 
         self.num_reset += 1
-        if self.num_reset % 1 == 0:
-            self.substrate = copy.deepcopy(self.copied_substrate)
-        self.vnr = VNR(
-            id=0,
-            vnr_duration_mean_rate=config.VNR_DURATION_MEAN_RATE,
-            delay=config.VNR_DELAY,
-            time_step_arrival=0
-        )
+        # if self.num_reset % 1 == 0:
+        self.substrate = copy.deepcopy(self.copied_substrate)
+        self.vnr_idx = 0
+        self.vnrs = []
+        for idx in range(config.NUM_VNR_FOR_TRAIN):
+            self.vnrs.append(
+                VNR(
+                    id=idx,
+                    vnr_duration_mean_rate=config.VNR_DURATION_MEAN_RATE,
+                    delay=config.VNR_DELAY,
+                    time_step_arrival=0
+                )
+            )
+        self.vnr = self.vnrs[self.vnr_idx]
         self.already_embedded_v_nodes = []
 
         self.embedding_s_nodes = {}
@@ -121,7 +129,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
 
     def step(self, action: A3C_GCN_Action):
         self.time_step += 1
-        r_s = 1.0
+        self.vnr = self.vnrs[self.vnr_idx]
 
         embedding_success = True
         v_cpu_demand = None
@@ -206,8 +214,25 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         done = False
         # if not embedding_success or self.num_processed_v_nodes == len(self.vnr.net.nodes):
         if self.num_processed_v_nodes == len(self.vnr.net.nodes):
-            done = True
-            next_state = A3C_GCN_State(None, None, None, None)
+            if self.vnr_idx == len(self.vnrs) - 1:
+                done = True
+                next_state = A3C_GCN_State(None, None, None, None)
+            else:
+                self.vnr_idx += 1
+                self.vnr = self.vnrs[self.vnr_idx]
+                self.sorted_v_nodes = utils.get_sorted_v_nodes_with_node_ranking(
+                    vnr=self.vnr, type_of_node_ranking=config.TYPE_OF_VIRTUAL_NODE_RANKING.TYPE_2
+                )
+                self.num_processed_v_nodes = 0
+                self.current_v_node, current_v_node_data, _ = self.sorted_v_nodes[self.num_processed_v_nodes]
+                self.current_v_cpu_demand = current_v_node_data['CPU']
+
+                substrate_features, substrate_edge_index, vnr_features = self.get_state_information(
+                    self.current_v_node, self.current_v_cpu_demand
+                )
+                next_state = A3C_GCN_State(substrate_features, substrate_edge_index, self.current_v_node, vnr_features)
+                self.already_embedded_v_nodes = []
+
 
         else:
             self.current_v_node, current_v_node_data, _ = self.sorted_v_nodes[self.num_processed_v_nodes]
