@@ -69,8 +69,8 @@ VNR_INTER_ARRIVAL_RATE = 0.05
 
 # Each substrate network is configured to have 100 nodes with over 500 links,
 # which is about the scale of a medium-sized ISP.
-SUBSTRATE_NODES = 30
-SUBSTRATE_LINKS = 150
+SUBSTRATE_NODES = 50
+SUBSTRATE_LINKS = 250
 
 # The number of nodes in a SUBSTRATE is configured by a uniform distribution between 50 and 100.
 SUBSTRATE_NODE_CAPACITY_MIN = 50
@@ -88,11 +88,11 @@ VNR_NODES_MAX = 5
 VNR_LINK_PROBABILITY = 0.5
 
 # CPU and bandwidth requirements of virtual nodes and links are real numbers uniformly distributed between 1 and 50.
-VNR_CPU_DEMAND_MIN = 30
-VNR_CPU_DEMAND_MAX = 30
+VNR_CPU_DEMAND_MIN = 3
+VNR_CPU_DEMAND_MAX = 3
 
-VNR_BANDWIDTH_DEMAND_MIN = 50
-VNR_BANDWIDTH_DEMAND_MAX = 50
+VNR_BANDWIDTH_DEMAND_MIN = 5
+VNR_BANDWIDTH_DEMAND_MAX = 5
 
 NUM_LOCATION = 1
 MAX_EMBEDDING_PATH_LENGTH = 10
@@ -110,8 +110,8 @@ UPDATE_GLOBAL_ITER = 10
 GAMMA = 0.9
 MAX_EPISODES = 50000
 NUM_SUBSTRATE_FEATURES = 5
-NUM_WORKERS = 2
-NUM_VNR_FOR_TRAIN = 10
+NUM_WORKERS = 1
+NUM_VNR_FOR_TRAIN = 50
 
 config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))

@@ -65,7 +65,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.vnr_idx = 0
         self.vnr = None
         self.v_node_embedding_success = []
-        self.vnr_embedding_success_count = 0
+        self.vnr_embedding_success_count = []
         self.already_embedded_v_nodes = []
         self.embedding_s_nodes = None
 
@@ -106,7 +106,8 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
             )
         self.vnr = self.vnrs[self.vnr_idx]
         self.v_node_embedding_success = []
-        self.vnr_embedding_success_count = 0
+        self.vnr_embedding_success_count = []
+
         self.already_embedded_v_nodes = []
 
         self.embedding_s_nodes = {}
@@ -220,11 +221,15 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         done = False
         # if not embedding_success or self.num_processed_v_nodes == len(self.vnr.net.nodes):
         if self.num_processed_v_nodes == len(self.vnr.net.nodes):
-            if sum(self.self.v_node_embedding_success) == len(self.vnr.net.nodes):
-                self.vnr_embedding_success_count += 1
+            if sum(self.v_node_embedding_success) == len(self.vnr.net.nodes):
+                self.vnr_embedding_success_count.append(1)
             else:
-                self.vnr_embedding_success_count -= 1
-            if self.vnr_idx == len(self.vnrs) - 1 or self.vnr_embedding_success_count == 3:
+                self.vnr_embedding_success_count.append(0)
+
+            if self.vnr_idx == len(self.vnrs) - 1 or sum(self.vnr_embedding_success_count[-3:]) == 0:
+            # if self.vnr_idx == len(self.vnrs) - 1:
+                # print(self.vnr_embedding_success_count)
+                print("The number of embedded success vnr: ", sum(self.vnr_embedding_success_count))
                 done = True
                 next_state = A3C_GCN_State(None, None, None, None)
             else:
@@ -242,7 +247,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
                 )
                 next_state = A3C_GCN_State(substrate_features, substrate_edge_index, self.current_v_node, vnr_features)
                 self.already_embedded_v_nodes = []
-
+                self.current_embedding = [0] * len(self.substrate.net.nodes)
 
         else:
             self.current_v_node, current_v_node_data, _ = self.sorted_v_nodes[self.num_processed_v_nodes]
