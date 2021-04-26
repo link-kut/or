@@ -64,6 +64,8 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.vnrs = []
         self.vnr_idx = 0
         self.vnr = None
+        self.v_node_embedding_success = []
+        self.vnr_embedding_success_count = 0
         self.already_embedded_v_nodes = []
         self.embedding_s_nodes = None
 
@@ -103,6 +105,8 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
                 )
             )
         self.vnr = self.vnrs[self.vnr_idx]
+        self.v_node_embedding_success = []
+        self.vnr_embedding_success_count = 0
         self.already_embedded_v_nodes = []
 
         self.embedding_s_nodes = {}
@@ -199,7 +203,9 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
             self.substrate.net.nodes[action.s_node]['CPU'] -= v_cpu_demand
             self.current_embedding[action.s_node] = 1
             self.already_embedded_v_nodes.append(action.v_node)
+            self.v_node_embedding_success.append(embedding_success)
         else:
+            self.v_node_embedding_success.append(embedding_success)
             if action.v_node in self.embedding_s_nodes:
                 del self.embedding_s_nodes[action.v_node]
 
@@ -214,7 +220,11 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         done = False
         # if not embedding_success or self.num_processed_v_nodes == len(self.vnr.net.nodes):
         if self.num_processed_v_nodes == len(self.vnr.net.nodes):
-            if self.vnr_idx == len(self.vnrs) - 1:
+            if sum(self.self.v_node_embedding_success) == len(self.vnr.net.nodes):
+                self.vnr_embedding_success_count += 1
+            else:
+                self.vnr_embedding_success_count -= 1
+            if self.vnr_idx == len(self.vnrs) - 1 or self.vnr_embedding_success_count == 3:
                 done = True
                 next_state = A3C_GCN_State(None, None, None, None)
             else:

@@ -27,15 +27,15 @@ class A3C_GCN_VNEAgent(BaselineVNEAgent):
         self.initial_s_bandwidth = []
         self.count_node_mapping = 0
         self.action_count = 0
-        self.eligibility_trace = np.zeros(shape=(100,))
+        self.eligibility_trace = np.zeros(shape=(config.SUBSTRATE_NODES,))
         self.a3c_gcn_agent = A3C_Model(
             chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
         )
         # self.a3c_gcn_agent = MLP_Model(
         #     chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
         # )
-        # self.new_model_path = os.path.join(model_save_path, "A3C_model_0421.pth")
-        # self.a3c_gcn_agent.load_state_dict(torch.load(self.new_model_path))
+        self.new_model_path = os.path.join(model_save_path, "A3C_model_0426.pth")
+        self.a3c_gcn_agent.load_state_dict(torch.load(self.new_model_path))
 
 
     def get_node_action(self, state):
@@ -89,7 +89,7 @@ class A3C_GCN_VNEAgent(BaselineVNEAgent):
         vnr_features.append(current_v_cpu_demand)
         vnr_features.append(sum((vnr.net[current_v_node][link_id]['bandwidth'] for link_id in vnr.net[current_v_node])))
         vnr_features.append(v_pending)
-        vnr_features = torch.tensor(vnr_features).view(1, 3)
+        vnr_features = torch.tensor(vnr_features).view(1, 1, 3)
         # substrate_features.size() --> (100, 5)
         # vnr_features.size()) --> (1, 3)
 

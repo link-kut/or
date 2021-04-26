@@ -54,7 +54,7 @@ class ALGORITHMS(enum.Enum):
 NUM_RUNS = 1
 
 # Each experiment runs ten independent instances while each instance lasts for over 56000 time units
-GLOBAL_MAX_STEPS = 560
+GLOBAL_MAX_STEPS = 5600
 
 TIME_WINDOW_SIZE = 1
 
@@ -106,12 +106,12 @@ RT_TIME_STEP = 100
 FIGURE_START_TIME_STEP = int(GLOBAL_MAX_STEPS * 0.02)
 
 # FOR A3C ALGORITHM
-UPDATE_GLOBAL_ITER = 5
+UPDATE_GLOBAL_ITER = 10
 GAMMA = 0.9
 MAX_EPISODES = 50000
 NUM_SUBSTRATE_FEATURES = 5
 NUM_WORKERS = 2
-NUM_VNR_FOR_TRAIN = 5
+NUM_VNR_FOR_TRAIN = 10
 
 config_parser = configparser.ConfigParser(defaults=None)
 read_ok = config_parser.read(os.path.join(PROJECT_HOME, "common", "config.ini"))

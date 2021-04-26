@@ -66,6 +66,7 @@ class Worker(mp.Process):
             time_step = 0
             while not done:
                 action = self.agent.get_node_action(state)
+                print(action)
                 next_state, reward, done, info = self.env.step(action)
                 # msg = f"[{self.name}:STEP {time_step}:EPISODE {self.global_episode.value}] Action: {action.s_node}, Done: {done}"
                 # print(msg)
@@ -149,7 +150,7 @@ class Worker(mp.Process):
         # pull global parameters
         local_net.load_state_dict(global_net.state_dict())
 
-        new_model_path = os.path.join(model_save_path, "A3C_model_0421.pth")
+        new_model_path = os.path.join(model_save_path, "A3C_model_0426.pth")
         torch.save(global_net.state_dict(), new_model_path)
 
     def record(self, episode_reward):
