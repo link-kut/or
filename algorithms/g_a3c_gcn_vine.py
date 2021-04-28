@@ -34,8 +34,8 @@ class A3C_GCN_VNEAgent(BaselineVNEAgent):
         # self.a3c_gcn_agent = MLP_Model(
         #     chev_conv_state_dim=config.NUM_SUBSTRATE_FEATURES, action_dim=config.SUBSTRATE_NODES
         # )
-        # self.new_model_path = os.path.join(model_save_path, "A3C_model_0426.pth")
-        # self.a3c_gcn_agent.load_state_dict(torch.load(self.new_model_path))
+        self.new_model_path = os.path.join(model_save_path, "A3C_model_0426.pth")
+        self.a3c_gcn_agent.load_state_dict(torch.load(self.new_model_path))
 
 
     def get_node_action(self, state):
