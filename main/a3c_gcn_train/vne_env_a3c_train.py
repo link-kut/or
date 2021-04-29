@@ -248,6 +248,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
                 next_state = A3C_GCN_State(substrate_features, substrate_edge_index, self.current_v_node, vnr_features)
                 self.already_embedded_v_nodes = []
                 self.current_embedding = [0] * len(self.substrate.net.nodes)
+                self.v_node_embedding_success = []
 
         else:
             self.current_v_node, current_v_node_data, _ = self.sorted_v_nodes[self.num_processed_v_nodes]

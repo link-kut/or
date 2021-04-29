@@ -53,7 +53,9 @@ class Worker(mp.Process):
     def run(self):
         time_step = 0
         total_step = 0
-        highest_episode_reward = 0
+        latest_50_episode_rewards = []
+        mean_50_episode_reward = 0
+        previous_50_episode_reward = 0
 
         while self.global_episode.value < config.MAX_EPISODES:
             state = self.env.reset()
@@ -96,10 +98,14 @@ class Worker(mp.Process):
 
                 if done:  # done and print information & global network model save
                     self.record(episode_reward)
-                    if highest_episode_reward <= episode_reward:
-                        new_model_path = os.path.join(config.model_save_path, "A3C_model_0426.pth")
+                    if len(latest_50_episode_rewards) >= 50:
+                        latest_50_episode_rewards.pop(0)
+                    latest_50_episode_rewards.append(episode_reward)
+                    mean_50_episode_reward = sum(latest_50_episode_rewards) / len(latest_50_episode_rewards)
+                    if mean_50_episode_reward >= previous_50_episode_reward:
+                        new_model_path = os.path.join(config.model_save_path, "A3C_model_0429.pth")
                         torch.save(self.global_net.state_dict(), new_model_path)
-                        highest_episode_reward = episode_reward
+                        previous_50_episode_reward = mean_50_episode_reward
 
                 state = next_state
                 time_step += 1
