@@ -60,7 +60,7 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
         self.total_embedded_vnrs = 0
 
         self.substrate = Substrate()
-        self.copied_substrate = copy.deepcopy(self.substrate)
+        # self.copied_substrate = copy.deepcopy(self.substrate)
         self.vnrs = []
         self.vnr_idx = 0
         self.vnr = None
@@ -92,7 +92,8 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
 
         self.num_reset += 1
         # if self.num_reset % 1 == 0:
-        self.substrate = copy.deepcopy(self.copied_substrate)
+        # self.substrate = copy.deepcopy(self.copied_substrate)
+        self.substrate = Substrate()
         self.vnr_idx = 0
         self.vnrs = []
         for idx in range(config.NUM_VNR_FOR_TRAIN):
@@ -104,6 +105,11 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
                     time_step_arrival=0
                 )
             )
+
+        self.vnrs = sorted(
+            self.vnrs, key=lambda vnr: vnr.revenue, reverse=True
+        )
+
         self.vnr = self.vnrs[self.vnr_idx]
         self.v_node_embedding_success = []
         self.vnr_embedding_success_count = []

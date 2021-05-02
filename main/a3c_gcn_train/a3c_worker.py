@@ -103,7 +103,7 @@ class Worker(mp.Process):
                     latest_50_episode_rewards.append(episode_reward)
                     mean_50_episode_reward = sum(latest_50_episode_rewards) / len(latest_50_episode_rewards)
                     if mean_50_episode_reward >= previous_50_episode_reward:
-                        new_model_path = os.path.join(config.model_save_path, "A3C_model_0429.pth")
+                        new_model_path = os.path.join(config.model_save_path, "A3C_model_0502.pth")
                         torch.save(self.global_net.state_dict(), new_model_path)
                         previous_50_episode_reward = mean_50_episode_reward
 
