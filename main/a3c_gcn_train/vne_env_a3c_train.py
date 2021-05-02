@@ -105,11 +105,9 @@ class A3C_GCN_TRAIN_VNEEnvironment(gym.Env):
                     time_step_arrival=0
                 )
             )
-
-        self.vnrs = sorted(
-            self.vnrs, key=lambda vnr: vnr.revenue, reverse=True
-        )
-
+        # self.vnrs = sorted(
+        #     self.vnrs, key=lambda vnr: vnr.revenue, reverse=True
+        # )
         self.vnr = self.vnrs[self.vnr_idx]
         self.v_node_embedding_success = []
         self.vnr_embedding_success_count = []
